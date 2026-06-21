@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "env -u CLERK_SECRET_KEY next dev",
+    "build": "env -u CLERK_SECRET_KEY next build",
     "start": "next start",
     "lint": "eslint"
   },

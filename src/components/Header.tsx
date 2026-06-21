@@ -24,19 +24,6 @@ export default function Header() {
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        {/* Centre: Wordmark */}
-        <div className="absolute left-1/2 -translate-x-1/2">
-          <h1
-            className="text-xl font-black uppercase tracking-[0.3em] text-white select-none"
-            style={{
-              textShadow: '0 0 20px rgba(123,47,247,0.5)',
-              letterSpacing: '0.35em',
-            }}
-          >
-            KEVIN FRASER
-          </h1>
-        </div>
-
         {/* Right: Join + Account */}
         <div className="flex items-center gap-3">
           <button

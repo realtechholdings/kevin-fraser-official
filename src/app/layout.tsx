@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Kevin Fraser Official',
     description: 'Enter the worlds of Kevin Fraser.',
-    images: ['/og-image.jpg'],
+    images: ['https://kevinfraserofficial.com/opengraph-image'],
   },
 }
 
