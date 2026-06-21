@@ -97,6 +97,22 @@ export default function ImageMapLanding() {
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
 
+      {/* Logo — top center */}
+      <img
+        src="/kf-logo.png"
+        alt="Kevin Fraser"
+        style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          height: '60px',
+          width: 'auto',
+          zIndex: 50,
+          pointerEvents: 'none',
+        }}
+      />
+
       {/* Static hero image — always underneath */}
       <img
         src="/kevin-hero.jpeg"
