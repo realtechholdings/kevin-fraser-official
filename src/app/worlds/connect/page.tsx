@@ -37,9 +37,10 @@ export default function ConnectPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A' }}>
+      {/* Ambient background — clean white glow */}
       <div
         className="fixed inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(155,89,182,0.12) 0%, transparent 60%)' }}
+        style={{ background: 'radial-gradient(ellipse 60% 40% at 50% 0%, rgba(240,240,240,0.08) 0%, transparent 60%)' }}
       />
 
       <header className="relative z-10 flex items-center px-6 py-4 border-b border-gray-800">
@@ -57,17 +58,17 @@ export default function ConnectPage() {
           className="w-full max-w-lg"
         >
           <div className="text-center mb-10">
-            <div className="text-5xl mb-4" style={{ filter: 'drop-shadow(0 0 20px #9B59B6)' }}>🌐</div>
-            <h1 className="text-4xl font-black uppercase tracking-widest mb-2 neon-text-violet">Connect</h1>
-            <p className="text-gray-400 text-sm tracking-widest">Contact · Social · Bookings</p>
+            <div className="text-5xl mb-4" style={{ filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.6))' }}>🌐</div>
+            <h1 className="text-4xl font-black uppercase tracking-widest mb-2 neon-text-white">Connect</h1>
+            <p className="text-gray-400 text-sm tracking-widest uppercase">Contact · Subscribe · Inquire</p>
           </div>
 
           <div
             className="rounded-lg p-8"
             style={{
               background: '#111',
-              border: '1px solid rgba(155,89,182,0.3)',
-              boxShadow: '0 0 30px rgba(155,89,182,0.1)',
+              border: '1px solid rgba(240,240,240,0.2)',
+              boxShadow: '0 0 30px rgba(240,240,240,0.06)',
             }}
           >
             {success ? (
@@ -77,8 +78,8 @@ export default function ConnectPage() {
                 <p className="text-gray-400 text-sm">Kevin&apos;s team will be in touch soon. Thanks for reaching out!</p>
                 <button
                   onClick={() => { setSuccess(false); setForm({ name: '', email: '', message: '' }) }}
-                  className="mt-6 px-6 py-2 text-xs font-bold uppercase tracking-widest rounded-sm"
-                  style={{ background: 'rgba(155,89,182,0.2)', border: '1px solid rgba(155,89,182,0.4)', color: '#9B59B6' }}
+                  className="mt-6 px-6 py-2 text-xs font-bold uppercase tracking-widest rounded-sm transition-all"
+                  style={{ background: 'rgba(240,240,240,0.1)', border: '1px solid rgba(240,240,240,0.25)', color: '#F0F0F0' }}
                 >
                   Send Another
                 </button>
@@ -93,7 +94,7 @@ export default function ConnectPage() {
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   required
-                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-white/30"
                   style={{ background: '#1A1A1A', border: '1px solid #333' }}
                 />
                 <input
@@ -102,7 +103,7 @@ export default function ConnectPage() {
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   required
-                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-white/30"
                   style={{ background: '#1A1A1A', border: '1px solid #333' }}
                 />
                 <textarea
@@ -111,7 +112,7 @@ export default function ConnectPage() {
                   onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
                   required
                   rows={5}
-                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-violet-500 resize-none"
+                  className="w-full px-4 py-3 rounded-sm text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-white/30 resize-none"
                   style={{ background: '#1A1A1A', border: '1px solid #333' }}
                 />
 
@@ -122,16 +123,21 @@ export default function ConnectPage() {
                   disabled={loading}
                   className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-widest rounded-sm transition-all disabled:opacity-60"
                   style={{
-                    background: 'linear-gradient(135deg, #9B59B6, #7700aa)',
-                    color: '#fff',
-                    boxShadow: '0 0 20px rgba(155,89,182,0.4)',
+                    background: '#F0F0F0',
+                    color: '#000',
+                    boxShadow: '0 0 20px rgba(240,240,240,0.25)',
                   }}
                 >
-                  {loading ? 'Sending...' : (<><Send size={14} /> Send Message</>)}
+                  {loading ? 'Sending...' : (<><Send size={14} /> Get In Touch</>)}
                 </button>
               </form>
             )}
           </div>
+
+          {/* Info blurb */}
+          <p className="text-center text-gray-600 text-xs mt-6 tracking-wide">
+            Mailing list · Social platforms · Business enquiries · Fan community
+          </p>
         </motion.div>
       </main>
     </div>

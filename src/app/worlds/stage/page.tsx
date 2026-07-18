@@ -3,7 +3,7 @@ import WorldPage from '@/components/WorldPage'
 
 export const metadata: Metadata = {
   title: 'The Stage | Kevin Fraser Official',
-  description: 'Live events, tours, and ticket links for Kevin Fraser.',
+  description: 'Shows, tickets, and upcoming dates for Kevin Fraser.',
 }
 
 export default function StagePage() {
@@ -11,10 +11,12 @@ export default function StagePage() {
     <WorldPage
       emoji="🎭"
       title="The Stage"
-      subtitle="Live Events · Tours · Tickets"
+      subtitle="Shows · Tickets · Upcoming Dates"
       color="#FF6B35"
       neonClass="neon-text-orange"
       description="Where Kevin comes alive. Live performances, headline tours, and unforgettable events. This is where the magic happens in real life."
+      ctaLabel="VIEW TOURS"
+      ctaHref="/"
       comingSoonItems={[
         'Upcoming tour dates',
         'Ticket purchase links',

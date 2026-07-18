@@ -2,25 +2,29 @@ import type { Metadata } from 'next'
 import WorldPage from '@/components/WorldPage'
 
 export const metadata: Metadata = {
-  title: 'Kevin11 | Kevin Fraser Official',
-  description: 'Sports, footy, and community with Kevin Fraser.',
+  title: 'Kevin11 — The Inconvenience Store | Kevin Fraser Official',
+  description: 'Comedy, merch, and random goodies from Kevin Fraser.',
 }
 
 export default function Kevin11Page() {
   return (
     <WorldPage
-      emoji="🔴"
+      emoji="🏪"
       title="Kevin11"
-      subtitle="Sports · Footy · Community"
-      color="#FF2D55"
-      neonClass="neon-text-red"
-      description="The sporting soul of Kevin Fraser. AFL footy passion, community building, sporting commentary, and the competitive spirit that drives everything he does."
+      subtitle="Comedy · Merch · Random Goodies"
+      color="#FFD700"
+      neonClass="neon-text-yellow"
+      worldGuide="Thembi"
+      worldGuideDesc="The till operator who has seen everything and is not impressed."
+      description="The Inconvenience Store. Comedy, merch and random goodies — served up late-night corner store style. Thembi's at the till. She's not impressed."
+      ctaLabel="ENTER STORE"
+      ctaHref="/"
       comingSoonItems={[
-        'Match analysis and commentary',
-        'Community challenges',
-        'Sporting event coverage',
-        'Fan community hub',
-        'Kevin11 merchandise',
+        'Stand-up specials',
+        'Merch drops',
+        'Random goodies',
+        'Comedy clips',
+        'Kevin11 exclusives',
       ]}
     />
   )

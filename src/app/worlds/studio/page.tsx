@@ -3,24 +3,27 @@ import WorldPage from '@/components/WorldPage'
 
 export const metadata: Metadata = {
   title: 'The Studio | Kevin Fraser Official',
-  description: 'Music, production, and creative work from Kevin Fraser.',
+  description: 'Behind the scenes, creative process, and characters from Kevin Fraser.',
 }
 
 export default function StudioPage() {
   return (
     <WorldPage
-      emoji="🎵"
+      emoji="🎬"
       title="The Studio"
-      subtitle="Music · Production · Creative"
-      color="#7B2FF7"
-      neonClass="neon-text-purple"
-      description="The creative core. Original music, production work, and sonic experiments from Kevin Fraser. Where ideas become sound."
+      subtitle="Behind The Scenes · Creative Process · Characters"
+      color="#FF0080"
+      neonClass="neon-text-magenta"
+      worldGuide="Gladys"
+      description="Deep inside the creative machine. Behind-the-scenes access, the creative process laid bare, and the characters that make up Kevin's world."
+      ctaLabel="STEP INSIDE"
+      ctaHref="/"
       comingSoonItems={[
-        'Original music releases',
-        'Production portfolio',
-        'Spotify / Apple Music links',
-        'Studio sessions content',
-        'Collaboration opportunities',
+        'Behind-the-scenes footage',
+        'Creative process deep-dives',
+        'Character profiles',
+        'Mood boards & references',
+        'Gladys-guided tours',
       ]}
     />
   )

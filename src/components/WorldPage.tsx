@@ -12,6 +12,10 @@ interface WorldPageProps {
   neonClass: string
   description: string
   comingSoonItems?: string[]
+  ctaLabel?: string
+  ctaHref?: string
+  worldGuide?: string
+  worldGuideDesc?: string
 }
 
 export default function WorldPage({
@@ -22,6 +26,10 @@ export default function WorldPage({
   neonClass,
   description,
   comingSoonItems = [],
+  ctaLabel,
+  ctaHref = '/',
+  worldGuide,
+  worldGuideDesc,
 }: WorldPageProps) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A' }}>
@@ -76,9 +84,28 @@ export default function WorldPage({
           />
 
           {/* Description */}
-          <p className="text-gray-300 text-base leading-relaxed mb-12 max-w-lg mx-auto">
+          <p className="text-gray-300 text-base leading-relaxed mb-6 max-w-lg mx-auto">
             {description}
           </p>
+
+          {/* World Guide badge */}
+          {worldGuide && (
+            <div
+              className="inline-flex flex-col items-center gap-1 mb-8 px-5 py-3 rounded-sm"
+              style={{
+                background: `${color}11`,
+                border: `1px solid ${color}33`,
+              }}
+            >
+              <span className="text-xs uppercase tracking-widest font-bold" style={{ color }}>
+                World Guide
+              </span>
+              <span className="text-white font-black text-sm tracking-widest uppercase">{worldGuide}</span>
+              {worldGuideDesc && (
+                <span className="text-gray-500 text-xs italic mt-0.5">{worldGuideDesc}</span>
+              )}
+            </div>
+          )}
 
           {/* Coming Soon Card */}
           <div
@@ -112,17 +139,32 @@ export default function WorldPage({
               <p className="text-gray-500 text-sm">Content dropping soon. Stay tuned.</p>
             )}
 
-            <Link
-              href="/"
-              className="mt-6 inline-block px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-all"
-              style={{
-                background: `${color}22`,
-                border: `1px solid ${color}44`,
-                color,
-              }}
-            >
-              Back to All Worlds
-            </Link>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              {ctaLabel && (
+                <Link
+                  href={ctaHref}
+                  className="inline-block px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-all text-center"
+                  style={{
+                    background: color,
+                    color: '#000',
+                    boxShadow: `0 0 16px ${color}66`,
+                  }}
+                >
+                  {ctaLabel}
+                </Link>
+              )}
+              <Link
+                href="/"
+                className="inline-block px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-all text-center"
+                style={{
+                  background: `${color}22`,
+                  border: `1px solid ${color}44`,
+                  color,
+                }}
+              >
+                Back to All Worlds
+              </Link>
+            </div>
           </div>
         </motion.div>
       </main>
