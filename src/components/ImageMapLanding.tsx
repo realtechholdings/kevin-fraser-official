@@ -97,21 +97,74 @@ export default function ImageMapLanding() {
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
 
-      {/* Logo — top center */}
-      <img
-        src="/kf-logo.png"
-        alt="Kevin Fraser"
+      {/* Brand lockup — top center */}
+      <div
+        aria-label="Welcome to the world of Kevin Fraser. Explore. Laugh. Move. Connect."
         style={{
           position: 'fixed',
-          top: '24px',
+          top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
-          height: '60px',
-          width: 'auto',
           zIndex: 50,
           pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
         }}
-      />
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 'clamp(12px, 1.8vw, 18px)',
+            letterSpacing: '0.18em',
+            lineHeight: 1,
+            color: '#C4A35A',
+          }}
+        >
+          Welcome to the World of
+        </p>
+        <p
+          style={{
+            margin: '6px 0 0',
+            fontSize: 'clamp(42px, 9vw, 96px)',
+            letterSpacing: '0.02em',
+            lineHeight: 0.9,
+            color: '#F2F0EB',
+          }}
+        >
+          Kevin Fraser
+        </p>
+        <p
+          style={{
+            margin: '10px 0 0',
+            fontSize: 'clamp(13px, 2vw, 20px)',
+            letterSpacing: '0.16em',
+            lineHeight: 1,
+            color: '#FFFFFF',
+          }}
+        >
+          Explore. Laugh. Move. Connect.
+        </p>
+        <svg
+          width="180"
+          height="10"
+          viewBox="0 0 180 10"
+          fill="none"
+          aria-hidden="true"
+          style={{ marginTop: '8px', width: 'clamp(100px, 16vw, 180px)', height: 'auto' }}
+        >
+          <path
+            d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
+            stroke="#C4A35A"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </div>
 
       {/* Static hero image — always underneath */}
       <img
