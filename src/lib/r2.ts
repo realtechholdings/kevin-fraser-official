@@ -48,7 +48,11 @@ export function bonusFilePath(id: string, kind: 'media' | 'thumbnail' = 'media')
   return kind === 'thumbnail' ? `/api/bonus/${id}/thumbnail` : `/api/bonus/${id}/file`
 }
 
-export function bonusMediaKey(filename: string) {
+export function studioFilePath(id: string, kind: 'media' | 'thumbnail' = 'media') {
+  return kind === 'thumbnail' ? `/api/studio/${id}/thumbnail` : `/api/studio/${id}/file`
+}
+
+export function r2ObjectKey(folder: string, filename: string) {
   const safe = filename
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
@@ -56,10 +60,18 @@ export function bonusMediaKey(filename: string) {
     .replace(/^-|-$/g, '')
   const stamp = Date.now().toString(36)
   const rand = Math.random().toString(36).slice(2, 8)
-  return `bonus/${stamp}-${rand}-${safe || 'media'}`
+  return `${folder}/${stamp}-${rand}-${safe || 'media'}`
 }
 
-export async function createBonusUploadUrl(input: {
+export function bonusMediaKey(filename: string) {
+  return r2ObjectKey('bonus', filename)
+}
+
+export function studioMediaKey(filename: string) {
+  return r2ObjectKey('studio', filename)
+}
+
+export async function createR2UploadUrl(input: {
   key: string
   contentType: string
   expiresIn?: number
@@ -80,13 +92,27 @@ export async function createBonusUploadUrl(input: {
   }
 }
 
-export async function createBonusDownloadUrl(key: string, expiresIn = 60 * 60) {
+/** @deprecated Prefer createR2UploadUrl */
+export async function createBonusUploadUrl(input: {
+  key: string
+  contentType: string
+  expiresIn?: number
+}) {
+  return createR2UploadUrl(input)
+}
+
+export async function createR2DownloadUrl(key: string, expiresIn = 60 * 60) {
   const client = getR2Client()
   const command = new GetObjectCommand({
     Bucket: getR2Bucket(),
     Key: key,
   })
   return getSignedUrl(client, command, { expiresIn })
+}
+
+/** @deprecated Prefer createR2DownloadUrl */
+export async function createBonusDownloadUrl(key: string, expiresIn = 60 * 60) {
+  return createR2DownloadUrl(key, expiresIn)
 }
 
 export async function deleteR2Object(key: string) {

@@ -2,6 +2,8 @@ import type mongoose from 'mongoose'
 import type { TourDocument } from '@/lib/models/Tour'
 import type { ShowDocument } from '@/lib/models/Show'
 import type { BonusContentDocument } from '@/lib/models/BonusContent'
+import type { StudioCategory } from '@/lib/studio/categories'
+import type { StudioContentDocument } from '@/lib/models/StudioContent'
 
 export type PublicTour = {
   id: string
@@ -41,6 +43,24 @@ export type PublicBonusContent = {
   id: string
   title: string
   description: string
+  mediaKey: string
+  mediaUrl: string
+  thumbnailKey: string
+  thumbnailUrl: string
+  mimeType: string
+  sizeBytes: number
+  sortOrder: number
+  featured: boolean
+  published: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type PublicStudioContent = {
+  id: string
+  title: string
+  description: string
+  category: StudioCategory
   mediaKey: string
   mediaUrl: string
   thumbnailKey: string
@@ -109,6 +129,26 @@ export function serializeBonusContent(item: BonusContentDocument): PublicBonusCo
     id: String(item._id),
     title: item.title,
     description: item.description || '',
+    mediaKey: item.mediaKey,
+    mediaUrl: item.mediaUrl,
+    thumbnailKey: item.thumbnailKey || '',
+    thumbnailUrl: item.thumbnailUrl || '',
+    mimeType: item.mimeType,
+    sizeBytes: item.sizeBytes || 0,
+    sortOrder: item.sortOrder || 0,
+    featured: Boolean(item.featured),
+    published: Boolean(item.published),
+    createdAt: new Date(item.createdAt).toISOString(),
+    updatedAt: new Date(item.updatedAt).toISOString(),
+  }
+}
+
+export function serializeStudioContent(item: StudioContentDocument): PublicStudioContent {
+  return {
+    id: String(item._id),
+    title: item.title,
+    description: item.description || '',
+    category: item.category as StudioCategory,
     mediaKey: item.mediaKey,
     mediaUrl: item.mediaUrl,
     thumbnailKey: item.thumbnailKey || '',
