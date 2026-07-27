@@ -12,11 +12,12 @@ import {
 } from 'lucide-react'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
-import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
+import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
 import { cn } from '@/lib/utils'
 
-type Tab = 'overview' | 'tours' | 'shows'
+type Tab = AdminTab
 
 type TourForm = {
   title: string
@@ -403,7 +404,9 @@ export default function AdminPortal() {
       ? { title: 'Overview', subtitle: 'Tours, shows, and ticket inventory at a glance' }
       : tab === 'tours'
         ? { title: 'Tours', subtitle: 'Create and feature headline tours' }
-        : { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
+        : tab === 'shows'
+          ? { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
+          : { title: 'Bonus Content', subtitle: 'Upload exclusive Showreel clips to Cloudflare R2' }
 
   return (
     <div className="admin-app">
@@ -415,7 +418,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'bonus'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -429,7 +432,7 @@ export default function AdminPortal() {
                 )}
                 style={{ width: 'auto' }}
               >
-                {id}
+                {id === 'bonus' ? 'Bonus' : id}
               </button>
             ))}
           </div>
@@ -996,6 +999,19 @@ export default function AdminPortal() {
                 </div>
               )}
             </div>
+          ) : null}
+
+          {tab === 'bonus' ? (
+            <BonusAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
           ) : null}
           </div>
         </main>

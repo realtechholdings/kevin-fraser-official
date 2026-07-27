@@ -1,52 +1,62 @@
 import { NextResponse } from 'next/server'
-import {
-  fetchFacebookShowreel,
-  fetchInstagramShowreel,
-  fetchYouTubeShowreel,
-} from '@/lib/showreel/feeds'
+import dbConnect from '@/lib/db'
+import BonusContent from '@/lib/models/BonusContent'
+import { fetchYouTubeShowreel } from '@/lib/showreel/feeds'
+import { serializeBonusContent } from '@/lib/serialize'
+import { bonusFilePath, publicUrlForKey } from '@/lib/r2'
+import type { ShowreelItem } from '@/lib/showreel/feeds'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const [youtube, instagram, facebook] = await Promise.allSettled([
-    fetchYouTubeShowreel(),
-    fetchInstagramShowreel(),
-    fetchFacebookShowreel(),
-  ])
-
   const errors: Record<string, string> = {}
+
+  const [youtube, bonusResult] = await Promise.allSettled([
+    fetchYouTubeShowreel(),
+    (async () => {
+      await dbConnect()
+      return BonusContent.find({ published: true }).sort({ sortOrder: 1, createdAt: -1 })
+    })(),
+  ])
 
   const yt = youtube.status === 'fulfilled' ? youtube.value : []
   if (youtube.status === 'rejected') {
-    errors.youtube = youtube.reason instanceof Error ? youtube.reason.message : 'YouTube failed'
+    errors.reels = youtube.reason instanceof Error ? youtube.reason.message : 'YouTube failed'
   }
 
-  const ig = instagram.status === 'fulfilled' ? instagram.value : []
-  if (instagram.status === 'rejected') {
-    errors.instagram =
-      instagram.reason instanceof Error ? instagram.reason.message : 'Instagram failed'
-  }
-
-  const fb = facebook.status === 'fulfilled' ? facebook.value : []
-  if (facebook.status === 'rejected') {
-    errors.facebook =
-      facebook.reason instanceof Error ? facebook.reason.message : 'Facebook failed'
+  let bonusItems: ShowreelItem[] = []
+  if (bonusResult.status === 'fulfilled') {
+    bonusItems = bonusResult.value.map((item) => {
+      const serialized = serializeBonusContent(item)
+      const mediaPublic = publicUrlForKey(serialized.mediaKey)
+      const thumbPublic = serialized.thumbnailKey ? publicUrlForKey(serialized.thumbnailKey) : ''
+      return {
+        id: serialized.id,
+        source: 'bonus' as const,
+        title: serialized.title,
+        url: mediaPublic || bonusFilePath(serialized.id, 'media'),
+        thumbnail: thumbPublic || (serialized.thumbnailKey ? bonusFilePath(serialized.id, 'thumbnail') : ''),
+        publishedAt: serialized.createdAt,
+        kind: 'bonus' as const,
+        description: serialized.description,
+        mimeType: serialized.mimeType,
+        views: null,
+      }
+    })
+  } else {
+    errors.bonus =
+      bonusResult.reason instanceof Error ? bonusResult.reason.message : 'Bonus content failed'
   }
 
   return NextResponse.json({
     success: true,
     sources: {
-      youtube: {
+      reels: {
         profile: 'https://www.youtube.com/channel/UCC6E2S7huJK1jwnaTpqJuPg',
         items: yt,
       },
-      instagram: {
-        profile: 'https://www.instagram.com/kevinfraserofficial/',
-        items: ig,
-      },
-      facebook: {
-        profile: 'https://www.facebook.com/kevinfraserofficial/',
-        items: fb,
+      bonus: {
+        items: bonusItems,
       },
     },
     errors: Object.keys(errors).length ? errors : undefined,

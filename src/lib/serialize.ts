@@ -1,6 +1,7 @@
 import type mongoose from 'mongoose'
 import type { TourDocument } from '@/lib/models/Tour'
 import type { ShowDocument } from '@/lib/models/Show'
+import type { BonusContentDocument } from '@/lib/models/BonusContent'
 
 export type PublicTour = {
   id: string
@@ -34,6 +35,23 @@ export type PublicShow = {
   featured: boolean
   published: boolean
   externalTicketUrl: string
+}
+
+export type PublicBonusContent = {
+  id: string
+  title: string
+  description: string
+  mediaKey: string
+  mediaUrl: string
+  thumbnailKey: string
+  thumbnailUrl: string
+  mimeType: string
+  sizeBytes: number
+  sortOrder: number
+  featured: boolean
+  published: boolean
+  createdAt: string
+  updatedAt: string
 }
 
 export function serializeTour(tour: TourDocument): PublicTour {
@@ -83,5 +101,24 @@ export function serializeShow(
     featured: Boolean(show.featured),
     published: Boolean(show.published),
     externalTicketUrl: show.externalTicketUrl || '',
+  }
+}
+
+export function serializeBonusContent(item: BonusContentDocument): PublicBonusContent {
+  return {
+    id: String(item._id),
+    title: item.title,
+    description: item.description || '',
+    mediaKey: item.mediaKey,
+    mediaUrl: item.mediaUrl,
+    thumbnailKey: item.thumbnailKey || '',
+    thumbnailUrl: item.thumbnailUrl || '',
+    mimeType: item.mimeType,
+    sizeBytes: item.sizeBytes || 0,
+    sortOrder: item.sortOrder || 0,
+    featured: Boolean(item.featured),
+    published: Boolean(item.published),
+    createdAt: new Date(item.createdAt).toISOString(),
+    updatedAt: new Date(item.updatedAt).toISOString(),
   }
 }

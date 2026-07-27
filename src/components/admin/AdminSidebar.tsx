@@ -1,23 +1,24 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarDays, LayoutDashboard, Ticket, ExternalLink } from 'lucide-react'
+import { CalendarDays, Film, LayoutDashboard, Ticket, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type Tab = 'overview' | 'tours' | 'shows'
+export type AdminTab = 'overview' | 'tours' | 'shows' | 'bonus'
 
-const nav: { id: Tab; name: string; icon: typeof LayoutDashboard }[] = [
+const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
   { id: 'tours', name: 'Tours', icon: Ticket },
   { id: 'shows', name: 'Shows', icon: CalendarDays },
+  { id: 'bonus', name: 'Bonus Content', icon: Film },
 ]
 
 export default function AdminSidebar({
   tab,
   onTabChange,
 }: {
-  tab: Tab
-  onTabChange: (tab: Tab) => void
+  tab: AdminTab
+  onTabChange: (tab: AdminTab) => void
 }) {
   return (
     <aside className="admin-sidebar hidden h-full w-64 shrink-0 flex-col md:flex">
@@ -70,6 +71,14 @@ export default function AdminSidebar({
         >
           <ExternalLink className="h-4 w-4" />
           View Stage
+        </Link>
+        <Link
+          href="/worlds/showreel"
+          className="admin-nav-item"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+        >
+          <ExternalLink className="h-4 w-4" />
+          View Showreel
         </Link>
         <div className="flex items-center gap-2 px-3 pt-1">
           <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />

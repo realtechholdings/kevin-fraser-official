@@ -3,31 +3,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ArrowLeft,
-  ExternalLink,
-  Play,
-  X,
-} from 'lucide-react'
+import { ArrowLeft, ExternalLink, Play, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { ShowreelItem } from '@/lib/showreel/feeds'
 
-type Tab = 'youtube' | 'instagram' | 'facebook'
+type Tab = 'reels' | 'bonus'
 
 type FeedPayload = {
   success: boolean
   sources: {
-    youtube: { profile: string; items: ShowreelItem[] }
-    instagram: { profile: string; items: ShowreelItem[] }
-    facebook: { profile: string; items: ShowreelItem[] }
+    reels: { profile: string; items: ShowreelItem[] }
+    bonus: { items: ShowreelItem[] }
   }
   errors?: Record<string, string>
 }
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'youtube', label: 'YouTube' },
-  { id: 'instagram', label: 'Instagram' },
-  { id: 'facebook', label: 'Facebook' },
+  { id: 'reels', label: 'Reels' },
+  { id: 'bonus', label: 'Bonus Content' },
 ]
 
 function youtubeEmbed(url: string) {
@@ -38,13 +31,8 @@ function youtubeEmbed(url: string) {
   return `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`
 }
 
-function instagramEmbed(url: string) {
-  const clean = url.split('?')[0].replace(/\/$/, '')
-  return `${clean}/embed`
-}
-
 export default function ShowreelPageClient() {
-  const [tab, setTab] = useState<Tab>('youtube')
+  const [tab, setTab] = useState<Tab>('reels')
   const [data, setData] = useState<FeedPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -85,7 +73,7 @@ export default function ShowreelPageClient() {
     return data.sources[tab].items
   }, [data, tab])
 
-  const profile = data?.sources[tab].profile
+  const profile = tab === 'reels' ? data?.sources.reels.profile : undefined
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
@@ -125,7 +113,7 @@ export default function ShowreelPageClient() {
           className="mb-10 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-10"
         >
           <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#2f6fed' }}>
-            Clips · Reels · Shorts
+            Clips · Extras
           </p>
           <h1
             className="text-5xl uppercase leading-[0.92] sm:text-7xl"
@@ -134,8 +122,8 @@ export default function ShowreelPageClient() {
             The Showreel
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
-            Latest shorts and posts from Kevin&apos;s YouTube, Instagram, and Facebook — pulled live
-            from his channels.
+            Reels from Kevin&apos;s YouTube, plus exclusive bonus clips uploaded for the official
+            site.
           </p>
         </motion.section>
 
@@ -165,7 +153,7 @@ export default function ShowreelPageClient() {
               rel="noopener noreferrer"
               className="ml-auto inline-flex items-center gap-2 text-sm text-[var(--foreground-muted)] hover:text-[var(--foreground)]"
             >
-              Open profile <ExternalLink className="h-3.5 w-3.5" />
+              Open YouTube <ExternalLink className="h-3.5 w-3.5" />
             </a>
           ) : null}
         </div>
@@ -181,52 +169,12 @@ export default function ShowreelPageClient() {
 
         {data?.errors?.[tab] ? (
           <div className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--foreground-muted)]">
-            Couldn&apos;t refresh {tab} right now: {data.errors[tab]}
+            Couldn&apos;t refresh {tab === 'reels' ? 'reels' : 'bonus content'} right now:{' '}
+            {data.errors[tab]}
           </div>
         ) : null}
 
-        {tab === 'facebook' ? (
-          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
-              <div className="overflow-hidden rounded-xl bg-white">
-                <iframe
-                  title="Kevin Fraser Facebook"
-                  src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fkevinfraserofficial&tabs=timeline&width=500&height=760&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true"
-                  width="100%"
-                  height="760"
-                  style={{ border: 'none', overflow: 'hidden', display: 'block' }}
-                  scrolling="no"
-                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                />
-              </div>
-            </div>
-            <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-7">
-              <h2 className="text-xl font-semibold">Follow on Facebook</h2>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--foreground-muted)]">
-                Live timeline from{' '}
-                <a
-                  href="https://www.facebook.com/kevinfraserofficial/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  facebook.com/kevinfraserofficial
-                </a>
-                . Facebook doesn&apos;t publish a public reel feed without a Meta app token, so this
-                embeds the official page plugin instead of a scraped grid.
-              </p>
-              <a
-                href="https://www.facebook.com/kevinfraserofficial/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
-                style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
-              >
-                Open Facebook
-              </a>
-            </div>
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
@@ -237,7 +185,9 @@ export default function ShowreelPageClient() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
-            No {tab} clips available right now.
+            {tab === 'reels'
+              ? 'No reels available right now.'
+              : 'No bonus content yet — check back soon.'}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -260,8 +210,8 @@ export default function ShowreelPageClient() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-sm text-[var(--foreground-subtle)]">
-                      {item.source}
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#0b1c3a] to-[#02060f] text-sm text-white/60">
+                      {item.source === 'bonus' ? 'Bonus' : 'Reel'}
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
@@ -319,14 +269,27 @@ export default function ShowreelPageClient() {
                     allowFullScreen
                   />
                 </div>
-              ) : active.source === 'instagram' ? (
-                <div className="min-h-[70vh] w-full bg-black">
-                  <iframe
-                    title={active.title}
-                    src={instagramEmbed(active.url)}
-                    className="h-[70vh] w-full"
-                    allow="autoplay; encrypted-media"
-                  />
+              ) : active.source === 'bonus' ? (
+                <div className="bg-black">
+                  {active.mimeType?.startsWith('image/') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={active.url} alt={active.title} className="max-h-[80vh] w-full object-contain" />
+                  ) : (
+                    <video
+                      src={active.url}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="max-h-[80vh] w-full"
+                      poster={active.thumbnail || undefined}
+                    />
+                  )}
+                  <div className="border-t border-white/10 px-5 py-4 text-white">
+                    <p className="font-medium">{active.title}</p>
+                    {active.description ? (
+                      <p className="mt-1 text-sm text-white/60">{active.description}</p>
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 text-center text-white">
@@ -337,7 +300,7 @@ export default function ShowreelPageClient() {
                     rel="noopener noreferrer"
                     className="inline-flex rounded-full bg-white px-5 py-2 text-sm font-semibold text-black"
                   >
-                    Open on {active.source}
+                    Open clip
                   </a>
                 </div>
               )}
