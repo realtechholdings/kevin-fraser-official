@@ -12,27 +12,31 @@ const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 
 async function uploadAvatar(file: File) {
-  const presignRes = await fetch('/api/admin/settings/presign', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      filename: file.name,
-      contentType: file.type || 'image/jpeg',
-    }),
-  })
-  const presign = await presignRes.json()
-  if (!presignRes.ok) throw new Error(presign.error || 'Failed to get upload URL')
+  const form = new FormData()
+  form.append('file', file)
 
-  const putRes = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'image/jpeg' },
-    body: file,
+  const res = await fetch('/api/admin/settings/avatar', {
+    method: 'POST',
+    body: form,
   })
-  if (!putRes.ok) throw new Error('Upload to Cloudflare R2 failed')
+
+  let data: { success?: boolean; error?: string; key?: string; publicUrl?: string } = {}
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(
+      res.ok
+        ? 'Avatar upload returned an invalid response.'
+        : `Avatar upload failed (${res.status}).`,
+    )
+  }
+
+  if (!res.ok) throw new Error(data.error || 'Avatar upload failed')
+  if (!data.key) throw new Error('Avatar upload did not return a storage key.')
 
   return {
-    key: presign.key as string,
-    publicUrl: (presign.publicUrl as string) || '/api/settings/avatar',
+    key: data.key,
+    publicUrl: data.publicUrl || '/api/settings/avatar',
   }
 }
 
@@ -99,14 +103,25 @@ export default function AIKevAdminPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ai: next }),
       })
-      const data = await res.json()
+
+      let data: { success?: boolean; error?: string; settings?: { ai: AISettings } } = {}
+      try {
+        data = await res.json()
+      } catch {
+        throw new Error(`Save failed (${res.status}). Try again.`)
+      }
       if (!res.ok) throw new Error(data.error || 'Save failed')
-      setAi(data.settings.ai)
-      setPreviewUrl(data.settings.ai.avatarUrl || '')
+      setAi(data.settings!.ai)
+      setPreviewUrl(data.settings!.ai.avatarUrl || '')
       setAvatarFile(null)
       onMessage('AI Kev settings saved.')
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Save failed')
+      const message = err instanceof Error ? err.message : 'Save failed'
+      onError(
+        message === 'Failed to fetch'
+          ? 'Network error while saving. If you selected an avatar, check R2 bucket permissions; otherwise refresh and try again.'
+          : message,
+      )
     } finally {
       setBusy(false)
     }

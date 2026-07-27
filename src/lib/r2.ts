@@ -75,6 +75,26 @@ export function settingsMediaKey(filename: string) {
   return r2ObjectKey('settings', filename)
 }
 
+export async function putR2Object(input: {
+  key: string
+  body: Buffer
+  contentType: string
+}) {
+  const client = getR2Client()
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getR2Bucket(),
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+    }),
+  )
+  return {
+    key: input.key,
+    publicUrl: publicUrlForKey(input.key),
+  }
+}
+
 export async function createR2UploadUrl(input: {
   key: string
   contentType: string
