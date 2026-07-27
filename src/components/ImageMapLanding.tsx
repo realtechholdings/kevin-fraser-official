@@ -203,6 +203,58 @@ export default function ImageMapLanding() {
           )
         })}
       </div>
+
+      {/* Legal links — middle bottom */}
+      <nav
+        aria-label="Legal"
+        style={{
+          position: 'fixed',
+          bottom: 'max(12px, env(safe-area-inset-bottom))',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 50,
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px 14px',
+          maxWidth: 'calc(100vw - 2rem)',
+          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+          textTransform: 'uppercase',
+          fontSize: 'clamp(10px, 1.2vw, 12px)',
+          letterSpacing: '0.14em',
+        }}
+      >
+        {[
+          { href: '/terms', label: 'Terms of Service' },
+          { href: '/refund-policy', label: 'Refund Policy' },
+          { href: '/privacy', label: 'Privacy' },
+        ].map((link, i) => (
+          <span key={link.href} style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
+            {i > 0 ? (
+              <span aria-hidden="true" style={{ color: 'rgba(196,163,90,0.55)' }}>
+                ·
+              </span>
+            ) : null}
+            <Link
+              href={link.href}
+              style={{
+                color: 'rgba(242,240,235,0.72)',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#C4A35A'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
+              }}
+            >
+              {link.label}
+            </Link>
+          </span>
+        ))}
+      </nav>
     </div>
   )
 }
