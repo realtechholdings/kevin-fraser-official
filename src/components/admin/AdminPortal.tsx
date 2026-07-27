@@ -16,6 +16,8 @@ import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
 import StudioAdminPanel from '@/components/admin/StudioAdminPanel'
+import ThemeAdminPanel from '@/components/admin/ThemeAdminPanel'
+import AIKevAdminPanel from '@/components/admin/AIKevAdminPanel'
 import { cn } from '@/lib/utils'
 
 type Tab = AdminTab
@@ -409,7 +411,11 @@ export default function AdminPortal() {
           ? { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
           : tab === 'bonus'
             ? { title: 'Bonus Content', subtitle: 'Upload exclusive Showreel clips to Cloudflare R2' }
-            : { title: 'The Studio', subtitle: 'Behind the scenes, characters, and creative process' }
+            : tab === 'studio'
+              ? { title: 'The Studio', subtitle: 'Behind the scenes, characters, and creative process' }
+              : tab === 'theme'
+                ? { title: 'Theme', subtitle: 'Site accent colours for light and dark mode' }
+                : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
 
   return (
     <div className="admin-app">
@@ -421,7 +427,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'bonus', 'studio'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'bonus', 'studio', 'theme', 'ai'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -435,7 +441,13 @@ export default function AdminPortal() {
                 )}
                 style={{ width: 'auto' }}
               >
-                {id === 'bonus' ? 'Bonus' : id === 'studio' ? 'Studio' : id}
+                {id === 'bonus'
+                  ? 'Bonus'
+                  : id === 'studio'
+                    ? 'Studio'
+                    : id === 'ai'
+                      ? 'AI Kev'
+                      : id}
               </button>
             ))}
           </div>
@@ -1019,6 +1031,32 @@ export default function AdminPortal() {
 
           {tab === 'studio' ? (
             <StudioAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'theme' ? (
+            <ThemeAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'ai' ? (
+            <AIKevAdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

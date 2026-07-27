@@ -1,10 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { CalendarDays, Clapperboard, Film, LayoutDashboard, Ticket, ExternalLink } from 'lucide-react'
+import {
+  Bot,
+  CalendarDays,
+  Clapperboard,
+  Film,
+  LayoutDashboard,
+  Palette,
+  Ticket,
+  ExternalLink,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type AdminTab = 'overview' | 'tours' | 'shows' | 'bonus' | 'studio'
+export type AdminTab = 'overview' | 'tours' | 'shows' | 'bonus' | 'studio' | 'theme' | 'ai'
 
 const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
@@ -12,6 +21,8 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'shows', name: 'Shows', icon: CalendarDays },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
+  { id: 'theme', name: 'Theme', icon: Palette },
+  { id: 'ai', name: 'AI Kev', icon: Bot },
 ]
 
 export default function AdminSidebar({

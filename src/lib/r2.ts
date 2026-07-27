@@ -71,6 +71,10 @@ export function studioMediaKey(filename: string) {
   return r2ObjectKey('studio', filename)
 }
 
+export function settingsMediaKey(filename: string) {
+  return r2ObjectKey('settings', filename)
+}
+
 export async function createR2UploadUrl(input: {
   key: string
   contentType: string

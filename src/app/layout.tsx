@@ -5,6 +5,7 @@ import './globals.css'
 import AIGuide from '@/components/AIGuide'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { ThemeScript } from '@/components/theme/theme-script'
+import SiteThemeApplicator from '@/components/theme/SiteThemeApplicator'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
@@ -42,6 +43,7 @@ export default function RootLayout({
         </head>
         <body className={inter.className}>
           <ThemeProvider>
+            <SiteThemeApplicator />
             {children}
             <AIGuide />
           </ThemeProvider>
