@@ -406,7 +406,7 @@ export default function AdminPortal() {
         : { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
 
   return (
-    <div className="admin-app flex overflow-hidden">
+    <div className="admin-app">
       <AdminSidebar tab={tab} onTabChange={(next) => { setTab(next); setShowFormPanel(false) }} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
