@@ -10,80 +10,64 @@ export default async function DashboardPage() {
   const user = await currentUser()
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A' }}>
-      {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-        <Link href="/" className="text-sm font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">
-          ← KEVIN FRASER
-        </Link>
-        <UserButton />
+    <div className="min-h-screen overflow-y-auto bg-slate-100 text-slate-900">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
+          <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+            ← Kevin Fraser
+          </Link>
+          <UserButton />
+        </div>
       </header>
 
-      {/* Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6">
-        <div
-          className="w-full max-w-lg rounded-lg p-8"
-          style={{
-            background: '#111',
-            border: '1px solid rgba(123,47,247,0.2)',
-            boxShadow: '0 0 40px rgba(123,47,247,0.1)',
-          }}
-        >
-          <h1
-            className="text-2xl font-black uppercase tracking-widest mb-2"
-            style={{
-              color: '#7B2FF7',
-              textShadow: '0 0 20px rgba(123,47,247,0.5)',
-            }}
-          >
-            Dashboard
-          </h1>
+      <main className="mx-auto flex max-w-3xl justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-lg rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-500">Your account overview</p>
 
           <div className="mt-6 space-y-4">
             <div className="flex items-center gap-3">
               {user?.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.imageUrl} alt="Avatar" className="w-12 h-12 rounded-full" />
+                <img src={user.imageUrl} alt="Avatar" className="h-12 w-12 rounded-full" />
               ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center text-lg">
-                  👤
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-medium text-slate-500">
+                  {(user?.firstName?.[0] || user?.emailAddresses?.[0]?.emailAddress?.[0] || '?').toUpperCase()}
                 </div>
               )}
               <div>
-                <p className="text-white font-semibold">
+                <p className="font-medium text-slate-900">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-gray-500 text-sm">
+                <p className="text-sm text-slate-500">
                   {user?.emailAddresses?.[0]?.emailAddress}
                 </p>
               </div>
             </div>
 
-            <div
-              className="rounded-lg p-4"
-              style={{ background: '#1A1A1A', border: '1px solid #2A2A2A' }}
-            >
-              <p className="text-gray-400 text-sm">Member since</p>
-              <p className="text-white text-sm font-semibold mt-1">
-                {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-AU', {
-                  year: 'numeric', month: 'long', day: 'numeric'
-                }) : 'Today'}
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Member since</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                {user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString('en-AU', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  : 'Today'}
               </p>
             </div>
 
-            <div
-              className="rounded-lg p-4"
-              style={{ background: '#1A1A1A', border: '1px solid #2A2A2A' }}
-            >
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-2">Account Status</p>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400" style={{ boxShadow: '0 0 6px #4ade80' }} />
-                <span className="text-green-400 text-sm font-semibold">Active</span>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Account status</p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <span className="text-sm font-medium text-emerald-700">Active</span>
               </div>
             </div>
 
-            <p className="text-gray-600 text-xs text-center mt-4">
-              More dashboard features coming soon — you&apos;re in early!
+            <p className="pt-2 text-center text-xs text-slate-400">
+              More dashboard features coming soon.
             </p>
           </div>
         </div>
