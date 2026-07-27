@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 
@@ -25,34 +26,46 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
   const countries = Array.from(new Set(shows.map((s) => s.country)))
 
   return (
-    <div className="min-h-screen overflow-y-auto" style={{ background: '#07070b' }}>
-      <div
-        className="pointer-events-none fixed inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,107,53,0.18), transparent 55%), radial-gradient(ellipse 50% 40% at 100% 20%, rgba(123,47,247,0.12), transparent 50%)',
-        }}
-      />
-
-      <header className="relative z-10 flex items-center justify-between px-5 sm:px-8 py-5 border-b border-white/5">
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors text-sm"
-        >
-          <ArrowLeft size={16} />
-          <span
-            className="uppercase tracking-[0.22em] text-xs"
-            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+    <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      <header
+        className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"
+        style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
+      >
+        <div className="mx-auto flex max-w-5xl items-center justify-between py-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
           >
-            Kevin Fraser
-          </span>
-        </Link>
-        <span className="text-[10px] uppercase tracking-[0.28em] text-zinc-500">The Stage</span>
+            <ArrowLeft size={16} />
+            <span
+              className="text-xs uppercase tracking-[0.22em]"
+              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+            >
+              Kevin Fraser
+            </span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[10px] uppercase tracking-[0.28em] text-[var(--foreground-subtle)] sm:inline">
+              The Stage
+            </span>
+            <ThemeToggle />
+          </div>
+        </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-5xl px-5 sm:px-8 pb-24 pt-10 sm:pt-14">
+      <main
+        className="mx-auto w-full max-w-5xl pb-24 pt-10 sm:pt-14"
+        style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
+      >
         {cancelled ? (
-          <div className="mb-8 rounded-sm border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <div
+            className="mb-8 rounded-2xl border px-5 py-4 text-sm"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--accent) 35%, transparent)',
+              background: 'var(--accent-soft)',
+              color: 'var(--accent)',
+            }}
+          >
             Checkout cancelled — your tickets were not purchased.
           </div>
         ) : null}
@@ -61,37 +74,37 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
-          className="mb-14"
+          className="mb-12 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:mb-16 sm:p-10"
         >
-          <p className="mb-3 text-[11px] uppercase tracking-[0.35em] text-[#FF6B35]">Live dates</p>
+          <p
+            className="mb-3 text-[11px] uppercase tracking-[0.35em]"
+            style={{ color: 'var(--accent)' }}
+          >
+            Live dates
+          </p>
           <h1
-            className="text-5xl sm:text-7xl leading-[0.9] uppercase text-white"
+            className="max-w-3xl text-5xl leading-[0.92] uppercase sm:text-7xl"
             style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
           >
             {featuredTour ? featuredTour.title : 'Upcoming Shows'}
           </h1>
           {featuredTour?.subtitle ? (
-            <p className="mt-4 text-sm uppercase tracking-[0.25em] text-zinc-400">
+            <p className="mt-4 text-sm uppercase tracking-[0.25em] text-[var(--foreground-muted)]">
               {featuredTour.subtitle}
             </p>
           ) : null}
-          {featuredTour?.description ? (
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-300">
-              {featuredTour.description}
-            </p>
-          ) : (
-            <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-300">
-              Tour dates and tickets. New cities drop here first.
-            </p>
-          )}
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
+            {featuredTour?.description ||
+              'Tour dates and tickets. New cities drop here first.'}
+          </p>
         </motion.section>
 
         {shows.length === 0 ? (
-          <div className="border border-white/10 bg-white/[0.02] px-6 py-16 text-center">
-            <p className="text-zinc-400">New dates dropping soon.</p>
+          <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
+            New dates dropping soon.
           </div>
         ) : (
-          <div className="space-y-12">
+          <div className="space-y-8 sm:space-y-10">
             {countries.map((country, countryIndex) => {
               const countryShows = shows.filter((s) => s.country === country)
               return (
@@ -100,20 +113,21 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, delay: 0.08 * countryIndex }}
+                  className="overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)]"
                 >
-                  <div className="mb-5 flex items-end justify-between gap-4 border-b border-white/10 pb-3">
+                  <div className="flex items-end justify-between gap-4 border-b border-[var(--border)] px-5 py-5 sm:px-7">
                     <h2
-                      className="text-3xl uppercase tracking-wide text-white"
+                      className="text-3xl uppercase tracking-wide"
                       style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
                     >
                       {country}
                     </h2>
-                    <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+                    <span className="text-[10px] uppercase tracking-[0.25em] text-[var(--foreground-subtle)]">
                       {countryShows.length} shows
                     </span>
                   </div>
 
-                  <ul className="divide-y divide-white/8">
+                  <ul className="divide-y divide-[var(--border)]">
                     {countryShows.map((show) => {
                       const d = formatShowDate(show.date)
                       const soldOut = show.status === 'sold_out'
@@ -124,58 +138,70 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                       return (
                         <li
                           key={show.id}
-                          className="group grid grid-cols-[72px_1fr] sm:grid-cols-[88px_1fr_auto] gap-4 sm:gap-6 py-5 items-center"
+                          className="grid grid-cols-[72px_1fr] items-center gap-4 px-5 py-6 sm:grid-cols-[88px_1fr_auto] sm:gap-6 sm:px-7"
                         >
                           <div className="text-center">
-                            <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+                            <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
                               {d.month}
                             </div>
                             <div
-                              className="text-4xl leading-none text-white"
+                              className="text-4xl leading-none"
                               style={{
                                 fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
                               }}
                             >
                               {d.day}
                             </div>
-                            <div className="mt-1 text-[10px] uppercase tracking-widest text-zinc-600">
+                            <div className="mt-1 text-[10px] uppercase tracking-widest text-[var(--foreground-subtle)]">
                               {d.weekday}
                             </div>
                           </div>
 
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-lg sm:text-xl font-semibold text-white truncate">
+                              <h3 className="truncate text-lg font-semibold sm:text-xl">
                                 {show.city}
                               </h3>
                               {show.featured ? (
-                                <span className="text-[9px] uppercase tracking-[0.2em] px-2 py-0.5 border border-[#FF6B35]/50 text-[#FF6B35]">
+                                <span
+                                  className="rounded-full px-2.5 py-0.5 text-[9px] uppercase tracking-[0.2em]"
+                                  style={{
+                                    background: 'var(--accent-soft)',
+                                    color: 'var(--accent)',
+                                  }}
+                                >
                                   Featured
                                 </span>
                               ) : null}
                               {badge ? (
                                 <span
-                                  className="text-[9px] uppercase tracking-[0.2em] px-2 py-0.5"
+                                  className="rounded-full px-2.5 py-0.5 text-[9px] uppercase tracking-[0.2em]"
                                   style={{
-                                    background: soldOut ? 'rgba(255,45,85,0.15)' : 'rgba(255,255,255,0.06)',
-                                    color: soldOut ? '#FF2D55' : '#aaa',
+                                    background: soldOut
+                                      ? 'var(--danger-soft)'
+                                      : 'var(--surface-muted)',
+                                    color: soldOut
+                                      ? 'var(--danger)'
+                                      : 'var(--foreground-muted)',
                                   }}
                                 >
                                   {badge}
                                 </span>
                               ) : null}
                             </div>
-                            <p className="mt-1 text-sm text-zinc-300">{show.venue}</p>
-                            <p className="mt-0.5 text-xs text-zinc-500">
+                            <p className="mt-1 text-sm text-[var(--foreground-muted)]">
+                              {show.venue}
+                            </p>
+                            <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">
                               {[show.address, show.showTime].filter(Boolean).join(' · ')}
                             </p>
-                            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-zinc-400 sm:hidden">
+                            <p className="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--foreground-muted)] sm:hidden">
                               {formatPrice(show.priceCents, show.currency)}
                             </p>
                           </div>
 
-                          <div className="col-span-2 sm:col-span-1 flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
-                            <span className="hidden sm:block text-sm text-zinc-300">
+                          <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-center">
+                            <span className="hidden text-sm text-[var(--foreground-muted)] sm:block">
                               {formatPrice(show.priceCents, show.currency)}
                             </span>
                             <TicketButton
@@ -195,9 +221,9 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
         )}
 
         {tours.length > 1 ? (
-          <section className="mt-16 border-t border-white/10 pt-10">
+          <section className="mt-12 border-t border-[var(--border)] pt-10 sm:mt-16">
             <h2
-              className="mb-6 text-2xl uppercase tracking-wide text-white"
+              className="mb-6 text-2xl uppercase tracking-wide"
               style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
             >
               All Tours
@@ -206,18 +232,21 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
               {tours.map((tour) => (
                 <div
                   key={tour.id}
-                  className="border border-white/10 bg-white/[0.02] px-5 py-5"
+                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-6"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-semibold text-white">{tour.title}</h3>
+                    <h3 className="text-lg font-semibold">{tour.title}</h3>
                     {tour.featured ? (
-                      <span className="text-[9px] uppercase tracking-[0.2em] text-[#FF6B35]">
+                      <span
+                        className="text-[9px] uppercase tracking-[0.2em]"
+                        style={{ color: 'var(--accent)' }}
+                      >
                         Featured
                       </span>
                     ) : null}
                   </div>
                   {tour.subtitle ? (
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
                       {tour.subtitle}
                     </p>
                   ) : null}

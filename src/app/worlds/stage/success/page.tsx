@@ -54,25 +54,29 @@ export default async function StageSuccessPage({ searchParams }: Props) {
   const result = await verify(params.session_id)
 
   return (
-    <div className="min-h-screen overflow-y-auto flex items-center justify-center px-6" style={{ background: '#07070b' }}>
-      <div className="w-full max-w-md text-center border border-white/10 bg-white/[0.03] px-8 py-12">
-        <CheckCircle2 className="mx-auto mb-5 text-[#FF6B35]" size={48} />
+    <div
+      className="flex min-h-screen items-center justify-center overflow-y-auto bg-[var(--background)] px-6"
+    >
+      <div className="w-full max-w-md rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-8 py-12 text-center">
+        <CheckCircle2 className="mx-auto mb-5" size={48} style={{ color: 'var(--accent)' }} />
         <h1
-          className="text-4xl uppercase text-white"
+          className="text-4xl uppercase text-[var(--foreground)]"
           style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
         >
-          {result?.paid ? 'You\'re in' : 'Payment received'}
+          {result?.paid ? "You're in" : 'Payment received'}
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-zinc-400">
+        <p className="mt-4 text-sm leading-relaxed text-[var(--foreground-muted)]">
           {result?.email
             ? `Confirmation heading to ${result.email}.`
             : 'Your Stripe checkout completed. Check your email for the receipt.'}
-          {result?.quantity ? ` ${result.quantity} ticket${result.quantity > 1 ? 's' : ''} secured.` : ''}
+          {result?.quantity
+            ? ` ${result.quantity} ticket${result.quantity > 1 ? 's' : ''} secured.`
+            : ''}
         </p>
         <Link
           href="/worlds/stage"
-          className="mt-8 inline-flex px-6 py-3 text-xs font-black uppercase tracking-[0.2em]"
-          style={{ background: '#FF6B35', color: '#0A0A0A' }}
+          className="mt-8 inline-flex rounded-full px-6 py-3 text-xs font-black uppercase tracking-[0.2em]"
+          style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
         >
           Back to shows
         </Link>

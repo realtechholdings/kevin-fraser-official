@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import Link from 'next/link'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 
 interface Hotspot {
   id: string
   href: string
   external?: boolean
-  videoSrc: string
+  label: string
   top: string
   left: string
   width: string
@@ -18,7 +19,7 @@ const HOTSPOTS: Hotspot[] = [
   {
     id: 'stage',
     href: '/worlds/stage',
-    videoSrc: '/videos/thestage.mp4',
+    label: 'The Stage',
     top: '12%',
     left: '5%',
     width: '35%',
@@ -27,7 +28,7 @@ const HOTSPOTS: Hotspot[] = [
   {
     id: 'showreel',
     href: '/worlds/showreel',
-    videoSrc: '/videos/theshowreel.mp4',
+    label: 'The Showreel',
     top: '42%',
     left: '5%',
     width: '35%',
@@ -37,7 +38,7 @@ const HOTSPOTS: Hotspot[] = [
     id: 'gym',
     href: 'https://gym-and-tonic.vercel.app/',
     external: true,
-    videoSrc: '/videos/gym%26tonic.mp4',
+    label: 'Gym & Tonik',
     top: '12%',
     left: '60%',
     width: '35%',
@@ -46,7 +47,7 @@ const HOTSPOTS: Hotspot[] = [
   {
     id: 'kevin11',
     href: '/worlds/kevin11',
-    videoSrc: '/videos/kevin11.mp4',
+    label: 'Kevin11',
     top: '42%',
     left: '60%',
     width: '35%',
@@ -55,7 +56,7 @@ const HOTSPOTS: Hotspot[] = [
   {
     id: 'studio',
     href: '/worlds/studio',
-    videoSrc: '/videos/thestudio.mp4',
+    label: 'The Studio',
     top: '72%',
     left: '5%',
     width: '35%',
@@ -64,7 +65,7 @@ const HOTSPOTS: Hotspot[] = [
   {
     id: 'connect',
     href: '/worlds/connect',
-    videoSrc: '/videos/connect.mp4',
+    label: 'Connect',
     top: '72%',
     left: '60%',
     width: '35%',
@@ -73,178 +74,107 @@ const HOTSPOTS: Hotspot[] = [
 ]
 
 export default function ImageMapLanding() {
-  const [activeVideo, setActiveVideo] = useState<string | null>(null)
-  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
-
   useEffect(() => {
     document.documentElement.classList.add('landing-lock')
     return () => document.documentElement.classList.remove('landing-lock')
   }, [])
 
-  const handleEnter = useCallback((id: string, videoSrc: string) => {
-    setActiveVideo(videoSrc)
-    const vid = videoRefs.current[id]
-    if (vid) {
-      vid.currentTime = 0
-      vid.play().catch(() => {})
-    }
-  }, [])
-
-  const handleLeave = useCallback((id: string) => {
-    setActiveVideo(null)
-    const vid = videoRefs.current[id]
-    if (vid) {
-      vid.pause()
-      vid.currentTime = 0
-    }
-  }, [])
-
   return (
-    <div className="fixed inset-0 overflow-hidden bg-black">
-
-      {/* Brand lockup — top center */}
+    <div className="fixed inset-0 overflow-hidden bg-[var(--background)]">
       <div
-        aria-label="Welcome to the world of Kevin Fraser. Explore. Laugh. Move. Connect."
-        style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          pointerEvents: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
-        }}
+        className="absolute inset-0"
+        style={{ padding: 'var(--hero-pad)' }}
       >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 'clamp(10px, 1.2vw, 13px)',
-            letterSpacing: '0.18em',
-            lineHeight: 1,
-            color: '#C4A35A',
-          }}
-        >
-          Welcome to the World of
-        </p>
-        <p
-          style={{
-            margin: '4px 0 0',
-            fontSize: 'clamp(28px, 5vw, 52px)',
-            letterSpacing: '0.02em',
-            lineHeight: 0.9,
-            color: '#F2F0EB',
-          }}
-        >
-          Kevin Fraser
-        </p>
-        <p
-          style={{
-            margin: '6px 0 0',
-            fontSize: 'clamp(10px, 1.3vw, 14px)',
-            letterSpacing: '0.16em',
-            lineHeight: 1,
-            color: '#FFFFFF',
-          }}
-        >
-          Explore. Laugh. Move. Connect.
-        </p>
-        <svg
-          width="180"
-          height="10"
-          viewBox="0 0 180 10"
-          fill="none"
-          aria-hidden="true"
-          style={{ marginTop: '6px', width: 'clamp(70px, 10vw, 120px)', height: 'auto' }}
-        >
-          <path
-            d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
-            stroke="#C4A35A"
-            strokeWidth="1.5"
-            strokeLinecap="round"
+        <div className="relative h-full w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
+          {/* Brand lockup */}
+          <div
+            aria-label="Welcome to the world of Kevin Fraser. Explore. Laugh. Move. Connect."
+            className="pointer-events-none absolute left-1/2 top-5 z-20 flex -translate-x-1/2 flex-col items-center text-center sm:top-7"
+            style={{
+              fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <p
+              className="m-0 text-[clamp(10px,1.2vw,13px)] leading-none tracking-[0.18em]"
+              style={{ color: 'var(--gold)' }}
+            >
+              Welcome to the World of
+            </p>
+            <p className="m-0 mt-1 text-[clamp(28px,5vw,52px)] leading-[0.9] tracking-[0.02em] text-[var(--foreground)]">
+              Kevin Fraser
+            </p>
+            <p className="m-0 mt-1.5 text-[clamp(10px,1.3vw,14px)] leading-none tracking-[0.16em] text-[var(--foreground-muted)]">
+              Explore. Laugh. Move. Connect.
+            </p>
+            <svg
+              width="180"
+              height="10"
+              viewBox="0 0 180 10"
+              fill="none"
+              aria-hidden="true"
+              className="mt-1.5 h-auto w-[clamp(70px,10vw,120px)]"
+            >
+              <path
+                d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
+                stroke="var(--gold)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+
+          <div className="absolute right-4 top-4 z-30 sm:right-5 sm:top-5">
+            <ThemeToggle />
+          </div>
+
+          {/* Static hero — click zones only, no hover videos */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kevin-hero.jpeg"
+            alt="Kevin Fraser World"
+            className="absolute inset-0 h-full w-full select-none object-contain object-center"
+            draggable={false}
           />
-        </svg>
-      </div>
 
-      {/* Static hero image — always underneath */}
-      <img
-        src="/kevin-hero.jpeg"
-        alt="Kevin Fraser World"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          objectPosition: 'center',
-          userSelect: 'none',
-          zIndex: 1,
-        }}
-        draggable={false}
-      />
+          <div className="absolute inset-0 z-10">
+            {HOTSPOTS.map((spot) => {
+              const zone = (
+                <div
+                  className="absolute cursor-pointer rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{
+                    top: spot.top,
+                    left: spot.left,
+                    width: spot.width,
+                    height: spot.height,
+                  }}
+                  aria-label={spot.label}
+                />
+              )
 
-      {/* All 6 videos preloaded, sitting full-viewport — only the active one shows */}
-      {HOTSPOTS.map(spot => (
-        <video
-          key={spot.id}
-          ref={el => { videoRefs.current[spot.id] = el }}
-          src={spot.videoSrc}
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            objectPosition: 'center',
-            opacity: activeVideo === spot.videoSrc ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-            pointerEvents: 'none',
-            zIndex: 2,
-          }}
-        />
-      ))}
+              if (spot.external) {
+                return (
+                  <a
+                    key={spot.id}
+                    href={spot.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="contents"
+                  >
+                    {zone}
+                  </a>
+                )
+              }
 
-      {/* Invisible hotspot zones — hover triggers full-bg video swap */}
-      <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
-        {HOTSPOTS.map(spot => {
-          const inner = (
-            <div
-              key={spot.id}
-              className="absolute cursor-pointer"
-              style={{
-                top: spot.top,
-                left: spot.left,
-                width: spot.width,
-                height: spot.height,
-              }}
-              onMouseEnter={() => handleEnter(spot.id, spot.videoSrc)}
-              onMouseLeave={() => handleLeave(spot.id)}
-            />
-          )
-
-          if (spot.external) {
-            return (
-              <a key={spot.id} href={spot.href} target="_blank" rel="noopener noreferrer" style={{ display: 'contents' }}>
-                {inner}
-              </a>
-            )
-          }
-
-          return (
-            <Link key={spot.id} href={spot.href} style={{ display: 'contents' }}>
-              {inner}
-            </Link>
-          )
-        })}
+              return (
+                <Link key={spot.id} href={spot.href} className="contents">
+                  {zone}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
       </div>
     </div>
   )

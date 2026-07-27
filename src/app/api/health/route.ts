@@ -11,10 +11,13 @@ export async function GET() {
   }
 
   // MongoDB
+  let mongodbError: string | null = null
   try {
     await dbConnect()
     checks.mongodb = true
-  } catch {}
+  } catch (error) {
+    mongodbError = error instanceof Error ? error.message : 'MongoDB connection failed'
+  }
 
   // Clerk
   checks.clerk = !!(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY)
@@ -32,6 +35,7 @@ export async function GET() {
   return NextResponse.json({
     ok: allGreen,
     checks,
+    ...(mongodbError ? { mongodbError } : {}),
     timestamp: new Date().toISOString(),
   }, { status: 200 })
 }

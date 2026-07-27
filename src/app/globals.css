@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @font-face {
   font-family: 'Franklin Gothic Extra Condensed';
   src: url('/fonts/Franklin Gothic Extra Condensed.ttf') format('truetype');
@@ -8,18 +10,69 @@
   font-display: swap;
 }
 
-:root {
-  --background: #0A0A0A;
-  --foreground: #FFFFFF;
-  --neon-orange: #FF6B35;
-  --neon-blue: #7ECFFF;
-  --neon-purple: #7B2FF7;
-  --neon-cyan: #00D4FF;
-  --neon-red: #FF2D55;
-  --neon-violet: #9B59B6;
-  --neon-magenta: #FF0080;
-  --neon-yellow: #FFD700;
-  --neon-white: #F0F0F0;
+:root,
+html.light {
+  color-scheme: light;
+  --background: #f4f2ec;
+  --background-elevated: #ffffff;
+  --foreground: #171717;
+  --foreground-muted: #5c5c5c;
+  --foreground-subtle: #8a8a8a;
+  --border: rgba(23, 23, 23, 0.1);
+  --border-strong: rgba(23, 23, 23, 0.16);
+  --surface: #ffffff;
+  --surface-hover: #f0eee8;
+  --surface-muted: #ebe8e0;
+  --accent: #c45a1a;
+  --accent-soft: rgba(196, 90, 26, 0.12);
+  --accent-contrast: #ffffff;
+  --gold: #9a7b2f;
+  --danger: #c23030;
+  --danger-soft: rgba(194, 48, 48, 0.1);
+  --success: #1f7a4d;
+  --success-soft: rgba(31, 122, 77, 0.1);
+  --neon-orange: #c45a1a;
+  --neon-blue: #2f6fed;
+  --neon-purple: #6b3fd4;
+  --neon-cyan: #1287a8;
+  --neon-red: #c23030;
+  --neon-violet: #7a4db0;
+  --neon-magenta: #b01f6b;
+  --neon-yellow: #b08900;
+  --neon-white: #171717;
+  --page-pad: clamp(1.25rem, 4vw, 2.5rem);
+  --hero-pad: clamp(1rem, 3vw, 2rem);
+}
+
+html.dark {
+  color-scheme: dark;
+  --background: #0b0b0f;
+  --background-elevated: #121218;
+  --foreground: #f4f2ec;
+  --foreground-muted: #b0aea8;
+  --foreground-subtle: #7a7872;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --surface: #16161d;
+  --surface-hover: #1e1e27;
+  --surface-muted: #121218;
+  --accent: #ff6b35;
+  --accent-soft: rgba(255, 107, 53, 0.15);
+  --accent-contrast: #0b0b0f;
+  --gold: #c4a35a;
+  --danger: #ff2d55;
+  --danger-soft: rgba(255, 45, 85, 0.15);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --neon-orange: #ff6b35;
+  --neon-blue: #7ecfff;
+  --neon-purple: #7b2ff7;
+  --neon-cyan: #00d4ff;
+  --neon-red: #ff2d55;
+  --neon-violet: #9b59b6;
+  --neon-magenta: #ff0080;
+  --neon-yellow: #ffd700;
+  --neon-white: #f0f0f0;
 }
 
 * {
@@ -33,8 +86,8 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   overflow-y: auto;
-  background: #06060a;
-  color: #FFFFFF;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 /* Landing page locks scroll via .landing-lock on html/body */
@@ -50,41 +103,6 @@ html.landing-lock body {
   }
 }
 
-@keyframes neon-flicker {
-  0% { opacity: 1; }
-  2% { opacity: 0.8; }
-  4% { opacity: 1; }
-  7% { opacity: 0.6; }
-  9% { opacity: 1; }
-  12% { opacity: 0.9; }
-  14% { opacity: 0.4; }
-  16% { opacity: 1; }
-  100% { opacity: 1; }
-}
-
-@keyframes neon-flicker-fast {
-  0% { opacity: 1; }
-  5% { opacity: 0.3; }
-  6% { opacity: 1; }
-  11% { opacity: 0.5; }
-  12% { opacity: 1; }
-  18% { opacity: 0.7; }
-  20% { opacity: 1; }
-  25% { opacity: 0.2; }
-  26% { opacity: 1; }
-  100% { opacity: 1; }
-}
-
-@keyframes neon-breathe {
-  0%, 100% { opacity: 0.8; filter: brightness(0.8); }
-  50% { opacity: 1; filter: brightness(1.2); }
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(123, 47, 247, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(123, 47, 247, 0.7); }
-}
-
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
@@ -95,82 +113,25 @@ html.landing-lock body {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.neon-text-orange {
-  color: var(--neon-orange);
-  text-shadow:
-    0 0 7px var(--neon-orange),
-    0 0 10px var(--neon-orange),
-    0 0 21px var(--neon-orange),
-    0 0 42px #ff4000,
-    0 0 82px #ff4000;
-}
-
-.neon-text-blue {
-  color: var(--neon-blue);
-  text-shadow:
-    0 0 7px var(--neon-blue),
-    0 0 10px var(--neon-blue),
-    0 0 21px var(--neon-blue),
-    0 0 42px #00a8cc;
-}
-
-.neon-text-purple {
-  color: var(--neon-purple);
-  text-shadow:
-    0 0 7px var(--neon-purple),
-    0 0 10px var(--neon-purple),
-    0 0 21px var(--neon-purple),
-    0 0 42px #5500cc;
-}
-
-.neon-text-red {
-  color: var(--neon-red);
-  text-shadow:
-    0 0 7px var(--neon-red),
-    0 0 10px var(--neon-red),
-    0 0 21px var(--neon-red),
-    0 0 42px #cc0033;
-}
-
-.neon-text-violet {
-  color: var(--neon-violet);
-  text-shadow:
-    0 0 7px var(--neon-violet),
-    0 0 10px var(--neon-violet),
-    0 0 21px var(--neon-violet),
-    0 0 42px #7700aa;
-}
-
-.neon-text-magenta {
-  color: var(--neon-magenta);
-  text-shadow:
-    0 0 7px var(--neon-magenta),
-    0 0 10px var(--neon-magenta),
-    0 0 21px var(--neon-magenta),
-    0 0 42px #cc0066,
-    0 0 82px #cc0066;
-}
-
-.neon-text-yellow {
-  color: var(--neon-yellow);
-  text-shadow:
-    0 0 7px var(--neon-yellow),
-    0 0 10px var(--neon-yellow),
-    0 0 21px var(--neon-yellow),
-    0 0 42px #ccaa00;
-}
-
+.neon-text-orange,
+.neon-text-blue,
+.neon-text-purple,
+.neon-text-red,
+.neon-text-violet,
+.neon-text-magenta,
+.neon-text-yellow,
 .neon-text-white {
-  color: var(--neon-white);
-  text-shadow:
-    0 0 7px rgba(255,255,255,0.8),
-    0 0 10px rgba(255,255,255,0.6),
-    0 0 21px rgba(255,255,255,0.4);
+  text-shadow: none;
 }
 
-.container-hover-glow {
-  transition: all 0.3s ease;
-}
+.neon-text-orange { color: var(--neon-orange); }
+.neon-text-blue { color: var(--neon-blue); }
+.neon-text-purple { color: var(--neon-purple); }
+.neon-text-red { color: var(--neon-red); }
+.neon-text-violet { color: var(--neon-violet); }
+.neon-text-magenta { color: var(--neon-magenta); }
+.neon-text-yellow { color: var(--neon-yellow); }
+.neon-text-white { color: var(--foreground); }
 
 .scrollbar-hide {
   scrollbar-width: none;

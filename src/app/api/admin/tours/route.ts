@@ -17,7 +17,11 @@ export async function GET() {
     return NextResponse.json({ success: true, tours: tours.map(serializeTour) })
   } catch (error) {
     console.error('Admin tours GET:', error)
-    return NextResponse.json({ success: false, error: 'Failed to load tours.' }, { status: 500 })
+    const message =
+      error instanceof Error && (error.message.includes('ENOTFOUND') || error.message.includes('querySrv'))
+        ? 'Database unreachable. Check MONGODB_URI / Atlas cluster status.'
+        : 'Failed to load tours.'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 

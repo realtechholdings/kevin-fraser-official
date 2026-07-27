@@ -1,10 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { UserButton } from '@clerk/nextjs'
+import {
+  CalendarDays,
+  CheckCircle,
+  Clock,
+  Plus,
+  Star,
+  Ticket,
+  XCircle,
+} from 'lucide-react'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import AdminSidebar from '@/components/admin/AdminSidebar'
+import AdminHeader from '@/components/admin/AdminHeader'
+
+type Tab = 'overview' | 'tours' | 'shows'
 
 type TourForm = {
   title: string
@@ -72,42 +83,58 @@ function toLocalInput(iso?: string | null) {
 }
 
 const inputClass =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none focus:border-slate-500 focus:ring-2 focus:ring-slate-200'
-const labelClass = 'mb-1.5 block text-sm font-medium text-slate-700'
+  'w-full rounded-xl border border-white/8 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-all focus:border-violet-500/50 focus:bg-white/[0.07]'
+const labelClass = 'mb-1.5 block text-xs font-medium text-white/40'
 const btnPrimary =
-  'inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50'
 const btnSecondary =
-  'inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50'
-const btnGhost =
-  'text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-50'
-const btnDanger = 'text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50'
+const btnGhost = 'text-sm font-medium text-violet-300 hover:text-violet-200 disabled:opacity-50'
+const btnDanger = 'text-sm font-medium text-red-400 hover:text-red-300 disabled:opacity-50'
 
-function Badge({
-  children,
-  tone = 'neutral',
-}: {
-  children: React.ReactNode
-  tone?: 'neutral' | 'green' | 'amber' | 'red' | 'blue'
-}) {
-  const tones = {
-    neutral: 'bg-slate-100 text-slate-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    amber: 'bg-amber-50 text-amber-800',
-    red: 'bg-red-50 text-red-700',
-    blue: 'bg-sky-50 text-sky-700',
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
+    on_sale: {
+      label: 'On sale',
+      className: 'text-emerald-400 bg-emerald-400/10',
+      icon: CheckCircle,
+    },
+    coming_soon: {
+      label: 'Coming soon',
+      className: 'text-amber-400 bg-amber-400/10',
+      icon: Clock,
+    },
+    sold_out: {
+      label: 'Sold out',
+      className: 'text-red-400 bg-red-500/10',
+      icon: XCircle,
+    },
+    cancelled: {
+      label: 'Cancelled',
+      className: 'text-white/30 bg-white/5',
+      icon: XCircle,
+    },
+    published: {
+      label: 'Published',
+      className: 'text-emerald-400 bg-emerald-400/10',
+      icon: CheckCircle,
+    },
+    draft: {
+      label: 'Draft',
+      className: 'text-white/40 bg-white/5',
+      icon: Clock,
+    },
   }
+  const meta = map[status] || map.draft
+  const Icon = meta.icon
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
-      {children}
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${meta.className}`}
+    >
+      <Icon className="h-3 w-3" />
+      {meta.label}
     </span>
   )
-}
-
-function statusTone(status: string): 'green' | 'amber' | 'red' | 'neutral' {
-  if (status === 'on_sale') return 'green'
-  if (status === 'coming_soon') return 'amber'
-  if (status === 'sold_out' || status === 'cancelled') return 'red'
-  return 'neutral'
 }
 
 export default function AdminPortal() {
@@ -116,7 +143,7 @@ export default function AdminPortal() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [tab, setTab] = useState<'tours' | 'shows'>('tours')
+  const [tab, setTab] = useState<Tab>('overview')
   const [tourForm, setTourForm] = useState<TourForm>(emptyTour)
   const [editingTourId, setEditingTourId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState<ShowForm>(emptyShow())
@@ -157,6 +184,13 @@ export default function AdminPortal() {
     () => tours.map((t) => ({ id: t.id, label: t.title })),
     [tours]
   )
+
+  const upcomingShows = useMemo(
+    () => shows.filter((s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000),
+    [shows]
+  )
+  const onSaleCount = upcomingShows.filter((s) => s.status === 'on_sale').length
+  const featuredTour = tours.find((t) => t.featured)
 
   async function saveTour(e: React.FormEvent) {
     e.preventDefault()
@@ -346,8 +380,9 @@ export default function AdminPortal() {
     }
   }
 
-  function openCreate() {
-    if (tab === 'tours') {
+  function openCreate(target: 'tours' | 'shows') {
+    setTab(target)
+    if (target === 'tours') {
       setEditingTourId(null)
       setTourForm(emptyTour)
     } else {
@@ -365,532 +400,606 @@ export default function AdminPortal() {
     setShowForm(emptyShow(tours[0]?.id || ''))
   }
 
+  const headerCopy =
+    tab === 'overview'
+      ? { title: 'Overview', subtitle: 'Tours, shows, and ticket inventory at a glance' }
+      : tab === 'tours'
+        ? { title: 'Tours', subtitle: 'Create and feature headline tours' }
+        : { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
+
   return (
-    <div className="min-h-screen overflow-y-auto bg-slate-100 text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-xs font-medium text-slate-500">Kevin Fraser Official</p>
-              <h1 className="text-lg font-semibold text-slate-900">Admin</h1>
-            </div>
-            <nav className="hidden items-center gap-1 sm:flex">
+    <div className="flex h-screen overflow-hidden bg-[#080810] text-white">
+      <AdminSidebar tab={tab} onTabChange={(next) => { setTab(next); setShowFormPanel(false) }} />
+
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <AdminHeader title={headerCopy.title} subtitle={headerCopy.subtitle} />
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="mb-4 flex gap-2 md:hidden">
+            {(['overview', 'tours', 'shows'] as Tab[]).map((id) => (
               <button
+                key={id}
                 type="button"
                 onClick={() => {
-                  setTab('tours')
+                  setTab(id)
                   setShowFormPanel(false)
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  tab === 'tours'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
+                className={`rounded-xl px-3 py-2 text-xs font-medium capitalize ${
+                  tab === id
+                    ? 'border border-violet-500/30 bg-violet-500/20 text-violet-300'
+                    : 'border border-transparent bg-white/5 text-white/40'
                 }`}
               >
-                Tours
+                {id}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('shows')
-                  setShowFormPanel(false)
-                }}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  tab === 'shows'
-                    ? 'bg-slate-900 text-white'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Shows
-              </button>
-            </nav>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/worlds/stage" className={`${btnGhost} hidden sm:inline`}>
-              View Stage
-            </Link>
-            <Link href="/" className={`${btnGhost} hidden sm:inline`}>
-              Site
-            </Link>
-            <UserButton />
-          </div>
-        </div>
-      </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 sm:hidden">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setTab('tours')
-                setShowFormPanel(false)
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                tab === 'tours' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-300'
-              }`}
-            >
-              Tours
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTab('shows')
-                setShowFormPanel(false)
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                tab === 'shows' ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 border border-slate-300'
-              }`}
-            >
-              Shows
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              {tab === 'tours' ? 'Tours' : 'Shows'}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {tab === 'tours'
-                ? `${tours.length} tour${tours.length === 1 ? '' : 's'}`
-                : `${shows.length} show${shows.length === 1 ? '' : 's'}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={busy} onClick={seedDecadance} className={btnSecondary}>
-              Seed Decadance
-            </button>
-            <button type="button" onClick={openCreate} className={btnPrimary}>
-              {tab === 'tours' ? 'New tour' : 'New show'}
-            </button>
-          </div>
-        </div>
-
-        {error ? (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-        {message ? (
-          <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {message}
-          </div>
-        ) : null}
-
-        {showFormPanel ? (
-          <div className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-base font-semibold text-slate-900">
-                {tab === 'tours'
-                  ? editingTourId
-                    ? 'Edit tour'
-                    : 'Create tour'
-                  : editingShowId
-                    ? 'Edit show'
-                    : 'Create show'}
-              </h3>
-              <button type="button" onClick={closeForm} className={btnGhost}>
-                Close
-              </button>
+          {error ? (
+            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {error}
             </div>
+          ) : null}
+          {message ? (
+            <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              {message}
+            </div>
+          ) : null}
 
-            {tab === 'tours' ? (
-              <form onSubmit={saveTour} className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Title</label>
-                  <input
-                    className={inputClass}
-                    value={tourForm.title}
-                    onChange={(e) => setTourForm({ ...tourForm, title: e.target.value })}
-                    required
-                  />
-                </div>
+          {tab === 'overview' ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <label className={labelClass}>Slug</label>
-                  <input
-                    className={inputClass}
-                    value={tourForm.slug}
-                    onChange={(e) => setTourForm({ ...tourForm, slug: e.target.value })}
-                    placeholder="Generated from title if empty"
-                  />
+                  <h2 className="text-2xl font-bold text-white">Overview</h2>
+                  <p className="mt-1 text-sm text-white/40">
+                    {featuredTour
+                      ? `Featured tour: ${featuredTour.title}`
+                      : 'No featured tour yet — seed Decadance or create one.'}
+                  </p>
                 </div>
-                <div>
-                  <label className={labelClass}>Subtitle</label>
-                  <input
-                    className={inputClass}
-                    value={tourForm.subtitle}
-                    onChange={(e) => setTourForm({ ...tourForm, subtitle: e.target.value })}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Description</label>
-                  <textarea
-                    className={`${inputClass} min-h-[110px]`}
-                    value={tourForm.description}
-                    onChange={(e) => setTourForm({ ...tourForm, description: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Start</label>
-                  <input
-                    type="datetime-local"
-                    className={inputClass}
-                    value={tourForm.startDate}
-                    onChange={(e) => setTourForm({ ...tourForm, startDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>End</label>
-                  <input
-                    type="datetime-local"
-                    className={inputClass}
-                    value={tourForm.endDate}
-                    onChange={(e) => setTourForm({ ...tourForm, endDate: e.target.value })}
-                  />
-                </div>
-                <div className="flex items-center gap-6 sm:col-span-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={tourForm.featured}
-                      onChange={(e) => setTourForm({ ...tourForm, featured: e.target.checked })}
-                    />
-                    Featured
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={tourForm.published}
-                      onChange={(e) => setTourForm({ ...tourForm, published: e.target.checked })}
-                    />
-                    Published
-                  </label>
-                </div>
-                <div className="flex gap-2 sm:col-span-2">
-                  <button type="submit" disabled={busy} className={btnPrimary}>
-                    {editingTourId ? 'Save changes' : 'Create tour'}
-                  </button>
-                  <button type="button" onClick={closeForm} className={btnSecondary}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={saveShow} className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Tour</label>
-                  <select
-                    className={inputClass}
-                    value={showForm.tourId}
-                    onChange={(e) => setShowForm({ ...showForm, tourId: e.target.value })}
-                    required
-                  >
-                    <option value="">Select tour</option>
-                    {tourOptions.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>Title</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.title}
-                    onChange={(e) => setShowForm({ ...showForm, title: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Date & time</label>
-                  <input
-                    type="datetime-local"
-                    className={inputClass}
-                    value={showForm.date}
-                    onChange={(e) => setShowForm({ ...showForm, date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Show time label</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.showTime}
-                    onChange={(e) => setShowForm({ ...showForm, showTime: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Country</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.country}
-                    onChange={(e) => setShowForm({ ...showForm, country: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>City</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.city}
-                    onChange={(e) => setShowForm({ ...showForm, city: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Venue</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.venue}
-                    onChange={(e) => setShowForm({ ...showForm, venue: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Address</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.address}
-                    onChange={(e) => setShowForm({ ...showForm, address: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Currency</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.currency}
-                    onChange={(e) => setShowForm({ ...showForm, currency: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Price (cents)</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.priceCents}
-                    onChange={(e) => setShowForm({ ...showForm, priceCents: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Capacity</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.capacity}
-                    onChange={(e) => setShowForm({ ...showForm, capacity: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Status</label>
-                  <select
-                    className={inputClass}
-                    value={showForm.status}
-                    onChange={(e) => setShowForm({ ...showForm, status: e.target.value })}
-                  >
-                    <option value="on_sale">On sale</option>
-                    <option value="sold_out">Sold out</option>
-                    <option value="coming_soon">Coming soon</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelClass}>External ticket URL (optional)</label>
-                  <input
-                    className={inputClass}
-                    value={showForm.externalTicketUrl}
-                    onChange={(e) =>
-                      setShowForm({ ...showForm, externalTicketUrl: e.target.value })
-                    }
-                    placeholder="Leave blank to use Stripe Checkout"
-                  />
-                </div>
-                <div className="flex items-center gap-6 sm:col-span-2">
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={showForm.featured}
-                      onChange={(e) => setShowForm({ ...showForm, featured: e.target.checked })}
-                    />
-                    Featured
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={showForm.published}
-                      onChange={(e) => setShowForm({ ...showForm, published: e.target.checked })}
-                    />
-                    Published
-                  </label>
-                </div>
-                <div className="flex gap-2 sm:col-span-2">
-                  <button type="submit" disabled={busy} className={btnPrimary}>
-                    {editingShowId ? 'Save changes' : 'Create show'}
-                  </button>
-                  <button type="button" onClick={closeForm} className={btnSecondary}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : null}
+                <button type="button" disabled={busy} onClick={seedDecadance} className={btnSecondary}>
+                  Seed Decadance
+                </button>
+              </div>
 
-        {loading ? (
-          <div className="rounded-lg border border-slate-200 bg-white px-5 py-10 text-sm text-slate-500 shadow-sm">
-            Loading…
-          </div>
-        ) : tab === 'tours' ? (
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            {tours.length === 0 ? (
-              <div className="px-5 py-10 text-center text-sm text-slate-500">
-                No tours yet. Create one or seed Decadance.
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {[
+                  { label: 'Tours', value: tours.length, icon: Ticket, tone: 'bg-violet-500/10 text-violet-400' },
+                  { label: 'Upcoming shows', value: upcomingShows.length, icon: CalendarDays, tone: 'bg-sky-500/10 text-sky-400' },
+                  { label: 'On sale', value: onSaleCount, icon: CheckCircle, tone: 'bg-emerald-500/10 text-emerald-400' },
+                  { label: 'Featured shows', value: shows.filter((s) => s.featured).length, icon: Star, tone: 'bg-amber-500/10 text-amber-400' },
+                ].map((card) => (
+                  <div
+                    key={card.label}
+                    className="rounded-2xl border border-white/5 bg-white/[0.03] p-4"
+                  >
+                    <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${card.tone}`}>
+                      <card.icon className="h-4 w-4" />
+                    </div>
+                    <p className="text-2xl font-bold tabular-nums text-white">
+                      {loading ? '—' : card.value}
+                    </p>
+                    <p className="mt-0.5 text-xs text-white/40">{card.label}</p>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Tour</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Featured</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {tours.map((tour) => (
-                      <tr key={tour.id} className="hover:bg-slate-50/80">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{tour.title}</div>
-                          <div className="text-xs text-slate-500">{tour.slug}</div>
-                          {tour.subtitle ? (
-                            <div className="mt-0.5 text-xs text-slate-500">{tour.subtitle}</div>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge tone={tour.published ? 'green' : 'neutral'}>
-                            {tour.published ? 'Published' : 'Draft'}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          {tour.featured ? <Badge tone="blue">Featured</Badge> : <span className="text-slate-400">—</span>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-3">
-                            <button type="button" onClick={() => editTour(tour)} className={btnGhost}>
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => toggleFeaturedTour(tour)}
-                              className={btnGhost}
-                            >
-                              {tour.featured ? 'Unfeature' : 'Feature'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => removeTour(tour.id)}
-                              className={btnDanger}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+
+              <section className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
+                <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
+                  <h3 className="text-sm font-semibold text-white">Next shows</h3>
+                  <button type="button" onClick={() => setTab('shows')} className={btnGhost}>
+                    View all
+                  </button>
+                </div>
+                {loading ? (
+                  <div className="space-y-3 p-5">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-4 animate-pulse rounded bg-white/5" />
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            {shows.length === 0 ? (
-              <div className="px-5 py-10 text-center text-sm text-slate-500">
-                No shows yet. Create one after adding a tour.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                  <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-4 py-3">Date</th>
-                      <th className="px-4 py-3">City / Venue</th>
-                      <th className="px-4 py-3">Tour</th>
-                      <th className="px-4 py-3">Price</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {shows.map((show) => {
+                  </div>
+                ) : upcomingShows.length === 0 ? (
+                  <div className="px-5 py-10 text-center text-sm text-white/40">
+                    No upcoming shows. Seed Decadance or create a show.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {upcomingShows.slice(0, 6).map((show) => {
                       const d = formatShowDate(show.date)
                       return (
-                        <tr key={show.id} className="hover:bg-slate-50/80">
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <div className="font-medium text-slate-900">
-                              {d.day} {d.month}
-                            </div>
-                            <div className="text-xs text-slate-500">{d.weekday}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium text-slate-900">
-                              {show.city}
-                              {show.featured ? (
-                                <span className="ml-2">
-                                  <Badge tone="blue">Featured</Badge>
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {show.venue}
-                              {show.country ? ` · ${show.country}` : ''}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-slate-600">{show.tour.title || '—'}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                            {formatPrice(show.priceCents, show.currency)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge tone={statusTone(show.status)}>
-                              {show.status.replace('_', ' ')}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-3">
-                              <button type="button" onClick={() => editShow(show)} className={btnGhost}>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => toggleFeaturedShow(show)}
-                                className={btnGhost}
-                              >
-                                {show.featured ? 'Unfeature' : 'Feature'}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => removeShow(show.id)}
-                                className={btnDanger}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
+                        <div key={show.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              {show.city} — {show.venue}
+                            </p>
+                            <p className="mt-0.5 text-xs text-white/40">
+                              {d.day} {d.month} · {show.country} · {formatPrice(show.priceCents, show.currency)}
+                            </p>
+                          </div>
+                          <StatusBadge status={show.status} />
+                        </div>
                       )
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {tab === 'tours' || tab === 'shows' ? (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    {tab === 'tours' ? 'Tours' : 'Shows'}
+                  </h2>
+                  <p className="mt-1 text-sm text-white/40">
+                    {tab === 'tours'
+                      ? `${tours.length} tour${tours.length === 1 ? '' : 's'} on the platform`
+                      : `${shows.length} show${shows.length === 1 ? '' : 's'} scheduled`}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tab === 'tours' ? (
+                    <button type="button" disabled={busy} onClick={seedDecadance} className={btnSecondary}>
+                      Seed Decadance
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => openCreate(tab)}
+                    className={btnPrimary}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {tab === 'tours' ? 'New tour' : 'New show'}
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </main>
+
+              {showFormPanel ? (
+                <section className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-white">
+                      {tab === 'tours'
+                        ? editingTourId
+                          ? 'Edit tour'
+                          : 'Create tour'
+                        : editingShowId
+                          ? 'Edit show'
+                          : 'Create show'}
+                    </h3>
+                    <button type="button" onClick={closeForm} className="text-sm text-white/40 hover:text-white/70">
+                      Close
+                    </button>
+                  </div>
+
+                  {tab === 'tours' ? (
+                    <form onSubmit={saveTour} className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Title</label>
+                        <input
+                          className={inputClass}
+                          value={tourForm.title}
+                          onChange={(e) => setTourForm({ ...tourForm, title: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Slug</label>
+                        <input
+                          className={inputClass}
+                          value={tourForm.slug}
+                          onChange={(e) => setTourForm({ ...tourForm, slug: e.target.value })}
+                          placeholder="Generated from title if empty"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Subtitle</label>
+                        <input
+                          className={inputClass}
+                          value={tourForm.subtitle}
+                          onChange={(e) => setTourForm({ ...tourForm, subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Description</label>
+                        <textarea
+                          className={`${inputClass} min-h-[110px]`}
+                          value={tourForm.description}
+                          onChange={(e) => setTourForm({ ...tourForm, description: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Start</label>
+                        <input
+                          type="datetime-local"
+                          className={inputClass}
+                          value={tourForm.startDate}
+                          onChange={(e) => setTourForm({ ...tourForm, startDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>End</label>
+                        <input
+                          type="datetime-local"
+                          className={inputClass}
+                          value={tourForm.endDate}
+                          onChange={(e) => setTourForm({ ...tourForm, endDate: e.target.value })}
+                        />
+                      </div>
+                      <div className="flex items-center gap-6 md:col-span-2">
+                        <label className="flex items-center gap-2 text-sm text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={tourForm.featured}
+                            onChange={(e) => setTourForm({ ...tourForm, featured: e.target.checked })}
+                          />
+                          Featured
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={tourForm.published}
+                            onChange={(e) => setTourForm({ ...tourForm, published: e.target.checked })}
+                          />
+                          Published
+                        </label>
+                      </div>
+                      <div className="flex gap-2 md:col-span-2">
+                        <button type="submit" disabled={busy} className={btnPrimary}>
+                          {editingTourId ? 'Save changes' : 'Create tour'}
+                        </button>
+                        <button type="button" onClick={closeForm} className={btnSecondary}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={saveShow} className="grid gap-4 md:grid-cols-2">
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Tour</label>
+                        <select
+                          className={inputClass}
+                          value={showForm.tourId}
+                          onChange={(e) => setShowForm({ ...showForm, tourId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select tour</option>
+                          {tourOptions.map((t) => (
+                            <option key={t.id} value={t.id} className="bg-[#141420]">
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Title</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.title}
+                          onChange={(e) => setShowForm({ ...showForm, title: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Date & time</label>
+                        <input
+                          type="datetime-local"
+                          className={inputClass}
+                          value={showForm.date}
+                          onChange={(e) => setShowForm({ ...showForm, date: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Show time label</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.showTime}
+                          onChange={(e) => setShowForm({ ...showForm, showTime: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Country</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.country}
+                          onChange={(e) => setShowForm({ ...showForm, country: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>City</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.city}
+                          onChange={(e) => setShowForm({ ...showForm, city: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Venue</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.venue}
+                          onChange={(e) => setShowForm({ ...showForm, venue: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Address</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.address}
+                          onChange={(e) => setShowForm({ ...showForm, address: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Currency</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.currency}
+                          onChange={(e) => setShowForm({ ...showForm, currency: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Price (cents)</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.priceCents}
+                          onChange={(e) => setShowForm({ ...showForm, priceCents: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Capacity</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.capacity}
+                          onChange={(e) => setShowForm({ ...showForm, capacity: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Status</label>
+                        <select
+                          className={inputClass}
+                          value={showForm.status}
+                          onChange={(e) => setShowForm({ ...showForm, status: e.target.value })}
+                        >
+                          <option value="on_sale" className="bg-[#141420]">On sale</option>
+                          <option value="sold_out" className="bg-[#141420]">Sold out</option>
+                          <option value="coming_soon" className="bg-[#141420]">Coming soon</option>
+                          <option value="cancelled" className="bg-[#141420]">Cancelled</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>External ticket URL (optional)</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.externalTicketUrl}
+                          onChange={(e) =>
+                            setShowForm({ ...showForm, externalTicketUrl: e.target.value })
+                          }
+                          placeholder="Leave blank to use Stripe Checkout"
+                        />
+                      </div>
+                      <div className="flex items-center gap-6 md:col-span-2">
+                        <label className="flex items-center gap-2 text-sm text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={showForm.featured}
+                            onChange={(e) => setShowForm({ ...showForm, featured: e.target.checked })}
+                          />
+                          Featured
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={showForm.published}
+                            onChange={(e) => setShowForm({ ...showForm, published: e.target.checked })}
+                          />
+                          Published
+                        </label>
+                      </div>
+                      <div className="flex gap-2 md:col-span-2">
+                        <button type="submit" disabled={busy} className={btnPrimary}>
+                          {editingShowId ? 'Save changes' : 'Create show'}
+                        </button>
+                        <button type="button" onClick={closeForm} className={btnSecondary}>
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </section>
+              ) : null}
+
+              {tab === 'tours' ? (
+                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                          Tour
+                        </th>
+                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 md:table-cell">
+                          Status
+                        </th>
+                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 lg:table-cell">
+                          Featured
+                        </th>
+                        <th className="px-5 py-3.5" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {loading ? (
+                        Array.from({ length: 3 }).map((_, i) => (
+                          <tr key={i}>
+                            <td colSpan={4} className="px-5 py-4">
+                              <div className="h-4 animate-pulse rounded bg-white/5" />
+                            </td>
+                          </tr>
+                        ))
+                      ) : tours.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-5 py-10 text-center text-sm text-white/40">
+                            No tours yet. Seed Decadance or create one.
+                          </td>
+                        </tr>
+                      ) : (
+                        tours.map((tour) => (
+                          <tr key={tour.id} className="transition-colors hover:bg-white/[0.02]">
+                            <td className="px-5 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15 text-xs font-bold text-violet-300">
+                                  {tour.title.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-white">{tour.title}</p>
+                                  <p className="text-xs text-white/40">{tour.slug}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="hidden px-5 py-4 md:table-cell">
+                              <StatusBadge status={tour.published ? 'published' : 'draft'} />
+                            </td>
+                            <td className="hidden px-5 py-4 lg:table-cell">
+                              {tour.featured ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-300">
+                                  <Star className="h-3 w-3" />
+                                  Featured
+                                </span>
+                              ) : (
+                                <span className="text-xs text-white/25">—</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="flex justify-end gap-3">
+                                <button type="button" onClick={() => editTour(tour)} className={btnGhost}>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => toggleFeaturedTour(tour)}
+                                  className={btnGhost}
+                                >
+                                  {tour.featured ? 'Unfeature' : 'Feature'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busy}
+                                  onClick={() => removeTour(tour.id)}
+                                  className={btnDanger}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                          Date
+                        </th>
+                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                          City / Venue
+                        </th>
+                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 lg:table-cell">
+                          Price
+                        </th>
+                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 md:table-cell">
+                          Status
+                        </th>
+                        <th className="px-5 py-3.5" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {loading ? (
+                        Array.from({ length: 4 }).map((_, i) => (
+                          <tr key={i}>
+                            <td colSpan={5} className="px-5 py-4">
+                              <div className="h-4 animate-pulse rounded bg-white/5" />
+                            </td>
+                          </tr>
+                        ))
+                      ) : shows.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-5 py-10 text-center text-sm text-white/40">
+                            No shows yet. Create one after adding a tour.
+                          </td>
+                        </tr>
+                      ) : (
+                        shows.map((show) => {
+                          const d = formatShowDate(show.date)
+                          return (
+                            <tr key={show.id} className="transition-colors hover:bg-white/[0.02]">
+                              <td className="whitespace-nowrap px-5 py-4">
+                                <p className="text-sm font-medium text-white">
+                                  {d.day} {d.month}
+                                </p>
+                                <p className="text-xs text-white/40">{d.weekday}</p>
+                              </td>
+                              <td className="px-5 py-4">
+                                <p className="text-sm font-medium text-white">
+                                  {show.city}
+                                  {show.featured ? (
+                                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+                                      Featured
+                                    </span>
+                                  ) : null}
+                                </p>
+                                <p className="text-xs text-white/40">
+                                  {show.venue} · {show.country}
+                                </p>
+                              </td>
+                              <td className="hidden whitespace-nowrap px-5 py-4 text-sm text-white/70 lg:table-cell">
+                                {formatPrice(show.priceCents, show.currency)}
+                              </td>
+                              <td className="hidden px-5 py-4 md:table-cell">
+                                <StatusBadge status={show.status} />
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex justify-end gap-3">
+                                  <button type="button" onClick={() => editShow(show)} className={btnGhost}>
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => toggleFeaturedShow(show)}
+                                    className={btnGhost}
+                                  >
+                                    {show.featured ? 'Unfeature' : 'Feature'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => removeShow(show.id)}
+                                    className={btnDanger}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </main>
+      </div>
     </div>
   )
 }

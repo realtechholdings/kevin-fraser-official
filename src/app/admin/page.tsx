@@ -19,16 +19,16 @@ export default async function AdminPage() {
     const user = await currentUser()
     const email = user?.emailAddresses?.[0]?.emailAddress || 'your account'
     return (
-      <div className="min-h-screen overflow-y-auto bg-slate-100 flex items-center justify-center px-6">
-        <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-8 py-10 text-center shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">Admin access required</h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Signed in as <span className="font-medium text-slate-900">{email}</span>. This account
-            is not on the admin list.
+      <div className="flex min-h-screen items-center justify-center overflow-y-auto bg-[#080810] px-6">
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D16] px-8 py-10 text-center">
+          <h1 className="text-xl font-semibold text-white">Admin access required</h1>
+          <p className="mt-3 text-sm leading-relaxed text-white/50">
+            Signed in as <span className="text-white/80">{email}</span>. This account is not on
+            the admin list.
           </p>
           <Link
             href="/"
-            className="mt-6 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="mt-6 inline-flex rounded-xl bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400"
           >
             Back to site
           </Link>

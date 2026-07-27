@@ -3,6 +3,8 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import AIGuide from '@/components/AIGuide'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
+import { ThemeScript } from '@/components/theme/theme-script'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
@@ -34,10 +36,15 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" className="light" suppressHydrationWarning>
+        <head>
+          <ThemeScript />
+        </head>
         <body className={inter.className}>
-          {children}
-          <AIGuide />
+          <ThemeProvider>
+            {children}
+            <AIGuide />
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

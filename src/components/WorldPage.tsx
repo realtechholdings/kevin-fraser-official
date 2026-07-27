@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 
 interface WorldPageProps {
   emoji: string
@@ -32,133 +33,116 @@ export default function WorldPage({
   worldGuideDesc,
 }: WorldPageProps) {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#0A0A0A' }}>
-      {/* Ambient background */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(ellipse 60% 40% at 50% 0%, ${color}15 0%, transparent 60%)`,
-        }}
-      />
-
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-gray-800">
+    <div className="flex min-h-screen flex-col overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      <header
+        className="relative z-10 flex items-center justify-between border-b border-[var(--border)] py-4"
+        style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
+      >
         <Link
           href="/"
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm"
+          className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
         >
           <ArrowLeft size={16} />
-          <span className="font-black uppercase tracking-widest text-xs">Kevin Fraser</span>
+          <span className="text-xs font-semibold uppercase tracking-widest">Kevin Fraser</span>
         </Link>
+        <ThemeToggle />
       </header>
 
-      {/* Content */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-16">
+      <main
+        className="relative z-10 flex flex-1 flex-col items-center justify-center py-16"
+        style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center max-w-2xl"
+          className="w-full max-w-2xl text-center"
         >
-          {/* Emoji */}
-          <div
-            className="text-6xl mb-6"
-            style={{ filter: `drop-shadow(0 0 20px ${color})` }}
-          >
+          <div className="mb-6 text-6xl" style={{ filter: `drop-shadow(0 0 18px ${color}55)` }}>
             {emoji}
           </div>
 
-          {/* Title */}
           <h1
-            className={`text-4xl sm:text-5xl font-black uppercase tracking-widest mb-3 ${neonClass}`}
+            className={`mb-3 text-4xl font-black uppercase tracking-widest sm:text-5xl ${neonClass}`}
           >
             {title}
           </h1>
 
-          <p className="text-gray-400 tracking-widest uppercase text-sm mb-8">{subtitle}</p>
+          <p className="mb-8 text-sm uppercase tracking-widest text-[var(--foreground-muted)]">
+            {subtitle}
+          </p>
 
-          {/* Divider */}
           <div
-            className="h-px w-24 mx-auto mb-8"
+            className="mx-auto mb-8 h-px w-24"
             style={{ background: `linear-gradient(to right, transparent, ${color}, transparent)` }}
           />
 
-          {/* Description */}
-          <p className="text-gray-300 text-base leading-relaxed mb-6 max-w-lg mx-auto">
+          <p className="mx-auto mb-6 max-w-lg text-base leading-relaxed text-[var(--foreground-muted)]">
             {description}
           </p>
 
-          {/* World Guide badge */}
-          {worldGuide && (
+          {worldGuide ? (
             <div
-              className="inline-flex flex-col items-center gap-1 mb-8 px-5 py-3 rounded-sm"
+              className="mb-8 inline-flex flex-col items-center gap-1 rounded-2xl px-5 py-3"
               style={{
-                background: `${color}11`,
+                background: `${color}14`,
                 border: `1px solid ${color}33`,
               }}
             >
-              <span className="text-xs uppercase tracking-widest font-bold" style={{ color }}>
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color }}>
                 World Guide
               </span>
-              <span className="text-white font-black text-sm tracking-widest uppercase">{worldGuide}</span>
-              {worldGuideDesc && (
-                <span className="text-gray-500 text-xs italic mt-0.5">{worldGuideDesc}</span>
-              )}
+              <span className="text-sm font-black uppercase tracking-widest">{worldGuide}</span>
+              {worldGuideDesc ? (
+                <span className="mt-0.5 text-xs italic text-[var(--foreground-subtle)]">
+                  {worldGuideDesc}
+                </span>
+              ) : null}
             </div>
-          )}
+          ) : null}
 
-          {/* Coming Soon Card */}
-          <div
-            className="rounded-lg p-8 max-w-md mx-auto"
-            style={{
-              background: '#111',
-              border: `1px solid ${color}33`,
-              boxShadow: `0 0 30px ${color}11`,
-            }}
-          >
-            <div
-              className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color }}
-            >
+          <div className="mx-auto max-w-md rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-8 text-left shadow-[0_16px_40px_rgba(0,0,0,0.04)]">
+            <div className="mb-4 text-xs font-bold uppercase tracking-widest" style={{ color }}>
               Coming Soon
             </div>
 
             {comingSoonItems.length > 0 ? (
               <ul className="space-y-3">
                 {comingSoonItems.map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-gray-400 text-sm">
+                  <li
+                    key={i}
+                    className="flex items-center gap-3 text-sm text-[var(--foreground-muted)]"
+                  >
                     <span
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ background: color }}
                     />
                     {item}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">Content dropping soon. Stay tuned.</p>
+              <p className="text-sm text-[var(--foreground-subtle)]">
+                Content dropping soon. Stay tuned.
+              </p>
             )}
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-              {ctaLabel && (
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              {ctaLabel ? (
                 <Link
                   href={ctaHref}
-                  className="inline-block px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-all text-center"
-                  style={{
-                    background: color,
-                    color: '#000',
-                    boxShadow: `0 0 16px ${color}66`,
-                  }}
+                  className="inline-block rounded-full px-6 py-2.5 text-center text-xs font-bold uppercase tracking-widest"
+                  style={{ background: color, color: 'var(--accent-contrast)' }}
                 >
                   {ctaLabel}
                 </Link>
-              )}
+              ) : null}
               <Link
                 href="/"
-                className="inline-block px-6 py-2 rounded-sm text-xs font-bold uppercase tracking-widest transition-all text-center"
+                className="inline-block rounded-full border px-6 py-2.5 text-center text-xs font-bold uppercase tracking-widest"
                 style={{
-                  background: `${color}22`,
-                  border: `1px solid ${color}44`,
+                  background: `${color}14`,
+                  borderColor: `${color}44`,
                   color,
                 }}
               >

@@ -45,16 +45,19 @@ export default function TicketButton({
         type="button"
         onClick={checkout}
         disabled={disabled || loading}
-        className="inline-flex items-center justify-center px-5 py-2.5 text-xs font-black uppercase tracking-[0.18em] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         style={{
-          background: disabled ? '#333' : '#FF6B35',
-          color: disabled ? '#888' : '#0A0A0A',
-          boxShadow: disabled ? 'none' : '0 0 24px rgba(255,107,53,0.35)',
+          background: disabled ? 'var(--surface-muted)' : 'var(--accent)',
+          color: disabled ? 'var(--foreground-subtle)' : 'var(--accent-contrast)',
         }}
       >
         {loading ? 'Redirecting…' : label}
       </button>
-      {error ? <p className="mt-2 text-xs text-red-400">{error}</p> : null}
+      {error ? (
+        <p className="mt-2 text-xs" style={{ color: 'var(--danger)' }}>
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }
