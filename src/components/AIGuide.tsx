@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, MessageCircle } from 'lucide-react'
 
@@ -10,6 +11,7 @@ interface Message {
 }
 
 export default function AIGuide() {
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: "G'day! I'm Kevin's AI Guide. Ask me anything about Kevin's worlds, upcoming events, or how to get in touch! 👋" }
@@ -88,6 +90,8 @@ export default function AIGuide() {
       setLoading(false)
     }
   }
+
+  if (pathname?.startsWith('/admin')) return null
 
   return (
     <>

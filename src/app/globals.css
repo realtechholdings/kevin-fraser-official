@@ -140,3 +140,194 @@ html.landing-lock body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Admin console (isolated from public light/dark theme) ───────────────── */
+.admin-app-root {
+  min-height: 100vh;
+  background: #080810;
+  color: #fff;
+  color-scheme: dark;
+}
+
+.admin-app {
+  --admin-bg: #080810;
+  --admin-panel: #0d0d16;
+  --admin-surface: rgba(255, 255, 255, 0.03);
+  --admin-border: rgba(255, 255, 255, 0.08);
+  --admin-border-soft: rgba(255, 255, 255, 0.05);
+  --admin-text: #ffffff;
+  --admin-muted: rgba(255, 255, 255, 0.4);
+  --admin-subtle: rgba(255, 255, 255, 0.3);
+  --admin-violet: #8b5cf6;
+  --admin-violet-soft: rgba(139, 92, 246, 0.15);
+  --admin-pad: clamp(1.25rem, 3vw, 2rem);
+
+  min-height: 100vh;
+  height: 100vh;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  color-scheme: dark;
+}
+
+.admin-app * {
+  border-color: var(--admin-border-soft);
+}
+
+.admin-sidebar {
+  background: var(--admin-panel);
+  border-right: 1px solid var(--admin-border-soft);
+}
+
+.admin-header {
+  background: rgba(13, 13, 22, 0.9);
+  border-bottom: 1px solid var(--admin-border-soft);
+  backdrop-filter: blur(10px);
+}
+
+.admin-main {
+  padding: var(--admin-pad);
+}
+
+.admin-card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 1rem;
+}
+
+.admin-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  color: var(--admin-text);
+  outline: none;
+}
+
+.admin-input:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.admin-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--admin-muted);
+}
+
+.admin-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  background: #8b5cf6;
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.admin-btn-primary:hover {
+  background: #a78bfa;
+}
+
+.admin-btn-primary:disabled {
+  opacity: 0.5;
+}
+
+.admin-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.admin-btn-ghost {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #c4b5fd;
+}
+
+.admin-btn-ghost:hover {
+  color: #ddd6fe;
+}
+
+.admin-btn-danger {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #f87171;
+}
+
+.admin-btn-danger:hover {
+  color: #fca5a5;
+}
+
+.admin-nav-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.admin-nav-item.is-active {
+  background: var(--admin-violet-soft);
+  color: #c4b5fd;
+}
+
+.admin-table th {
+  padding: 0.9rem 1.25rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-muted);
+  border-bottom: 1px solid var(--admin-border-soft);
+}
+
+.admin-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--admin-border-soft);
+  vertical-align: middle;
+}
+
+.admin-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}

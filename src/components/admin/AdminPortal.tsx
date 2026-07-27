@@ -14,6 +14,7 @@ import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
+import { cn } from '@/lib/utils'
 
 type Tab = 'overview' | 'tours' | 'shows'
 
@@ -82,15 +83,12 @@ function toLocalInput(iso?: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-const inputClass =
-  'w-full rounded-xl border border-white/8 bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none transition-all focus:border-violet-500/50 focus:bg-white/[0.07]'
-const labelClass = 'mb-1.5 block text-xs font-medium text-white/40'
-const btnPrimary =
-  'inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-400 disabled:opacity-50'
-const btnSecondary =
-  'inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-50'
-const btnGhost = 'text-sm font-medium text-violet-300 hover:text-violet-200 disabled:opacity-50'
-const btnDanger = 'text-sm font-medium text-red-400 hover:text-red-300 disabled:opacity-50'
+const inputClass = 'admin-input'
+const labelClass = 'admin-label'
+const btnPrimary = 'admin-btn-primary disabled:opacity-50'
+const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
+const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+const btnDanger = 'admin-btn-danger disabled:opacity-50'
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; className: string; icon: typeof CheckCircle }> = {
@@ -408,14 +406,15 @@ export default function AdminPortal() {
         : { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#080810] text-white">
+    <div className="admin-app flex overflow-hidden">
       <AdminSidebar tab={tab} onTabChange={(next) => { setTab(next); setShowFormPanel(false) }} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AdminHeader title={headerCopy.title} subtitle={headerCopy.subtitle} />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="mb-4 flex gap-2 md:hidden">
+        <main className="admin-main flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-5 flex gap-2 md:hidden">
             {(['overview', 'tours', 'shows'] as Tab[]).map((id) => (
               <button
                 key={id}
@@ -424,11 +423,11 @@ export default function AdminPortal() {
                   setTab(id)
                   setShowFormPanel(false)
                 }}
-                className={`rounded-xl px-3 py-2 text-xs font-medium capitalize ${
-                  tab === id
-                    ? 'border border-violet-500/30 bg-violet-500/20 text-violet-300'
-                    : 'border border-transparent bg-white/5 text-white/40'
-                }`}
+                className={cn(
+                  'rounded-xl px-3 py-2 text-xs font-medium capitalize',
+                  tab === id ? 'admin-nav-item is-active' : 'admin-nav-item'
+                )}
+                style={{ width: 'auto' }}
               >
                 {id}
               </button>
@@ -471,7 +470,7 @@ export default function AdminPortal() {
                 ].map((card) => (
                   <div
                     key={card.label}
-                    className="rounded-2xl border border-white/5 bg-white/[0.03] p-4"
+                    className="admin-card p-5"
                   >
                     <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${card.tone}`}>
                       <card.icon className="h-4 w-4" />
@@ -484,7 +483,7 @@ export default function AdminPortal() {
                 ))}
               </div>
 
-              <section className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
+              <section className="admin-card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
                   <h3 className="text-sm font-semibold text-white">Next shows</h3>
                   <button type="button" onClick={() => setTab('shows')} className={btnGhost}>
@@ -556,7 +555,7 @@ export default function AdminPortal() {
               </div>
 
               {showFormPanel ? (
-                <section className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.03] p-5">
+                <section className="admin-card space-y-4 p-6 sm:p-7">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-white">
                       {tab === 'tours'
@@ -813,20 +812,20 @@ export default function AdminPortal() {
               ) : null}
 
               {tab === 'tours' ? (
-                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
-                  <table className="w-full">
+                <div className="admin-card overflow-hidden">
+                  <table className="admin-table w-full">
                     <thead>
-                      <tr className="border-b border-white/5">
-                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                      <tr>
+                        <th>
                           Tour
                         </th>
-                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 md:table-cell">
+                        <th className="hidden md:table-cell">
                           Status
                         </th>
-                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 lg:table-cell">
+                        <th className="hidden lg:table-cell">
                           Featured
                         </th>
-                        <th className="px-5 py-3.5" />
+                        <th />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -901,23 +900,23 @@ export default function AdminPortal() {
                   </table>
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03]">
-                  <table className="w-full">
+                <div className="admin-card overflow-hidden">
+                  <table className="admin-table w-full">
                     <thead>
-                      <tr className="border-b border-white/5">
-                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                      <tr>
+                        <th>
                           Date
                         </th>
-                        <th className="px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40">
+                        <th>
                           City / Venue
                         </th>
-                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 lg:table-cell">
+                        <th className="hidden lg:table-cell">
                           Price
                         </th>
-                        <th className="hidden px-5 py-3.5 text-left text-xs font-medium uppercase tracking-wide text-white/40 md:table-cell">
+                        <th className="hidden md:table-cell">
                           Status
                         </th>
-                        <th className="px-5 py-3.5" />
+                        <th />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -998,6 +997,7 @@ export default function AdminPortal() {
               )}
             </div>
           ) : null}
+          </div>
         </main>
       </div>
     </div>
