@@ -1,0 +1,81 @@
+import { NextRequest, NextResponse } from 'next/server'
+import dbConnect from '@/lib/db'
+import Show, { SHOW_STATUSES } from '@/lib/models/Show'
+import Tour from '@/lib/models/Tour'
+import { requireAdmin } from '@/lib/admin'
+import { serializeShow } from '@/lib/serialize'
+
+export async function GET() {
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
+  }
+
+  try {
+    await dbConnect()
+    const shows = await Show.find().populate('tour').sort({ date: 1 })
+    return NextResponse.json({ success: true, shows: shows.map(serializeShow) })
+  } catch (error) {
+    console.error('Admin shows GET:', error)
+    return NextResponse.json({ success: false, error: 'Failed to load shows.' }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const admin = await requireAdmin()
+  if (!admin.ok) {
+    return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
+  }
+
+  try {
+    const body = await req.json()
+    const tourId = String(body.tourId || '')
+    const title = String(body.title || '').trim()
+    const city = String(body.city || '').trim()
+    const venue = String(body.venue || '').trim()
+    const country = String(body.country || '').trim()
+    const date = body.date ? new Date(body.date) : null
+
+    if (!tourId || !title || !city || !venue || !country || !date || Number.isNaN(date.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'tourId, title, city, venue, country, and date are required.' },
+        { status: 400 }
+      )
+    }
+
+    await dbConnect()
+    const tour = await Tour.findById(tourId)
+    if (!tour) {
+      return NextResponse.json({ success: false, error: 'Tour not found.' }, { status: 404 })
+    }
+
+    const status = SHOW_STATUSES.includes(body.status as (typeof SHOW_STATUSES)[number])
+      ? body.status
+      : 'on_sale'
+
+    const show = await Show.create({
+      tour: tourId,
+      title,
+      date,
+      doorsTime: String(body.doorsTime || ''),
+      showTime: String(body.showTime || ''),
+      country,
+      city,
+      venue,
+      address: String(body.address || ''),
+      currency: String(body.currency || 'AUD').toUpperCase(),
+      priceCents: Math.max(0, Number(body.priceCents) || 0),
+      capacity: Math.max(0, Number(body.capacity) || 0),
+      status,
+      featured: Boolean(body.featured),
+      published: body.published !== false,
+      externalTicketUrl: String(body.externalTicketUrl || ''),
+    })
+
+    await show.populate('tour')
+    return NextResponse.json({ success: true, show: serializeShow(show) }, { status: 201 })
+  } catch (error) {
+    console.error('Admin shows POST:', error)
+    return NextResponse.json({ success: false, error: 'Failed to create show.' }, { status: 500 })
+  }
+}

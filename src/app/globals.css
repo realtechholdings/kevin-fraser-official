@@ -32,16 +32,21 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  overflow-y: hidden;
+  overflow-y: auto;
   background: #06060a;
   color: #FFFFFF;
 }
 
-/* Lock desktop to full viewport height */
+/* Landing page locks scroll via .landing-lock on html/body */
+html.landing-lock,
+html.landing-lock body {
+  overflow: hidden;
+  height: 100%;
+}
+
 @media (min-width: 768px) {
-  body {
+  html.landing-lock body {
     height: 100vh;
-    overflow: hidden;
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 
 interface Hotspot {
@@ -76,6 +76,11 @@ export default function ImageMapLanding() {
   const [activeVideo, setActiveVideo] = useState<string | null>(null)
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({})
 
+  useEffect(() => {
+    document.documentElement.classList.add('landing-lock')
+    return () => document.documentElement.classList.remove('landing-lock')
+  }, [])
+
   const handleEnter = useCallback((id: string, videoSrc: string) => {
     setActiveVideo(videoSrc)
     const vid = videoRefs.current[id]
@@ -119,7 +124,7 @@ export default function ImageMapLanding() {
         <p
           style={{
             margin: 0,
-            fontSize: 'clamp(12px, 1.8vw, 18px)',
+            fontSize: 'clamp(10px, 1.2vw, 13px)',
             letterSpacing: '0.18em',
             lineHeight: 1,
             color: '#C4A35A',
@@ -129,8 +134,8 @@ export default function ImageMapLanding() {
         </p>
         <p
           style={{
-            margin: '6px 0 0',
-            fontSize: 'clamp(42px, 9vw, 96px)',
+            margin: '4px 0 0',
+            fontSize: 'clamp(28px, 5vw, 52px)',
             letterSpacing: '0.02em',
             lineHeight: 0.9,
             color: '#F2F0EB',
@@ -140,8 +145,8 @@ export default function ImageMapLanding() {
         </p>
         <p
           style={{
-            margin: '10px 0 0',
-            fontSize: 'clamp(13px, 2vw, 20px)',
+            margin: '6px 0 0',
+            fontSize: 'clamp(10px, 1.3vw, 14px)',
             letterSpacing: '0.16em',
             lineHeight: 1,
             color: '#FFFFFF',
@@ -155,7 +160,7 @@ export default function ImageMapLanding() {
           viewBox="0 0 180 10"
           fill="none"
           aria-hidden="true"
-          style={{ marginTop: '8px', width: 'clamp(100px, 16vw, 180px)', height: 'auto' }}
+          style={{ marginTop: '6px', width: 'clamp(70px, 10vw, 120px)', height: 'auto' }}
         >
           <path
             d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
