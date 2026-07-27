@@ -3,11 +3,91 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Send } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Send } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 
+const SOCIALS = [
+  {
+    id: 'facebook',
+    label: 'Facebook',
+    handle: '@kevinfraserofficial',
+    href: 'https://www.facebook.com/kevinfraserofficial',
+    blurb: 'Shows, updates, and live moments',
+  },
+  {
+    id: 'instagram',
+    label: 'Instagram',
+    handle: '@KevinFraserofficial',
+    href: 'https://www.instagram.com/KevinFraserofficial',
+    blurb: 'Reels, tour life, and day-to-day',
+  },
+  {
+    id: 'tiktok',
+    label: 'TikTok',
+    handle: '@kevinfraserofficial',
+    href: 'https://www.tiktok.com/@kevinfraserofficial',
+    blurb: 'Short-form comedy and clips',
+  },
+  {
+    id: 'youtube',
+    label: 'YouTube',
+    handle: 'Kevin Fraser',
+    href: 'https://www.youtube.com/c/kevinfraserspindoctor',
+    blurb: 'Full sets, shorts, and stand-up',
+  },
+] as const
+
+const INQUIRY_TYPES = [
+  'Booking',
+  'Collaboration',
+  'Press',
+  'Fan message',
+  'Other',
+] as const
+
+function SocialIcon({ id }: { id: (typeof SOCIALS)[number]['id'] }) {
+  const common = {
+    viewBox: '0 0 24 24',
+    fill: 'currentColor',
+    className: 'h-5 w-5',
+    'aria-hidden': true as const,
+  }
+
+  if (id === 'facebook') {
+    return (
+      <svg {...common}>
+        <path d="M14 8.5h2.5V5.4c-.4-.1-1.6-.2-3-.2-3 0-5 1.8-5 5.2V13H5.5v3.5H8.5V23h3.6v-6.5H15l.5-3.5h-3.4V10.8c0-1 .3-1.8 1.9-1.8Z" />
+      </svg>
+    )
+  }
+  if (id === 'instagram') {
+    return (
+      <svg {...common}>
+        <path d="M12 7.2A4.8 4.8 0 1 0 12 16.8 4.8 4.8 0 0 0 12 7.2Zm0 7.9a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2Zm5.1-8.2a1.1 1.1 0 1 1-2.2 0 1.1 1.1 0 0 1 2.2 0ZM12 3.5c-2.3 0-2.6 0-3.5.1-2.3.1-3.5 1.3-3.6 3.6-.1.9-.1 1.2-.1 3.5s0 2.6.1 3.5c.1 2.3 1.3 3.5 3.6 3.6.9.1 1.2.1 3.5.1s2.6 0 3.5-.1c2.3-.1 3.5-1.3 3.6-3.6.1-.9.1-1.2.1-3.5s0-2.6-.1-3.5c-.1-2.3-1.3-3.5-3.6-3.6-.9-.1-1.2-.1-3.5-.1Zm0 1.6c2.3 0 2.5 0 3.4.1 1.7.1 2.5.9 2.6 2.6.1.9.1 1.1.1 3.4s0 2.5-.1 3.4c-.1 1.7-.9 2.5-2.6 2.6-.9.1-1.1.1-3.4.1s-2.5 0-3.4-.1c-1.7-.1-2.5-.9-2.6-2.6-.1-.9-.1-1.1-.1-3.4s0-2.5.1-3.4c.1-1.7.9-2.5 2.6-2.6.9-.1 1.1-.1 3.4-.1Z" />
+      </svg>
+    )
+  }
+  if (id === 'tiktok') {
+    return (
+      <svg {...common}>
+        <path d="M19.6 8.3a6.7 6.7 0 0 1-3.9-1.2v7.1a5.7 5.7 0 1 1-4.9-5.6v2.9a2.8 2.8 0 1 0 2 2.7V2.8h2.8a3.9 3.9 0 0 0 3.9 3.9v1.6Z" />
+      </svg>
+    )
+  }
+  return (
+    <svg {...common}>
+      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.8 15.6V8.4L15.8 12l-6 3.6Z" />
+    </svg>
+  )
+}
+
 export default function ConnectPage() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    inquiryType: 'Booking',
+    message: '',
+  })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
@@ -40,89 +120,219 @@ export default function ConnectPage() {
     'w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-subtle)] focus:border-[var(--accent)]'
 
   return (
-    <div className="flex min-h-screen flex-col overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+    <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
       <header
-        className="relative z-10 flex items-center justify-between border-b border-[var(--border)] py-4"
+        className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"
         style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
       >
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
-        >
-          <ArrowLeft size={16} />
-          <span className="text-xs font-semibold uppercase tracking-widest">Kevin Fraser</span>
-        </Link>
-        <ThemeToggle />
+        <div className="mx-auto flex max-w-6xl items-center justify-between py-4">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-sm text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
+          >
+            <ArrowLeft size={16} />
+            <span
+              className="text-xs uppercase tracking-[0.22em]"
+              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+            >
+              Kevin Fraser
+            </span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[10px] uppercase tracking-[0.28em] text-[var(--foreground-subtle)] sm:inline">
+              Connect
+            </span>
+            <ThemeToggle />
+          </div>
+        </div>
       </header>
 
       <main
-        className="relative z-10 flex flex-1 flex-col items-center justify-center py-16"
+        className="mx-auto w-full max-w-6xl pb-24 pt-10 sm:pt-14"
         style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-lg"
+          className="mb-12"
         >
-          <div className="mb-10 text-center">
-            <div className="mb-4 text-5xl">🌐</div>
-            <h1 className="mb-2 text-4xl font-black uppercase tracking-widest">Connect</h1>
-            <p className="text-sm uppercase tracking-widest text-[var(--foreground-muted)]">
-              Contact · Subscribe · Inquire
-            </p>
-          </div>
+          <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#0f766e' }}>
+            Socials · Enquiries
+          </p>
+          <h1
+            className="text-5xl uppercase leading-[0.92] sm:text-7xl"
+            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+          >
+            Connect
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
+            Follow Kevin across his channels, or send a message for bookings, press, and
+            collaborations.
+          </p>
+        </motion.section>
 
-          <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-8">
+        <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <motion.section
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+          >
+            <h2
+              className="mb-2 text-2xl uppercase tracking-wide"
+              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+            >
+              Socials
+            </h2>
+            <p className="mb-6 text-sm text-[var(--foreground-muted)]">
+              Stay close to the work — clips, shows, and everything in between.
+            </p>
+
+            <ul className="space-y-3">
+              {SOCIALS.map((social, index) => (
+                <motion.li
+                  key={social.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.12 + index * 0.05 }}
+                >
+                  <a
+                    href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 transition-colors hover:border-[var(--foreground)]/20"
+                  >
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[var(--foreground)]"
+                      style={{ background: 'var(--surface-muted, rgba(127,127,127,0.12))' }}
+                    >
+                      <SocialIcon id={social.id} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--foreground)]">
+                          {social.label}
+                        </span>
+                        <span className="truncate text-xs text-[var(--foreground-subtle)]">
+                          {social.handle}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block text-sm text-[var(--foreground-muted)]">
+                        {social.blurb}
+                      </span>
+                    </span>
+                    <ExternalLink className="h-4 w-4 shrink-0 text-[var(--foreground-subtle)] transition-colors group-hover:text-[var(--foreground)]" />
+                  </a>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+            className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-8"
+          >
             {success ? (
-              <div className="py-8 text-center">
-                <div className="mb-4 text-4xl">✉️</div>
-                <h2 className="mb-3 text-xl font-black uppercase tracking-wider">Message Sent</h2>
-                <p className="text-sm text-[var(--foreground-muted)]">
-                  Kevin&apos;s team will be in touch soon. Thanks for reaching out!
+              <div className="py-10 text-center">
+                <p className="mb-3 text-[11px] uppercase tracking-[0.3em]" style={{ color: '#0f766e' }}>
+                  Sent
+                </p>
+                <h2
+                  className="mb-3 text-3xl uppercase"
+                  style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+                >
+                  Message received
+                </h2>
+                <p className="mx-auto max-w-sm text-sm leading-relaxed text-[var(--foreground-muted)]">
+                  Kevin&apos;s team will be in touch soon. Thanks for reaching out.
                 </p>
                 <button
                   type="button"
                   onClick={() => {
                     setSuccess(false)
-                    setForm({ name: '', email: '', message: '' })
+                    setForm({ name: '', email: '', inquiryType: 'Booking', message: '' })
                   }}
-                  className="mt-6 rounded-full border border-[var(--border)] px-6 py-2 text-xs font-bold uppercase tracking-widest text-[var(--foreground-muted)]"
+                  className="mt-8 rounded-full border border-[var(--border)] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
                 >
-                  Send Another
+                  Send another
                 </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <h2 className="mb-6 text-lg font-black uppercase tracking-widest">Get In Touch</h2>
+                <div className="mb-2">
+                  <h2
+                    className="text-3xl uppercase"
+                    style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+                  >
+                    Get in touch
+                  </h2>
+                  <p className="mt-2 text-sm text-[var(--foreground-muted)]">
+                    Bookings, press, collabs, or just saying hello.
+                  </p>
+                </div>
 
-                <input
-                  type="text"
-                  placeholder="Your Name"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  required
-                  className={fieldClass}
-                />
-                <input
-                  type="email"
-                  placeholder="Email Address"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  required
-                  className={fieldClass}
-                />
-                <textarea
-                  placeholder="Your message..."
-                  value={form.message}
-                  onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-                  required
-                  rows={5}
-                  className={`${fieldClass} resize-none`}
-                />
+                <div>
+                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-[var(--foreground-subtle)]">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    required
+                    className={fieldClass}
+                    autoComplete="name"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-[var(--foreground-subtle)]">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    required
+                    className={fieldClass}
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-[var(--foreground-subtle)]">
+                    Enquiry type
+                  </label>
+                  <select
+                    value={form.inquiryType}
+                    onChange={(e) => setForm((f) => ({ ...f, inquiryType: e.target.value }))}
+                    className={fieldClass}
+                  >
+                    {INQUIRY_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[11px] uppercase tracking-[0.18em] text-[var(--foreground-subtle)]">
+                    Message
+                  </label>
+                  <textarea
+                    value={form.message}
+                    onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+                    required
+                    rows={5}
+                    className={`${fieldClass} resize-none`}
+                    placeholder="Tell us what you’re after…"
+                  />
+                </div>
 
                 {error ? (
-                  <p className="text-xs" style={{ color: 'var(--danger)' }}>
+                  <p className="text-sm" style={{ color: 'var(--danger)' }}>
                     {error}
                   </p>
                 ) : null}
@@ -130,25 +340,21 @@ export default function ConnectPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold uppercase tracking-widest disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold uppercase tracking-[0.16em] disabled:opacity-60"
                   style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
                 >
                   {loading ? (
-                    'Sending...'
+                    'Sending…'
                   ) : (
                     <>
-                      <Send size={14} /> Get In Touch
+                      <Send size={14} /> Send enquiry
                     </>
                   )}
                 </button>
               </form>
             )}
-          </div>
-
-          <p className="mt-6 text-center text-xs tracking-wide text-[var(--foreground-subtle)]">
-            Mailing list · Social platforms · Business enquiries · Fan community
-          </p>
-        </motion.div>
+          </motion.section>
+        </div>
       </main>
     </div>
   )
