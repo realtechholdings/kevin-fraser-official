@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import {
   BadgeDollarSign,
   Bot,
@@ -15,7 +14,6 @@ import {
   ScrollText,
   Store,
   Ticket,
-  ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -99,47 +97,6 @@ export default function AdminSidebar({
           )
         })}
       </nav>
-
-      <div className="space-y-2 px-3 py-5" style={{ borderTop: '1px solid var(--admin-border-soft)' }}>
-        <Link
-          href="/worlds/stage"
-          className="admin-nav-item"
-          style={{ color: 'var(--admin-muted)' }}
-        >
-          <ExternalLink className="h-4 w-4" />
-          View Stage
-        </Link>
-        <Link
-          href="/worlds/showreel"
-          className="admin-nav-item"
-          style={{ color: 'var(--admin-muted)' }}
-        >
-          <ExternalLink className="h-4 w-4" />
-          View Showreel
-        </Link>
-        <Link
-          href="/worlds/studio"
-          className="admin-nav-item"
-          style={{ color: 'var(--admin-muted)' }}
-        >
-          <ExternalLink className="h-4 w-4" />
-          View Studio
-        </Link>
-        <Link
-          href="/worlds/kevin11"
-          className="admin-nav-item"
-          style={{ color: 'var(--admin-muted)' }}
-        >
-          <ExternalLink className="h-4 w-4" />
-          View Kevin11
-        </Link>
-        <div className="flex items-center gap-2 px-3 pt-1">
-          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-          <span className="text-xs" style={{ color: 'var(--admin-subtle)' }}>
-            Admin
-          </span>
-        </div>
-      </div>
     </aside>
   )
 }
