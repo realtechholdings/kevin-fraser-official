@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
           name: settings.signatureName,
           tagline: settings.signatureTagline,
           linkUrl: settings.signatureLinkUrl,
+          imageUrl: settings.signatureImageUrl,
         }
       : null
 

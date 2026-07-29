@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Mail,
   Palette,
+  ScanLine,
   ScrollText,
   Store,
   Ticket,
@@ -23,6 +24,7 @@ export type AdminTab =
   | 'shows'
   | 'tiers'
   | 'cms'
+  | 'scanner'
   | 'bonus'
   | 'studio'
   | 'kevin11'
@@ -36,6 +38,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'shows', name: 'Shows', icon: CalendarDays },
   { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
   { id: 'cms', name: 'CMS', icon: Mail },
+  { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
   { id: 'kevin11', name: 'Kevin11', icon: Store },

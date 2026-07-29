@@ -4,6 +4,7 @@ export type EmailSignature = {
   name: string
   tagline: string
   linkUrl: string
+  imageUrl?: string
 }
 
 function escapeHtml(value: string) {
@@ -14,13 +15,38 @@ function escapeHtml(value: string) {
     .replace(/"/g, '&quot;')
 }
 
-/** Convert plain text into simple HTML paragraphs. */
+const IMAGE_LINE = /^\[image:\s*(https?:\/\/\S+?)\s*\]$/i
+
+/**
+ * Convert plain text into simple HTML paragraphs.
+ * A line of the form `[image: https://...]` becomes an inline image.
+ */
 export function textToEmailHtml(text: string) {
   return text
     .split(/\n{2,}/)
     .map((block) => {
-      const lines = escapeHtml(block.trim()).replace(/\n/g, '<br/>')
-      return `<p style="margin:0 0 16px;line-height:1.6;">${lines}</p>`
+      const parts: string[] = []
+      let buffer: string[] = []
+      const flush = () => {
+        if (!buffer.length) return
+        parts.push(
+          `<p style="margin:0 0 16px;line-height:1.6;">${buffer.map(escapeHtml).join('<br/>')}</p>`,
+        )
+        buffer = []
+      }
+      for (const line of block.trim().split('\n')) {
+        const match = line.trim().match(IMAGE_LINE)
+        if (match) {
+          flush()
+          parts.push(
+            `<img src="${escapeHtml(match[1])}" alt="" style="display:block;width:100%;max-width:536px;height:auto;border-radius:12px;margin:0 0 16px;" />`,
+          )
+        } else {
+          buffer.push(line)
+        }
+      }
+      flush()
+      return parts.join('')
     })
     .join('')
 }
@@ -46,6 +72,7 @@ export function renderEmailHtml({
     ? `
       <tr>
         <td style="padding:24px 32px 0;border-top:1px solid #26262e;">
+          ${signature.imageUrl ? `<img src="${escapeHtml(signature.imageUrl)}" alt="${escapeHtml(signature.name)}" width="64" height="64" style="display:block;width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0 0 12px;" />` : ''}
           <p style="margin:0;font-size:14px;font-weight:700;color:#ffffff;">${escapeHtml(signature.name)}</p>
           ${signature.tagline ? `<p style="margin:4px 0 0;font-size:12px;color:#9a9aa5;">${escapeHtml(signature.tagline)}</p>` : ''}
           ${signature.linkUrl ? `<p style="margin:8px 0 0;font-size:12px;"><a href="${escapeHtml(signature.linkUrl)}" style="color:${ACCENT};text-decoration:none;">${escapeHtml(signature.linkUrl.replace(/^https?:\/\//, ''))}</a></p>` : ''}

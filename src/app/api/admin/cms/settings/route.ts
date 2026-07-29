@@ -9,6 +9,7 @@ function serializeSettings(settings: Awaited<ReturnType<typeof getEmailSettings>
     signatureName: settings.signatureName,
     signatureTagline: settings.signatureTagline,
     signatureLinkUrl: settings.signatureLinkUrl,
+    signatureImageUrl: settings.signatureImageUrl,
     ticketEmailEnabled: settings.ticketEmailEnabled,
     ticketEmailSubject: settings.ticketEmailSubject,
     ticketEmailBody: settings.ticketEmailBody,
@@ -50,6 +51,9 @@ export async function POST(req: NextRequest) {
     }
     if (body.signatureLinkUrl !== undefined) {
       settings.signatureLinkUrl = String(body.signatureLinkUrl)
+    }
+    if (body.signatureImageUrl !== undefined) {
+      settings.signatureImageUrl = String(body.signatureImageUrl)
     }
     if (body.ticketEmailEnabled !== undefined) {
       settings.ticketEmailEnabled = Boolean(body.ticketEmailEnabled)

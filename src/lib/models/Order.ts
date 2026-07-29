@@ -19,6 +19,19 @@ const OrderSchema = new Schema(
     },
     /** Set once the ticket confirmation email (with PDF) has been sent */
     confirmationEmailSentAt: { type: Date, default: null },
+    /** Door check-ins: one entry per scanned ticket number (1-based) */
+    checkedIn: {
+      type: [
+        new Schema(
+          {
+            ticket: { type: Number, required: true },
+            at: { type: Date, default: Date.now },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 )

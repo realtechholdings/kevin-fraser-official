@@ -1,0 +1,374 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import jsQR from 'jsqr'
+import {
+  Camera,
+  CameraOff,
+  CheckCircle,
+  Clock,
+  RotateCcw,
+  Search,
+  XCircle,
+} from 'lucide-react'
+
+const inputClass = 'admin-input'
+const labelClass = 'admin-label'
+const btnPrimary = 'admin-btn-primary disabled:opacity-50'
+const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
+const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+
+type ScanResult = {
+  verdict: 'valid' | 'already_used' | 'not_paid' | 'not_found' | 'invalid_ticket' | 'undone' | 'info'
+  scan?: {
+    orderId: string
+    email: string
+    tierName: string
+    quantity: number
+    status: string
+    ticket: number | null
+    checkedIn: { ticket: number; at: string | null }[]
+    show: { city: string; venue: string; date: string; tour: string } | null
+  }
+}
+
+const VERDICT_META: Record<
+  ScanResult['verdict'],
+  { label: string; className: string; icon: typeof CheckCircle }
+> = {
+  valid: {
+    label: 'Valid — checked in',
+    className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+    icon: CheckCircle,
+  },
+  already_used: {
+    label: 'Already checked in',
+    className: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+    icon: Clock,
+  },
+  not_paid: {
+    label: 'Order not paid',
+    className: 'border-red-500/40 bg-red-500/10 text-red-300',
+    icon: XCircle,
+  },
+  not_found: {
+    label: 'Ticket not found',
+    className: 'border-red-500/40 bg-red-500/10 text-red-300',
+    icon: XCircle,
+  },
+  invalid_ticket: {
+    label: 'Invalid ticket number',
+    className: 'border-red-500/40 bg-red-500/10 text-red-300',
+    icon: XCircle,
+  },
+  undone: {
+    label: 'Check-in undone',
+    className: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+    icon: RotateCcw,
+  },
+  info: {
+    label: 'Order details',
+    className: 'border-white/15 bg-white/5 text-white/80',
+    icon: Search,
+  },
+}
+
+function timeLabel(iso: string | null) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+export default function ScannerAdminPanel({
+  onError,
+}: {
+  onMessage: (msg: string) => void
+  onError: (msg: string) => void
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const rafRef = useRef<number>(0)
+  const pausedUntilRef = useRef(0)
+  const lastCodeRef = useRef<{ code: string; at: number }>({ code: '', at: 0 })
+  const busyRef = useRef(false)
+
+  const [cameraOn, setCameraOn] = useState(false)
+  const [cameraError, setCameraError] = useState('')
+  const [result, setResult] = useState<ScanResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [manual, setManual] = useState({ orderId: '', ticket: '' })
+
+  const verify = useCallback(
+    async (payload: Record<string, unknown>) => {
+      busyRef.current = true
+      setBusy(true)
+      try {
+        const res = await fetch('/api/admin/scanner/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Verification failed')
+        setResult({ verdict: data.verdict, scan: data.scan })
+      } catch (err) {
+        onError(err instanceof Error ? err.message : 'Verification failed')
+      } finally {
+        busyRef.current = false
+        setBusy(false)
+      }
+    },
+    [onError],
+  )
+
+  const scanLoop = useCallback(() => {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+    if (!video || !canvas) return
+
+    if (
+      !busyRef.current &&
+      Date.now() >= pausedUntilRef.current &&
+      video.readyState === video.HAVE_ENOUGH_DATA
+    ) {
+      const width = Math.min(video.videoWidth, 640)
+      const height = Math.round(video.videoHeight * (width / video.videoWidth)) || 0
+      if (width && height) {
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, width, height)
+          const image = ctx.getImageData(0, 0, width, height)
+          const qr = jsQR(image.data, width, height)
+          if (qr?.data) {
+            const now = Date.now()
+            const isRepeat =
+              qr.data === lastCodeRef.current.code && now - lastCodeRef.current.at < 6000
+            if (!isRepeat) {
+              lastCodeRef.current = { code: qr.data, at: now }
+              // Brief pause so one QR doesn't fire multiple times mid-request
+              pausedUntilRef.current = now + 2500
+              void verify({ code: qr.data, action: 'checkin' })
+            }
+          }
+        }
+      }
+    }
+    rafRef.current = requestAnimationFrame(scanLoop)
+  }, [verify])
+
+  async function startCamera() {
+    setCameraError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      setCameraOn(true)
+      rafRef.current = requestAnimationFrame(scanLoop)
+    } catch {
+      setCameraError(
+        'Could not access the camera. Allow camera permission, or use manual lookup below.',
+      )
+    }
+  }
+
+  const stopCamera = useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCameraOn(false)
+  }, [])
+
+  useEffect(() => stopCamera, [stopCamera])
+
+  const scan = result?.scan
+  const meta = result ? VERDICT_META[result.verdict] : null
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white">Ticket Scanner</h2>
+        <p className="mt-1 text-sm text-white/40">
+          Scan the QR code on a ticket PDF to verify it and check the guest in at the door.
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="admin-card space-y-4 p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Camera</h3>
+            {cameraOn ? (
+              <button type="button" className={btnSecondary} onClick={stopCamera}>
+                <CameraOff className="mr-1.5 inline h-4 w-4" />
+                Stop
+              </button>
+            ) : (
+              <button type="button" className={btnPrimary} onClick={() => void startCamera()}>
+                <Camera className="mr-1.5 inline h-4 w-4" />
+                Start scanning
+              </button>
+            )}
+          </div>
+
+          <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video ref={videoRef} playsInline muted className="aspect-[4/3] w-full object-cover" />
+            {!cameraOn ? (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-white/40">
+                Camera off
+              </div>
+            ) : (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <div className="h-40 w-40 rounded-2xl border-2 border-white/50" />
+              </div>
+            )}
+          </div>
+          <canvas ref={canvasRef} className="hidden" />
+
+          {cameraError ? <p className="text-sm text-red-300">{cameraError}</p> : null}
+          <p className="text-xs text-white/35">
+            Each ticket page has its own QR code. A green result checks the guest in immediately;
+            scanning the same ticket again shows &quot;already checked in&quot;.
+          </p>
+        </section>
+
+        <div className="space-y-6">
+          {result && meta ? (
+            <section className={`rounded-2xl border p-6 ${meta.className}`}>
+              <div className="flex items-center gap-2">
+                <meta.icon className="h-5 w-5 shrink-0" />
+                <p className="text-base font-semibold">{meta.label}</p>
+              </div>
+
+              {scan ? (
+                <div className="mt-4 space-y-1.5 text-sm">
+                  {scan.show ? (
+                    <p className="font-medium text-white">
+                      {scan.show.tour ? `${scan.show.tour} — ` : ''}
+                      {scan.show.city} · {scan.show.venue}
+                      {scan.show.date ? ` · ${scan.show.date}` : ''}
+                    </p>
+                  ) : null}
+                  <p className="text-white/80">
+                    {scan.tierName}
+                    {scan.ticket ? ` · Ticket ${scan.ticket} of ${scan.quantity}` : ` · ${scan.quantity} ticket(s)`}
+                  </p>
+                  <p className="text-white/60">{scan.email}</p>
+                  <p className="text-white/60">
+                    Checked in: {scan.checkedIn.length} of {scan.quantity}
+                    {scan.checkedIn.length
+                      ? ` (${scan.checkedIn
+                          .map((c) => `#${c.ticket}${c.at ? ` ${timeLabel(c.at)}` : ''}`)
+                          .join(', ')})`
+                      : ''}
+                  </p>
+                  {result.verdict === 'not_paid' ? (
+                    <p className="text-white/60">Order status: {scan.status}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {result.verdict === 'valid' || result.verdict === 'already_used' ? (
+                  <button
+                    type="button"
+                    disabled={busy || !scan?.ticket}
+                    className={btnGhost}
+                    onClick={() =>
+                      scan?.ticket &&
+                      void verify({ orderId: scan.orderId, ticket: scan.ticket, action: 'undo' })
+                    }
+                  >
+                    <RotateCcw className="mr-1.5 inline h-4 w-4" />
+                    Undo check-in
+                  </button>
+                ) : null}
+                {result.verdict === 'undone' ? (
+                  <button
+                    type="button"
+                    disabled={busy || !scan?.ticket}
+                    className={btnGhost}
+                    onClick={() =>
+                      scan?.ticket &&
+                      void verify({ orderId: scan.orderId, ticket: scan.ticket, action: 'checkin' })
+                    }
+                  >
+                    <CheckCircle className="mr-1.5 inline h-4 w-4" />
+                    Check in again
+                  </button>
+                ) : null}
+                <button type="button" className={btnGhost} onClick={() => setResult(null)}>
+                  Clear
+                </button>
+              </div>
+            </section>
+          ) : (
+            <section className="admin-card flex min-h-[120px] items-center justify-center p-6 text-sm text-white/40">
+              Scan a ticket to see the result here.
+            </section>
+          )}
+
+          <section className="admin-card space-y-4 p-6">
+            <h3 className="text-sm font-semibold text-white">Manual lookup</h3>
+            <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
+              <div>
+                <label className={labelClass}>Order ID</label>
+                <input
+                  className={inputClass}
+                  value={manual.orderId}
+                  onChange={(e) => setManual({ ...manual, orderId: e.target.value.trim() })}
+                  placeholder="From the ticket footer"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Ticket #</label>
+                <input
+                  className={inputClass}
+                  type="number"
+                  min="1"
+                  value={manual.ticket}
+                  onChange={(e) => setManual({ ...manual, ticket: e.target.value })}
+                  placeholder="1"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy || !manual.orderId || !manual.ticket}
+                className={btnPrimary}
+                onClick={() =>
+                  void verify({
+                    orderId: manual.orderId,
+                    ticket: Number(manual.ticket),
+                    action: 'checkin',
+                  })
+                }
+              >
+                <CheckCircle className="mr-1.5 inline h-4 w-4" />
+                Verify & check in
+              </button>
+              <button
+                type="button"
+                disabled={busy || !manual.orderId}
+                className={btnSecondary}
+                onClick={() => void verify({ orderId: manual.orderId, action: 'lookup' })}
+              >
+                <Search className="mr-1.5 inline h-4 w-4" />
+                Look up order
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  )
+}

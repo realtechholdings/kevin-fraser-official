@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import {
+  emailMediaKey,
   isR2Configured,
   putR2Object,
   showMediaKey,
@@ -10,7 +11,7 @@ import {
 export const runtime = 'nodejs'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB images
-const FOLDERS = ['tours', 'shows'] as const
+const FOLDERS = ['tours', 'shows', 'email'] as const
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin()
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
     if (!FOLDERS.includes(folder as (typeof FOLDERS)[number])) {
       return NextResponse.json(
-        { success: false, error: 'folder must be tours or shows.' },
+        { success: false, error: 'folder must be tours, shows, or email.' },
         { status: 400 },
       )
     }
@@ -55,13 +56,28 @@ export async function POST(req: NextRequest) {
     const key =
       folder === 'tours'
         ? tourMediaKey(file.name || 'image.jpg')
-        : showMediaKey(file.name || 'image.jpg')
+        : folder === 'email'
+          ? emailMediaKey(file.name || 'image.jpg')
+          : showMediaKey(file.name || 'image.jpg')
 
     const uploaded = await putR2Object({
       key,
       body: Buffer.from(await file.arrayBuffer()),
       contentType: file.type || 'image/jpeg',
     })
+
+    // Email images are embedded by URL in recipients' inboxes, so they must be
+    // publicly reachable — the site's proxy routes won't do.
+    if (folder === 'email' && !uploaded.publicUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Email images need a public URL — set R2_PUBLIC_BASE_URL to your R2 public bucket URL.',
+        },
+        { status: 503 },
+      )
+    }
 
     return NextResponse.json({
       success: true,

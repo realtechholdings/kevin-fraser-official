@@ -60,6 +60,7 @@ export async function sendTicketEmail(
       name: settings.signatureName,
       tagline: settings.signatureTagline,
       linkUrl: settings.signatureLinkUrl,
+      imageUrl: settings.signatureImageUrl,
     },
     appUrl: appUrl(),
   })

@@ -91,6 +91,10 @@ export function showMediaKey(filename: string) {
   return r2ObjectKey('shows', filename)
 }
 
+export function emailMediaKey(filename: string) {
+  return r2ObjectKey('email', filename)
+}
+
 export function tourImagePath(id: string, kind: 'cover' | 'banner') {
   return `/api/tours/${id}/${kind}`
 }

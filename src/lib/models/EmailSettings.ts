@@ -17,6 +17,8 @@ const EmailSettingsSchema = new Schema(
     signatureName: { type: String, default: 'Kevin Fraser' },
     signatureTagline: { type: String, default: 'Comedian · Kevin Fraser Official' },
     signatureLinkUrl: { type: String, default: '' },
+    /** Publicly reachable image (headshot/logo) shown above the signature */
+    signatureImageUrl: { type: String, default: '' },
     ticketEmailEnabled: { type: Boolean, default: true },
     ticketEmailSubject: { type: String, default: DEFAULT_TICKET_SUBJECT },
     ticketEmailBody: { type: String, default: DEFAULT_TICKET_BODY },

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Mail, Send, Ticket, PenLine, FileText } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Mail, Send, Ticket, PenLine, FileText, ImagePlus } from 'lucide-react'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -14,11 +14,73 @@ type Settings = {
   signatureName: string
   signatureTagline: string
   signatureLinkUrl: string
+  signatureImageUrl: string
   ticketEmailEnabled: boolean
   ticketEmailSubject: string
   ticketEmailBody: string
   emailConfigured: boolean
   fromAddress: string
+}
+
+async function uploadEmailImage(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('folder', 'email')
+  const res = await fetch('/api/admin/media/upload', { method: 'POST', body: form })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Image upload failed')
+  if (!data.publicUrl) throw new Error('Upload did not return a public URL.')
+  return data.publicUrl as string
+}
+
+/** Uploads an image and hands back its public URL (used to insert [image: url] tags). */
+function InsertImageButton({
+  label = 'Insert image',
+  disabled,
+  onUploaded,
+  onError,
+  onBusy,
+}: {
+  label?: string
+  disabled?: boolean
+  onUploaded: (url: string) => void
+  onError: (msg: string) => void
+  onBusy: (busy: boolean) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (!file) return
+          onBusy(true)
+          onError('')
+          try {
+            onUploaded(await uploadEmailImage(file))
+          } catch (err) {
+            onError(err instanceof Error ? err.message : 'Image upload failed')
+          } finally {
+            onBusy(false)
+          }
+        }}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        className={btnGhost}
+        onClick={() => inputRef.current?.click()}
+      >
+        <ImagePlus className="mr-1.5 inline h-4 w-4" />
+        {label}
+      </button>
+    </>
+  )
 }
 
 type Template = {
@@ -33,6 +95,12 @@ type Section = 'ticket' | 'compose' | 'templates' | 'signature'
 
 const TICKET_PLACEHOLDERS =
   '{{name}} {{email}} {{show}} {{tour}} {{city}} {{venue}} {{address}} {{date}} {{time}} {{doors}} {{tier}} {{quantity}} {{total}} {{orderId}}'
+
+/** Append an [image: url] tag on its own line at the end of a body. */
+function appendImageTag(body: string, url: string) {
+  const tag = `[image: ${url}]`
+  return body.trim() ? `${body.replace(/\s+$/, '')}\n\n${tag}\n` : `${tag}\n`
+}
 
 export default function CmsAdminPanel({
   onMessage,
@@ -275,6 +343,18 @@ export default function CmsAdminPanel({
               onChange={(e) => setSettings({ ...settings, ticketEmailBody: e.target.value })}
             />
             <p className="mt-1.5 text-xs text-white/35">Placeholders: {TICKET_PLACEHOLDERS}</p>
+            <div className="mt-2">
+              <InsertImageButton
+                disabled={busy}
+                onBusy={setBusy}
+                onError={onError}
+                onUploaded={(url) =>
+                  setSettings((s) =>
+                    s ? { ...s, ticketEmailBody: appendImageTag(s.ticketEmailBody, url) } : s,
+                  )
+                }
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -377,6 +457,16 @@ export default function CmsAdminPanel({
             <p className="mt-1.5 text-xs text-white/35">
               Placeholders: {'{{name}}'} {'{{email}}'} (personalised per recipient)
             </p>
+            <div className="mt-2">
+              <InsertImageButton
+                disabled={busy}
+                onBusy={setBusy}
+                onError={onError}
+                onUploaded={(url) =>
+                  setCompose((c) => ({ ...c, body: appendImageTag(c.body, url) }))
+                }
+              />
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <label className="flex items-center gap-2 text-sm text-white/70">
@@ -447,6 +537,16 @@ export default function CmsAdminPanel({
                 value={templateForm.body}
                 onChange={(e) => setTemplateForm({ ...templateForm, body: e.target.value })}
               />
+              <div className="mt-2">
+                <InsertImageButton
+                  disabled={busy}
+                  onBusy={setBusy}
+                  onError={onError}
+                  onUploaded={(url) =>
+                    setTemplateForm((f) => ({ ...f, body: appendImageTag(f.body, url) }))
+                  }
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -537,6 +637,45 @@ export default function CmsAdminPanel({
                 placeholder="https://kevinfraser.com"
               />
             </div>
+            <div className="md:col-span-2">
+              <label className={labelClass}>Signature image (headshot or logo)</label>
+              <div className="flex items-center gap-4">
+                {settings.signatureImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={settings.signatureImageUrl}
+                    alt="Signature"
+                    className="h-16 w-16 rounded-full border border-white/10 object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-white/15 text-xs text-white/30">
+                    None
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <InsertImageButton
+                    label={settings.signatureImageUrl ? 'Replace image' : 'Upload image'}
+                    disabled={busy}
+                    onBusy={setBusy}
+                    onError={onError}
+                    onUploaded={(url) => setSettings((s) => (s ? { ...s, signatureImageUrl: url } : s))}
+                  />
+                  {settings.signatureImageUrl ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={btnGhost}
+                      onClick={() => setSettings({ ...settings, signatureImageUrl: '' })}
+                    >
+                      Remove
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <p className="mt-1.5 text-xs text-white/35">
+                Shown as a small round image above the signature in every email. Save to apply.
+              </p>
+            </div>
           </div>
           <button
             type="button"
@@ -548,6 +687,7 @@ export default function CmsAdminPanel({
                   signatureName: settings.signatureName,
                   signatureTagline: settings.signatureTagline,
                   signatureLinkUrl: settings.signatureLinkUrl,
+                  signatureImageUrl: settings.signatureImageUrl,
                 },
                 'Signature saved.',
               )
