@@ -1,9 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ExternalLink, Play, Volume2, VolumeX, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Play,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react'
 import type { PublicKevin11Content } from '@/lib/serialize'
 import {
   KEVIN11_CATEGORY_LABELS,
@@ -78,6 +87,81 @@ function OverlayCard({
   )
 }
 
+/** Mobile: all cards in one scrollable rail across the top with arrow hints. */
+function MobileCardRail({
+  items,
+  onOpen,
+}: {
+  items: PublicKevin11Content[]
+  onOpen: (item: PublicKevin11Content) => void
+}) {
+  const railRef = useRef<HTMLDivElement>(null)
+  const [canLeft, setCanLeft] = useState(false)
+  const [canRight, setCanRight] = useState(false)
+
+  const updateArrows = useCallback(() => {
+    const rail = railRef.current
+    if (!rail) return
+    setCanLeft(rail.scrollLeft > 4)
+    setCanRight(rail.scrollLeft + rail.clientWidth < rail.scrollWidth - 4)
+  }, [])
+
+  useEffect(() => {
+    updateArrows()
+    window.addEventListener('resize', updateArrows)
+    return () => window.removeEventListener('resize', updateArrows)
+  }, [updateArrows, items.length])
+
+  function scrollByDir(dir: -1 | 1) {
+    const rail = railRef.current
+    if (!rail) return
+    rail.scrollBy({ left: dir * Math.round(rail.clientWidth * 0.7), behavior: 'smooth' })
+  }
+
+  if (!items.length) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="absolute left-0 right-0 z-20"
+      style={{ top: 'max(4.75rem, calc(env(safe-area-inset-top) + 3.75rem))' }}
+    >
+      <div
+        ref={railRef}
+        onScroll={updateArrows}
+        className="flex flex-row flex-nowrap items-start gap-2 overflow-x-auto px-4 pb-1"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {items.map((item) => (
+          <OverlayCard key={item.id} item={item} onOpen={onOpen} />
+        ))}
+      </div>
+
+      {canLeft ? (
+        <button
+          type="button"
+          onClick={() => scrollByDir(-1)}
+          className="absolute left-1 top-[4.5rem] z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white backdrop-blur-sm"
+          aria-label="Scroll cards left"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+      ) : null}
+      {canRight ? (
+        <button
+          type="button"
+          onClick={() => scrollByDir(1)}
+          className="absolute right-1 top-[4.5rem] z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/60 text-white backdrop-blur-sm"
+          aria-label="Scroll cards right"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      ) : null}
+    </motion.div>
+  )
+}
+
 function OverlayRow({
   items,
   side,
@@ -117,11 +201,23 @@ export default function Kevin11PageClient() {
   const [leftItems, setLeftItems] = useState<PublicKevin11Content[]>([])
   const [rightItems, setRightItems] = useState<PublicKevin11Content[]>([])
   const [active, setActive] = useState<PublicKevin11Content | null>(null)
+  // null until measured on the client, so we never download the wrong video
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   useEffect(() => {
     document.documentElement.classList.add('landing-lock')
     return () => document.documentElement.classList.remove('landing-lock')
   }, [])
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const apply = () => setIsMobile(query.matches)
+    apply()
+    query.addEventListener('change', apply)
+    return () => query.removeEventListener('change', apply)
+  }, [])
+
+  const videoSrc = isMobile ? '/kevin-11-mobile.mp4' : '/kevin-11-web.mp4'
 
   useEffect(() => {
     let cancelled = false
@@ -144,6 +240,7 @@ export default function Kevin11PageClient() {
   }, [])
 
   useEffect(() => {
+    if (isMobile === null) return
     const video = videoRef.current
     if (!video) return
 
@@ -161,7 +258,7 @@ export default function Kevin11PageClient() {
     }
 
     void tryPlay()
-  }, [])
+  }, [isMobile, videoSrc])
 
   useEffect(() => {
     if (!active) return
@@ -199,18 +296,21 @@ export default function Kevin11PageClient() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
-      <video
-        ref={videoRef}
-        src="/kevin-11-web.mp4"
-        className="absolute inset-0 h-full w-full object-cover"
-        playsInline
-        loop
-        autoPlay
-        preload="auto"
-        onClick={() => {
-          if (needsTap) void startWithAudio()
-        }}
-      />
+      {isMobile !== null ? (
+        <video
+          key={videoSrc}
+          ref={videoRef}
+          src={videoSrc}
+          className="absolute inset-0 h-full w-full object-cover"
+          playsInline
+          loop
+          autoPlay
+          preload="auto"
+          onClick={() => {
+            if (needsTap) void startWithAudio()
+          }}
+        />
+      ) : null}
 
       {needsTap ? (
         <button
@@ -246,8 +346,14 @@ export default function Kevin11PageClient() {
         </span>
       </Link>
 
-      <OverlayRow items={leftItems} side="left" onOpen={setActive} />
-      <OverlayRow items={rightItems} side="right" onOpen={setActive} />
+      {isMobile ? (
+        <MobileCardRail items={[...leftItems, ...rightItems]} onOpen={setActive} />
+      ) : (
+        <>
+          <OverlayRow items={leftItems} side="left" onOpen={setActive} />
+          <OverlayRow items={rightItems} side="right" onOpen={setActive} />
+        </>
+      )}
 
       <button
         type="button"
