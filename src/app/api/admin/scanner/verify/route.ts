@@ -14,6 +14,7 @@ export type ScanVerdict =
   | 'not_paid'
   | 'not_found'
   | 'invalid_ticket'
+  | 'wrong_show'
   | 'undone'
   | 'info'
 
@@ -103,6 +104,19 @@ export async function POST(req: NextRequest) {
 
     if (!order) {
       return NextResponse.json({ success: true, verdict: 'not_found' as ScanVerdict })
+    }
+
+    // When the door is set to a specific show, refuse tickets from other shows.
+    const expectedShowId = typeof body.showId === 'string' ? body.showId.trim() : ''
+    if (expectedShowId && action === 'checkin') {
+      const orderShowId = order.show ? String((order.show as { _id: unknown })._id) : ''
+      if (orderShowId !== expectedShowId) {
+        return NextResponse.json({
+          success: true,
+          verdict: 'wrong_show' as ScanVerdict,
+          scan: serializeScan(order, payload.ticket),
+        })
+      }
     }
 
     if (action === 'lookup' || payload.ticket === null) {

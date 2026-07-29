@@ -9,8 +9,10 @@ import {
   Clock,
   RotateCcw,
   Search,
+  Users,
   XCircle,
 } from 'lucide-react'
+import { formatShowDate } from '@/lib/format'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -19,7 +21,15 @@ const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 
 type ScanResult = {
-  verdict: 'valid' | 'already_used' | 'not_paid' | 'not_found' | 'invalid_ticket' | 'undone' | 'info'
+  verdict:
+    | 'valid'
+    | 'already_used'
+    | 'not_paid'
+    | 'not_found'
+    | 'invalid_ticket'
+    | 'wrong_show'
+    | 'undone'
+    | 'info'
   scan?: {
     orderId: string
     email: string
@@ -61,6 +71,11 @@ const VERDICT_META: Record<
     className: 'border-red-500/40 bg-red-500/10 text-red-300',
     icon: XCircle,
   },
+  wrong_show: {
+    label: 'Ticket is for a different show',
+    className: 'border-red-500/40 bg-red-500/10 text-red-300',
+    icon: XCircle,
+  },
   undone: {
     label: 'Check-in undone',
     className: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
@@ -76,6 +91,23 @@ const VERDICT_META: Record<
 function timeLabel(iso: string | null) {
   if (!iso) return ''
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
+type ShowOption = {
+  id: string
+  city: string
+  venue: string
+  date: string
+}
+
+type Attendance = {
+  sold: number
+  checkedIn: number
+  tiers: { name: string; sold: number; checkedIn: number }[]
+}
+
+function pct(checkedIn: number, sold: number) {
+  return sold > 0 ? Math.round((checkedIn / sold) * 100) : 0
 }
 
 export default function ScannerAdminPanel({
@@ -97,6 +129,63 @@ export default function ScannerAdminPanel({
   const [result, setResult] = useState<ScanResult | null>(null)
   const [busy, setBusy] = useState(false)
   const [manual, setManual] = useState({ orderId: '', ticket: '' })
+  const [shows, setShows] = useState<ShowOption[]>([])
+  const [showId, setShowId] = useState('')
+  const [attendance, setAttendance] = useState<Attendance | null>(null)
+  const showIdRef = useRef('')
+  showIdRef.current = showId
+
+  const loadAttendance = useCallback(async (id: string) => {
+    if (!id) {
+      setAttendance(null)
+      return
+    }
+    try {
+      const res = await fetch(`/api/admin/scanner/attendance?showId=${id}`)
+      const data = await res.json()
+      if (res.ok && data.attendance) setAttendance(data.attendance)
+    } catch {
+      // Non-fatal — stats refresh again on the next scan or poll
+    }
+  }, [])
+
+  useEffect(() => {
+    async function loadShows() {
+      try {
+        const res = await fetch('/api/admin/shows')
+        const data = await res.json()
+        if (!res.ok) return
+        const options: ShowOption[] = (data.shows || [])
+          .map((s: { id: string; city: string; venue: string; date: string }) => ({
+            id: s.id,
+            city: s.city,
+            venue: s.venue,
+            date: s.date,
+          }))
+          .sort(
+            (a: ShowOption, b: ShowOption) =>
+              new Date(a.date).getTime() - new Date(b.date).getTime(),
+          )
+        setShows(options)
+        // Default the door to the next upcoming show
+        const next = options.find(
+          (s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000,
+        )
+        if (next) setShowId(next.id)
+      } catch {
+        // Show list is a convenience — scanning still works without it
+      }
+    }
+    void loadShows()
+  }, [])
+
+  // Keep attendance fresh while a show is selected (other doors may be scanning too)
+  useEffect(() => {
+    void loadAttendance(showId)
+    if (!showId) return
+    const interval = setInterval(() => void loadAttendance(showId), 20000)
+    return () => clearInterval(interval)
+  }, [showId, loadAttendance])
 
   const verify = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -106,11 +195,12 @@ export default function ScannerAdminPanel({
         const res = await fetch('/api/admin/scanner/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, showId: showIdRef.current || undefined }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Verification failed')
         setResult({ verdict: data.verdict, scan: data.scan })
+        if (showIdRef.current) void loadAttendance(showIdRef.current)
       } catch (err) {
         onError(err instanceof Error ? err.message : 'Verification failed')
       } finally {
@@ -118,7 +208,7 @@ export default function ScannerAdminPanel({
         setBusy(false)
       }
     },
-    [onError],
+    [onError, loadAttendance],
   )
 
   const scanLoop = useCallback(() => {
@@ -200,6 +290,90 @@ export default function ScannerAdminPanel({
           Scan the QR code on a ticket PDF to verify it and check the guest in at the door.
         </p>
       </div>
+
+      <section className="admin-card space-y-5 p-6">
+        <div className="grid gap-4 md:grid-cols-2 md:items-end">
+          <div>
+            <label className={labelClass}>Checking in for</label>
+            <select
+              className={inputClass}
+              value={showId}
+              onChange={(e) => setShowId(e.target.value)}
+            >
+              <option value="" className="bg-[#141420]">
+                Any show (no restriction)
+              </option>
+              {shows.map((s) => {
+                const d = formatShowDate(s.date)
+                return (
+                  <option key={s.id} value={s.id} className="bg-[#141420]">
+                    {s.city} · {s.venue} — {d.weekday} {d.day} {d.month}
+                  </option>
+                )
+              })}
+            </select>
+            {showId ? (
+              <p className="mt-1.5 text-xs text-white/35">
+                Tickets for other shows will be rejected at this door.
+              </p>
+            ) : null}
+          </div>
+          {showId && attendance ? (
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <Users className="h-4 w-4" />
+                  Attendance
+                </p>
+                <p className="text-sm tabular-nums text-white/70">
+                  <span className="text-xl font-bold text-white">
+                    {pct(attendance.checkedIn, attendance.sold)}%
+                  </span>{' '}
+                  · {attendance.checkedIn} of {attendance.sold} in
+                </p>
+              </div>
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/5">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${pct(attendance.checkedIn, attendance.sold)}%`,
+                    background: 'var(--admin-accent)',
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {showId && attendance && attendance.tiers.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {attendance.tiers.map((tier) => (
+              <div
+                key={tier.name}
+                className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="truncate text-sm font-medium text-white">{tier.name}</p>
+                  <p className="shrink-0 text-xs tabular-nums text-white/60">
+                    {tier.checkedIn}/{tier.sold} · {pct(tier.checkedIn, tier.sold)}%
+                  </p>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/5">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${pct(tier.checkedIn, tier.sold)}%`,
+                      background: 'var(--admin-accent)',
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : showId && attendance ? (
+          <p className="text-sm text-white/40">No paid orders for this show yet.</p>
+        ) : null}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="admin-card space-y-4 p-6">
