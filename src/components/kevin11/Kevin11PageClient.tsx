@@ -30,7 +30,7 @@ function OverlayCard({
   const hasCta = Boolean(item.ctaLabel && item.ctaUrl)
 
   return (
-    <div className="w-full">
+    <div className="w-[6.75rem] shrink-0 sm:w-[8.5rem] md:w-[9.5rem]">
       <button
         type="button"
         onClick={() => onOpen(item)}
@@ -55,9 +55,9 @@ function OverlayCard({
               <Play className="h-4 w-4 fill-current" />
             </span>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 p-3">
-            <p className="line-clamp-2 text-sm font-medium text-white">{item.title}</p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
+            <p className="line-clamp-2 text-xs font-medium text-white sm:text-sm">{item.title}</p>
+            <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-white/70 sm:text-[10px]">
               {KEVIN11_CATEGORY_LABELS[item.category as Kevin11Category]}
             </p>
           </div>
@@ -68,7 +68,7 @@ function OverlayCard({
           href={item.ctaUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#FF6600] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-md transition hover:brightness-110"
+          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#FF6600] px-2 py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white shadow-md transition hover:brightness-110 sm:text-[10px]"
         >
           {item.ctaLabel}
           <ExternalLink className="h-3 w-3" />
@@ -78,7 +78,7 @@ function OverlayCard({
   )
 }
 
-function OverlayColumn({
+function OverlayRow({
   items,
   side,
   onOpen,
@@ -93,8 +93,10 @@ function OverlayColumn({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`absolute z-20 flex max-h-[min(72dvh,34rem)] w-[min(38vw,11rem)] flex-col gap-3 overflow-y-auto sm:w-[13rem] md:w-[14.5rem] ${
-        side === 'left' ? 'left-[2.5%] sm:left-[5%]' : 'right-[2.5%] sm:right-[5%]'
+      className={`absolute z-20 flex max-w-[46%] flex-row flex-nowrap items-start gap-2 overflow-x-auto sm:gap-3 ${
+        side === 'left'
+          ? 'left-[2.5%] justify-start sm:left-[5%]'
+          : 'right-[2.5%] justify-end sm:right-[5%]'
       }`}
       style={{
         top: 'max(4.75rem, calc(env(safe-area-inset-top) + 3.75rem))',
@@ -244,8 +246,8 @@ export default function Kevin11PageClient() {
         </span>
       </Link>
 
-      <OverlayColumn items={leftItems} side="left" onOpen={setActive} />
-      <OverlayColumn items={rightItems} side="right" onOpen={setActive} />
+      <OverlayRow items={leftItems} side="left" onOpen={setActive} />
+      <OverlayRow items={rightItems} side="right" onOpen={setActive} />
 
       <button
         type="button"
