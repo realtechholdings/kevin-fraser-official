@@ -10,8 +10,9 @@ import {
   Ticket,
   XCircle,
 } from 'lucide-react'
-import type { PublicShow, PublicTour } from '@/lib/serialize'
+import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
 import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
@@ -19,6 +20,7 @@ import StudioAdminPanel from '@/components/admin/StudioAdminPanel'
 import ThemeAdminPanel from '@/components/admin/ThemeAdminPanel'
 import AIKevAdminPanel from '@/components/admin/AIKevAdminPanel'
 import TiersAdminPanel from '@/components/admin/TiersAdminPanel'
+import CmsAdminPanel from '@/components/admin/CmsAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
 import { cn } from '@/lib/utils'
@@ -39,6 +41,18 @@ type TourForm = {
   published: boolean
   startDate: string
   endDate: string
+}
+
+type TierConfigForm = {
+  slug: string
+  name: string
+  tourPriceCents: number
+  tourCurrency: string
+  capacity: string
+  overridePrice: boolean
+  priceCents: string
+  currency: string
+  sold: number
 }
 
 type ShowForm = {
@@ -62,6 +76,7 @@ type ShowForm = {
   venueImage: string
   venueImageKey: string
   description: string
+  tierConfigs: TierConfigForm[]
 }
 
 const emptyTour: TourForm = {
@@ -101,6 +116,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   venueImage: '',
   venueImageKey: '',
   description: '',
+  tierConfigs: [],
 })
 
 async function uploadAdminImage(file: File, folder: 'tours' | 'shows') {
@@ -179,6 +195,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function AdminPortal() {
   const [tours, setTours] = useState<PublicTour[]>([])
   const [shows, setShows] = useState<PublicShow[]>([])
+  const [tiers, setTiers] = useState<PublicTicketTier[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -194,16 +211,20 @@ export default function AdminPortal() {
     setLoading(true)
     setError('')
     try {
-      const [tRes, sRes] = await Promise.all([
+      const [tRes, sRes, tierRes] = await Promise.all([
         fetch('/api/admin/tours'),
         fetch('/api/admin/shows'),
+        fetch('/api/admin/tiers'),
       ])
       const tData = await tRes.json()
       const sData = await sRes.json()
+      const tierData = await tierRes.json()
       if (!tRes.ok) throw new Error(tData.error || 'Failed to load tours')
       if (!sRes.ok) throw new Error(sData.error || 'Failed to load shows')
+      if (!tierRes.ok) throw new Error(tierData.error || 'Failed to load tiers')
       setTours(tData.tours)
       setShows(sData.shows)
+      setTiers(tierData.tiers || [])
       if (!showForm.tourId && tData.tours[0]) {
         setShowForm((prev) => ({ ...prev, tourId: tData.tours[0].id }))
       }
@@ -230,6 +251,60 @@ export default function AdminPortal() {
   )
   const onSaleCount = upcomingShows.filter((s) => s.status === 'on_sale').length
   const featuredTour = tours.find((t) => t.featured)
+
+  // Mirrors resolveTiersForShow: show tiers override tour tiers, which override the show's base price
+  function tiersControllingShow(showId: string | null, tourId: string) {
+    const showTiers = tiers.filter(
+      (t) => t.ownerType === 'show' && t.ownerId === showId && t.published,
+    )
+    if (showTiers.length) return showTiers
+    return tiers.filter((t) => t.ownerType === 'tour' && t.ownerId === tourId && t.published)
+  }
+
+  function displayPrice(show: PublicShow) {
+    const controlling = tiersControllingShow(show.id, show.tour.id)
+    if (controlling.length) {
+      const min = Math.min(...controlling.map((t) => t.priceCents))
+      const price = formatPrice(min, controlling[0].currency)
+      return controlling.length > 1 ? `From ${price}` : price
+    }
+    return formatPrice(show.priceCents, show.currency)
+  }
+
+  /** Build the per-show tier config rows from the tour's tiers + any existing show overrides. */
+  function buildTierConfigs(tourId: string, showId: string | null): TierConfigForm[] {
+    const tourTiers = tiers
+      .filter((t) => t.ownerType === 'tour' && t.ownerId === tourId && t.published)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
+    const overrides = new Map(
+      (showId
+        ? tiers.filter((t) => t.ownerType === 'show' && t.ownerId === showId)
+        : []
+      ).map((t) => [t.slug, t]),
+    )
+    return tourTiers.map((tt) => {
+      const o = overrides.get(tt.slug)
+      const overridePrice = o ? !o.inheritPrice : false
+      return {
+        slug: tt.slug,
+        name: tt.name,
+        tourPriceCents: tt.priceCents,
+        tourCurrency: tt.currency,
+        capacity: o ? String(o.capacity) : '0',
+        overridePrice,
+        priceCents: overridePrice && o ? String(o.priceCents) : String(tt.priceCents),
+        currency: overridePrice && o ? o.currency : tt.currency,
+        sold: o?.ticketsSold || 0,
+      }
+    })
+  }
+
+  function updateTierConfig(slug: string, patch: Partial<TierConfigForm>) {
+    setShowForm((prev) => ({
+      ...prev,
+      tierConfigs: prev.tierConfigs.map((c) => (c.slug === slug ? { ...c, ...patch } : c)),
+    }))
+  }
 
   async function saveTour(e: React.FormEvent) {
     e.preventDefault()
@@ -278,6 +353,13 @@ export default function AdminPortal() {
         venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
         priceCents: Number(showForm.priceCents) || 0,
         capacity: Number(showForm.capacity) || 0,
+        tierConfigs: showForm.tierConfigs.map((c) => ({
+          slug: c.slug,
+          capacity: Number(c.capacity) || 0,
+          overridePrice: c.overridePrice,
+          priceCents: Number(c.priceCents) || 0,
+          currency: c.currency,
+        })),
       }
       const res = await fetch(
         editingShowId ? `/api/admin/shows/${editingShowId}` : '/api/admin/shows',
@@ -345,6 +427,7 @@ export default function AdminPortal() {
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
+      tierConfigs: buildTierConfigs(show.tour.id, show.id),
     })
     setTab('shows')
     setShowFormPanel(true)
@@ -482,23 +565,6 @@ export default function AdminPortal() {
     }
   }
 
-  async function seedDecadance() {
-    setBusy(true)
-    setMessage('')
-    setError('')
-    try {
-      const res = await fetch('/api/admin/seed', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Seed failed')
-      setMessage(data.message || 'Seed complete.')
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Seed failed')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function openCreate(target: 'tours' | 'shows') {
     setTab(target)
     if (target === 'tours') {
@@ -506,7 +572,8 @@ export default function AdminPortal() {
       setTourForm(emptyTour)
     } else {
       setEditingShowId(null)
-      setShowForm(emptyShow(tours[0]?.id || ''))
+      const tourId = tours[0]?.id || ''
+      setShowForm({ ...emptyShow(tourId), tierConfigs: buildTierConfigs(tourId, null) })
     }
     setShowFormPanel(true)
   }
@@ -528,7 +595,9 @@ export default function AdminPortal() {
           ? { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
           : tab === 'tiers'
             ? { title: 'Ticket Tiers', subtitle: 'Pricing tiers for tours and individual shows' }
-            : tab === 'bonus'
+            : tab === 'cms'
+              ? { title: 'CMS', subtitle: 'Ticket emails, broadcasts, templates, and signature' }
+              : tab === 'bonus'
               ? { title: 'Bonus Content', subtitle: 'Upload exclusive Showreel clips to Cloudflare R2' }
               : tab === 'studio'
                 ? { title: 'The Studio', subtitle: 'Behind the scenes, characters, and creative process' }
@@ -550,7 +619,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'bonus', 'studio', 'kevin11', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'tiers', 'cms', 'bonus', 'studio', 'kevin11', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -570,7 +639,9 @@ export default function AdminPortal() {
                     ? 'Studio'
                     : id === 'tiers'
                       ? 'Tiers'
-                      : id === 'kevin11'
+                      : id === 'cms'
+                        ? 'CMS'
+                        : id === 'kevin11'
                         ? 'Kevin11'
                         : id === 'legal'
                           ? 'Policies'
@@ -600,12 +671,9 @@ export default function AdminPortal() {
                   <p className="mt-1 text-sm text-white/40">
                     {featuredTour
                       ? `Featured tour: ${featuredTour.title}`
-                      : 'No featured tour yet — seed Decadance or create one.'}
+                      : 'No featured tour yet — create one.'}
                   </p>
                 </div>
-                <button type="button" disabled={busy} onClick={seedDecadance} className={btnSecondary}>
-                  Seed Decadance
-                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -645,7 +713,7 @@ export default function AdminPortal() {
                   </div>
                 ) : upcomingShows.length === 0 ? (
                   <div className="px-5 py-10 text-center text-sm text-white/40">
-                    No upcoming shows. Seed Decadance or create a show.
+                    No upcoming shows. Create a show to get started.
                   </div>
                 ) : (
                   <div className="divide-y divide-white/5">
@@ -658,7 +726,7 @@ export default function AdminPortal() {
                               {show.city} — {show.venue}
                             </p>
                             <p className="mt-0.5 text-xs text-white/40">
-                              {d.day} {d.month} · {show.country} · {formatPrice(show.priceCents, show.currency)}
+                              {d.day} {d.month} · {show.country} · {displayPrice(show)}
                             </p>
                           </div>
                           <StatusBadge status={show.status} />
@@ -685,11 +753,6 @@ export default function AdminPortal() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {tab === 'tours' ? (
-                    <button type="button" disabled={busy} onClick={seedDecadance} className={btnSecondary}>
-                      Seed Decadance
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     onClick={() => openCreate(tab)}
@@ -887,7 +950,14 @@ export default function AdminPortal() {
                         <select
                           className={inputClass}
                           value={showForm.tourId}
-                          onChange={(e) => setShowForm({ ...showForm, tourId: e.target.value })}
+                          onChange={(e) => {
+                            const tourId = e.target.value
+                            setShowForm({
+                              ...showForm,
+                              tourId,
+                              tierConfigs: buildTierConfigs(tourId, editingShowId),
+                            })
+                          }}
                           required
                         >
                           <option value="">Select tour</option>
@@ -960,24 +1030,135 @@ export default function AdminPortal() {
                           onChange={(e) => setShowForm({ ...showForm, address: e.target.value })}
                         />
                       </div>
+                      {showForm.tierConfigs.length > 0 ? (
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Ticket tiers — allocation & pricing</label>
+                          <p className="mb-3 text-xs text-white/35">
+                            Tiers come from this show&apos;s tour. Set how many tickets each tier
+                            has for this show (0 = unlimited) and optionally override the tour
+                            price for this show only.
+                          </p>
+                          <div className="space-y-3">
+                            {showForm.tierConfigs.map((config) => (
+                              <div
+                                key={config.slug}
+                                className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                              >
+                                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                  <p className="text-sm font-medium text-white">{config.name}</p>
+                                  <p className="text-xs text-white/40">
+                                    Tour price {formatPrice(config.tourPriceCents, config.tourCurrency)}
+                                    {config.sold > 0 ? ` · ${config.sold} sold` : ''}
+                                  </p>
+                                </div>
+                                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className={labelClass}>Allocation (0 = unlimited)</label>
+                                    <input
+                                      className={inputClass}
+                                      type="number"
+                                      min="0"
+                                      value={config.capacity}
+                                      onChange={(e) =>
+                                        updateTierConfig(config.slug, { capacity: e.target.value })
+                                      }
+                                    />
+                                  </div>
+                                  <div className="flex items-end pb-2 sm:pb-2.5">
+                                    <label className="flex items-center gap-2 text-sm text-white/70">
+                                      <input
+                                        type="checkbox"
+                                        checked={config.overridePrice}
+                                        onChange={(e) =>
+                                          updateTierConfig(config.slug, {
+                                            overridePrice: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Override price
+                                    </label>
+                                  </div>
+                                  {config.overridePrice ? (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className={labelClass}>Price (cents)</label>
+                                        <input
+                                          className={inputClass}
+                                          type="number"
+                                          min="0"
+                                          value={config.priceCents}
+                                          onChange={(e) =>
+                                            updateTierConfig(config.slug, {
+                                              priceCents: e.target.value,
+                                            })
+                                          }
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className={labelClass}>Currency</label>
+                                        <select
+                                          className={inputClass}
+                                          value={config.currency}
+                                          onChange={(e) =>
+                                            updateTierConfig(config.slug, {
+                                              currency: e.target.value,
+                                            })
+                                          }
+                                        >
+                                          {SUPPORTED_CURRENCIES.map((c) => (
+                                            <option key={c} value={c} className="bg-[#141420]">
+                                              {c}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-end pb-2 text-xs text-white/35 sm:pb-3">
+                                      Keeps {formatPrice(config.tourPriceCents, config.tourCurrency)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className={labelClass}>Currency</label>
+                            <select
+                              className={inputClass}
+                              value={showForm.currency}
+                              onChange={(e) =>
+                                setShowForm({ ...showForm, currency: e.target.value })
+                              }
+                            >
+                              {SUPPORTED_CURRENCIES.map((c) => (
+                                <option key={c} value={c} className="bg-[#141420]">
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className={labelClass}>Price (cents)</label>
+                            <input
+                              className={inputClass}
+                              value={showForm.priceCents}
+                              onChange={(e) =>
+                                setShowForm({ ...showForm, priceCents: e.target.value })
+                              }
+                            />
+                            <p className="mt-1.5 text-xs text-white/35">
+                              Used because this tour has no ticket tiers yet — add tiers in the
+                              Tiers tab for per-tier pricing.
+                            </p>
+                          </div>
+                        </>
+                      )}
                       <div>
-                        <label className={labelClass}>Currency</label>
-                        <input
-                          className={inputClass}
-                          value={showForm.currency}
-                          onChange={(e) => setShowForm({ ...showForm, currency: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Price (cents)</label>
-                        <input
-                          className={inputClass}
-                          value={showForm.priceCents}
-                          onChange={(e) => setShowForm({ ...showForm, priceCents: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Capacity</label>
+                        <label className={labelClass}>Venue capacity</label>
                         <input
                           className={inputClass}
                           value={showForm.capacity}
@@ -1135,7 +1316,7 @@ export default function AdminPortal() {
                       ) : tours.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="px-5 py-10 text-center text-sm text-white/40">
-                            No tours yet. Seed Decadance or create one.
+                            No tours yet. Create one to get started.
                           </td>
                         </tr>
                       ) : (
@@ -1265,7 +1446,7 @@ export default function AdminPortal() {
                                 </p>
                               </td>
                               <td className="hidden whitespace-nowrap px-5 py-4 text-sm text-white/70 lg:table-cell">
-                                {formatPrice(show.priceCents, show.currency)}
+                                {displayPrice(show)}
                               </td>
                               <td className="hidden px-5 py-4 md:table-cell">
                                 <StatusBadge status={show.status} />
@@ -1306,6 +1487,19 @@ export default function AdminPortal() {
 
           {tab === 'tiers' ? (
             <TiersAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'cms' ? (
+            <CmsAdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

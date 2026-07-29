@@ -8,6 +8,7 @@ import {
   Film,
   Layers,
   LayoutDashboard,
+  Mail,
   Palette,
   ScrollText,
   Store,
@@ -21,6 +22,7 @@ export type AdminTab =
   | 'tours'
   | 'shows'
   | 'tiers'
+  | 'cms'
   | 'bonus'
   | 'studio'
   | 'kevin11'
@@ -33,6 +35,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'tours', name: 'Tours', icon: Ticket },
   { id: 'shows', name: 'Shows', icon: CalendarDays },
   { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
+  { id: 'cms', name: 'CMS', icon: Mail },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
   { id: 'kevin11', name: 'Kevin11', icon: Store },

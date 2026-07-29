@@ -22,6 +22,11 @@ const TicketTierSchema = new Schema(
     currency: { type: String, required: true, uppercase: true, default: 'AUD' },
     /** Price in smallest currency unit (cents) */
     priceCents: { type: Number, required: true, min: 0 },
+    /**
+     * Show-owned tiers only: when true, price/currency come from the matching
+     * tour tier (same slug) at resolve time instead of this document.
+     */
+    inheritPrice: { type: Boolean, default: false },
     capacity: { type: Number, default: 0, min: 0 },
     ticketsSold: { type: Number, default: 0, min: 0 },
     sortOrder: { type: Number, default: 0 },

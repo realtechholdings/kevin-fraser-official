@@ -4,6 +4,8 @@ import Show, { SHOW_STATUSES } from '@/lib/models/Show'
 import Tour from '@/lib/models/Tour'
 import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
+import { normalizeCurrency } from '@/lib/currencies'
+import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
       city,
       venue,
       address: String(body.address || ''),
-      currency: String(body.currency || 'AUD').toUpperCase(),
+      currency: normalizeCurrency(body.currency),
       priceCents: Math.max(0, Number(body.priceCents) || 0),
       capacity: Math.max(0, Number(body.capacity) || 0),
       status,
@@ -87,6 +89,10 @@ export async function POST(req: NextRequest) {
       dirty = true
     }
     if (dirty) await show.save()
+
+    if (Array.isArray(body.tierConfigs)) {
+      await applyShowTierConfigs(String(show._id), tourId, body.tierConfigs)
+    }
 
     await show.populate('tour')
     return NextResponse.json({ success: true, show: serializeShow(show) }, { status: 201 })

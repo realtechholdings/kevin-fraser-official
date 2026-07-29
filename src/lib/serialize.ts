@@ -39,6 +39,8 @@ export type PublicTicketTier = {
   sortOrder: number
   published: boolean
   legacy?: boolean
+  /** Show-owned tier that inherits price/currency from the matching tour tier */
+  inheritPrice?: boolean
 }
 
 export type PublicShow = {
@@ -216,6 +218,7 @@ export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier 
     ticketsSold: tier.ticketsSold || 0,
     sortOrder: tier.sortOrder || 0,
     published: Boolean(tier.published),
+    inheritPrice: Boolean(tier.inheritPrice),
   }
 }
 

@@ -17,6 +17,8 @@ const OrderSchema = new Schema(
       enum: ['pending', 'paid', 'refunded', 'cancelled'],
       default: 'pending',
     },
+    /** Set once the ticket confirmation email (with PDF) has been sent */
+    confirmationEmailSentAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

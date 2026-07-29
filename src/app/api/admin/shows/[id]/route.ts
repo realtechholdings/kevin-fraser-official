@@ -3,6 +3,8 @@ import dbConnect from '@/lib/db'
 import Show, { SHOW_STATUSES } from '@/lib/models/Show'
 import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
+import { normalizeCurrency } from '@/lib/currencies'
+import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -31,7 +33,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.city !== undefined) show.city = String(body.city).trim()
     if (body.venue !== undefined) show.venue = String(body.venue).trim()
     if (body.address !== undefined) show.address = String(body.address)
-    if (body.currency !== undefined) show.currency = String(body.currency).toUpperCase()
+    if (body.currency !== undefined) show.currency = normalizeCurrency(body.currency)
     if (body.priceCents !== undefined) show.priceCents = Math.max(0, Number(body.priceCents) || 0)
     if (body.capacity !== undefined) show.capacity = Math.max(0, Number(body.capacity) || 0)
     if (
@@ -54,6 +56,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.description !== undefined) show.description = String(body.description || '').trim()
 
     await show.save()
+
+    if (Array.isArray(body.tierConfigs)) {
+      await applyShowTierConfigs(String(show._id), String(show.tour), body.tierConfigs)
+    }
+
     await show.populate('tour')
     return NextResponse.json({ success: true, show: serializeShow(show) })
   } catch (error) {

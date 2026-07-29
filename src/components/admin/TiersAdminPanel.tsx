@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
+import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -92,6 +93,13 @@ export default function TiersAdminPanel({
     [tiers, filterType],
   )
 
+  function ownerCurrency(ownerType: 'tour' | 'show', ownerId: string) {
+    if (ownerType === 'show') {
+      return shows.find((s) => s.id === ownerId)?.currency || ''
+    }
+    return shows.find((s) => s.tour.id === ownerId)?.currency || ''
+  }
+
   function ownerLabel(tier: PublicTicketTier) {
     if (tier.ownerType === 'tour') {
       const tour = tours.find((t) => t.id === tier.ownerId)
@@ -103,7 +111,9 @@ export default function TiersAdminPanel({
 
   function openCreate() {
     setEditingId(null)
-    setForm(emptyForm('tour', tours[0]?.id || ''))
+    const ownerId = tours[0]?.id || ''
+    const base = emptyForm('tour', ownerId)
+    setForm({ ...base, currency: ownerCurrency('tour', ownerId) || base.currency })
     setShowForm(true)
   }
 
@@ -236,7 +246,12 @@ export default function TiersAdminPanel({
                     const ownerType = e.target.value as 'tour' | 'show'
                     const ownerId =
                       ownerType === 'tour' ? tours[0]?.id || '' : shows[0]?.id || ''
-                    setForm((f) => ({ ...f, ownerType, ownerId }))
+                    setForm((f) => ({
+                      ...f,
+                      ownerType,
+                      ownerId,
+                      currency: ownerCurrency(ownerType, ownerId) || f.currency,
+                    }))
                   }}
                 >
                   <option value="tour">Tour (applies to all shows without overrides)</option>
@@ -250,7 +265,14 @@ export default function TiersAdminPanel({
                 <select
                   className={inputClass}
                   value={form.ownerId}
-                  onChange={(e) => setForm((f) => ({ ...f, ownerId: e.target.value }))}
+                  onChange={(e) => {
+                    const ownerId = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      ownerId,
+                      currency: ownerCurrency(f.ownerType, ownerId) || f.currency,
+                    }))
+                  }}
                   required
                 >
                   {ownerOptions.map((opt) => (
@@ -302,12 +324,22 @@ export default function TiersAdminPanel({
             </div>
             <div>
               <label className={labelClass}>Currency</label>
-              <input
+              <select
                 className={inputClass}
                 value={form.currency}
-                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value.toUpperCase() }))}
+                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
                 required
-              />
+              >
+                {SUPPORTED_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-white/35">
+                Buyers always see this currency (e.g. a €50 show shows €50 worldwide). Stripe
+                Checkout offers their home currency automatically.
+              </p>
             </div>
             <div>
               <label className={labelClass}>Capacity (0 = unlimited)</label>

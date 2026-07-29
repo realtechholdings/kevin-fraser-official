@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
+// Registers the Tour schema for .populate('tour')
+import '@/lib/models/Tour'
 import TicketTier from '@/lib/models/TicketTier'
 import { getStripe, stripeRequestOptions } from '@/lib/stripe'
+import { emailConfigured } from '@/lib/email/resend'
+import { sendTicketEmail } from '@/lib/email/ticket'
 
 export async function GET(req: NextRequest) {
   try {
@@ -40,6 +44,27 @@ export async function GET(req: NextRequest) {
         await TicketTier.findByIdAndUpdate(order.tier, {
           $inc: { ticketsSold: order.quantity },
         })
+      }
+    }
+
+    // Send the ticket PDF email once, after payment is confirmed
+    if (
+      session.payment_status === 'paid' &&
+      order &&
+      !order.confirmationEmailSentAt &&
+      emailConfigured()
+    ) {
+      try {
+        const show = await Show.findById(order.show).populate('tour')
+        if (show) {
+          const sent = await sendTicketEmail(order, show)
+          if (!sent.skipped) {
+            order.confirmationEmailSentAt = new Date()
+            await order.save()
+          }
+        }
+      } catch (emailError) {
+        console.error('Ticket email failed:', emailError)
       }
     }
 

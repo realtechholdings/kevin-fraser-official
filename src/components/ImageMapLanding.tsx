@@ -70,6 +70,16 @@ const HOTSPOTS: Hotspot[] = [
     width: '35%',
     height: '25%',
   },
+  // The "1990" wall behind Kevin — kept last so it stacks above neighbouring zones
+  {
+    id: 'about',
+    href: '/about',
+    label: 'About Kevin Fraser',
+    top: '43%',
+    left: '36%',
+    width: '10%',
+    height: '15%',
+  },
 ]
 
 export default function ImageMapLanding() {
