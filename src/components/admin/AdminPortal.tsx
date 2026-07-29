@@ -30,6 +30,10 @@ type TourForm = {
   slug: string
   subtitle: string
   description: string
+  coverImage: string
+  coverImageKey: string
+  bannerImage: string
+  bannerImageKey: string
   featured: boolean
   published: boolean
   startDate: string
@@ -52,6 +56,8 @@ type ShowForm = {
   featured: boolean
   published: boolean
   externalTicketUrl: string
+  artworkImage: string
+  artworkImageKey: string
 }
 
 const emptyTour: TourForm = {
@@ -59,6 +65,10 @@ const emptyTour: TourForm = {
   slug: '',
   subtitle: '',
   description: '',
+  coverImage: '',
+  coverImageKey: '',
+  bannerImage: '',
+  bannerImageKey: '',
   featured: false,
   published: true,
   startDate: '',
@@ -81,7 +91,23 @@ const emptyShow = (tourId = ''): ShowForm => ({
   featured: false,
   published: true,
   externalTicketUrl: '',
+  artworkImage: '',
+  artworkImageKey: '',
 })
+
+async function uploadAdminImage(file: File, folder: 'tours' | 'shows') {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('folder', folder)
+  const res = await fetch('/api/admin/media/upload', { method: 'POST', body: form })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Image upload failed')
+  if (!data.key) throw new Error('Upload did not return a storage key.')
+  return {
+    key: data.key as string,
+    publicUrl: (data.publicUrl as string) || '',
+  }
+}
 
 function toLocalInput(iso?: string | null) {
   if (!iso) return ''
@@ -205,6 +231,8 @@ export default function AdminPortal() {
     try {
       const payload = {
         ...tourForm,
+        coverImage: tourForm.coverImage.startsWith('blob:') ? '' : tourForm.coverImage,
+        bannerImage: tourForm.bannerImage.startsWith('blob:') ? '' : tourForm.bannerImage,
         startDate: tourForm.startDate || null,
         endDate: tourForm.endDate || null,
       }
@@ -238,6 +266,7 @@ export default function AdminPortal() {
     try {
       const payload = {
         ...showForm,
+        artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
         priceCents: Number(showForm.priceCents) || 0,
         capacity: Number(showForm.capacity) || 0,
       }
@@ -270,6 +299,10 @@ export default function AdminPortal() {
       slug: tour.slug,
       subtitle: tour.subtitle,
       description: tour.description,
+      coverImage: tour.coverImage || '',
+      coverImageKey: tour.coverImageKey || '',
+      bannerImage: tour.bannerImage || '',
+      bannerImageKey: tour.bannerImageKey || '',
       featured: tour.featured,
       published: tour.published,
       startDate: toLocalInput(tour.startDate),
@@ -297,9 +330,58 @@ export default function AdminPortal() {
       featured: show.featured,
       published: show.published,
       externalTicketUrl: show.externalTicketUrl,
+      artworkImage: show.artworkImage || '',
+      artworkImageKey: show.artworkImageKey || '',
     })
     setTab('shows')
     setShowFormPanel(true)
+  }
+
+  async function onTourImageChange(kind: 'cover' | 'banner', file: File | null) {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadAdminImage(file, 'tours')
+      const preview = uploaded.publicUrl || URL.createObjectURL(file)
+      if (kind === 'cover') {
+        setTourForm((prev) => ({
+          ...prev,
+          coverImageKey: uploaded.key,
+          coverImage: preview,
+        }))
+      } else {
+        setTourForm((prev) => ({
+          ...prev,
+          bannerImageKey: uploaded.key,
+          bannerImage: preview,
+        }))
+      }
+      setMessage(`${kind === 'cover' ? 'Card' : 'Banner'} image uploaded. Save the tour to keep it.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onShowArtworkChange(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadAdminImage(file, 'shows')
+      setShowForm((prev) => ({
+        ...prev,
+        artworkImageKey: uploaded.key,
+        artworkImage: uploaded.publicUrl || URL.createObjectURL(file),
+      }))
+      setMessage('Show artwork uploaded. Save the show to keep it.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function toggleFeaturedTour(tour: PublicTour) {
@@ -641,6 +723,64 @@ export default function AdminPortal() {
                         />
                       </div>
                       <div>
+                        <label className={labelClass}>Card image</label>
+                        <input
+                          className={inputClass}
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          onChange={(e) => void onTourImageChange('cover', e.target.files?.[0] || null)}
+                        />
+                        {tourForm.coverImage || tourForm.coverImageKey ? (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={tourForm.coverImage || `/api/tours/${editingTourId}/cover`}
+                              alt=""
+                              className="h-28 w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+                        {(tourForm.coverImage || tourForm.coverImageKey) ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs text-white/40 hover:text-white/70"
+                            onClick={() => setTourForm((f) => ({ ...f, coverImage: '', coverImageKey: '' }))}
+                          >
+                            Remove card image
+                          </button>
+                        ) : null}
+                      </div>
+                      <div>
+                        <label className={labelClass}>Banner image</label>
+                        <input
+                          className={inputClass}
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          onChange={(e) => void onTourImageChange('banner', e.target.files?.[0] || null)}
+                        />
+                        {tourForm.bannerImage || tourForm.bannerImageKey ? (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={tourForm.bannerImage || `/api/tours/${editingTourId}/banner`}
+                              alt=""
+                              className="h-28 w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+                        {(tourForm.bannerImage || tourForm.bannerImageKey) ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs text-white/40 hover:text-white/70"
+                            onClick={() => setTourForm((f) => ({ ...f, bannerImage: '', bannerImageKey: '' }))}
+                          >
+                            Remove banner image
+                          </button>
+                        ) : null}
+                      </div>
+                      <div>
                         <label className={labelClass}>Start</label>
                         <input
                           type="datetime-local"
@@ -813,6 +953,35 @@ export default function AdminPortal() {
                           placeholder="Leave blank to use Stripe Checkout"
                         />
                       </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Show artwork</label>
+                        <input
+                          className={inputClass}
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          onChange={(e) => void onShowArtworkChange(e.target.files?.[0] || null)}
+                        />
+                        {showForm.artworkImage || showForm.artworkImageKey ? (
+                          <div className="mt-2 max-w-xs overflow-hidden rounded-xl border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={showForm.artworkImage || `/api/shows/${editingShowId}/artwork`}
+                              alt=""
+                              className="aspect-[3/4] w-full object-cover"
+                            />
+                          </div>
+                        ) : null}
+                        {(showForm.artworkImage || showForm.artworkImageKey) ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs text-white/40 hover:text-white/70"
+                            onClick={() => setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))}
+                          >
+                            Remove artwork
+                          </button>
+                        ) : null}
+                      </div>
                       <div className="flex items-center gap-6 md:col-span-2">
                         <label className="flex items-center gap-2 text-sm text-white/70">
                           <input
@@ -881,9 +1050,20 @@ export default function AdminPortal() {
                           <tr key={tour.id} className="transition-colors hover:bg-white/[0.02]">
                             <td className="px-5 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15 text-xs font-bold text-violet-300">
-                                  {tour.title.slice(0, 2).toUpperCase()}
-                                </div>
+                                {tour.coverImage || tour.bannerImage ? (
+                                  <div className="h-9 w-9 overflow-hidden rounded-xl bg-white/5">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={tour.coverImage || tour.bannerImage}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/15 text-xs font-bold text-violet-300">
+                                    {tour.title.slice(0, 2).toUpperCase()}
+                                  </div>
+                                )}
                                 <div>
                                   <p className="text-sm font-medium text-white">{tour.title}</p>
                                   <p className="text-xs text-white/40">{tour.slug}</p>

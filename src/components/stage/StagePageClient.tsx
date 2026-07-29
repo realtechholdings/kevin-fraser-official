@@ -74,29 +74,63 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
-          className="mb-12 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:mb-16 sm:p-10"
+          className="relative mb-12 overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] sm:mb-16"
         >
-          <p
-            className="mb-3 text-[11px] uppercase tracking-[0.35em]"
-            style={{ color: 'var(--accent)' }}
-          >
-            Live dates
-          </p>
-          <h1
-            className="max-w-3xl text-5xl leading-[0.92] uppercase sm:text-7xl"
-            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-          >
-            {featuredTour ? featuredTour.title : 'Upcoming Shows'}
-          </h1>
-          {featuredTour?.subtitle ? (
-            <p className="mt-4 text-sm uppercase tracking-[0.25em] text-[var(--foreground-muted)]">
-              {featuredTour.subtitle}
-            </p>
+          {featuredTour?.bannerImage || featuredTour?.coverImage ? (
+            <div className="absolute inset-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={featuredTour.bannerImage || featuredTour.coverImage}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
+            </div>
           ) : null}
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
-            {featuredTour?.description ||
-              'Tour dates and tickets. New cities drop here first.'}
-          </p>
+          <div
+            className={`relative p-7 sm:p-10 ${
+              featuredTour?.bannerImage || featuredTour?.coverImage ? 'text-white' : ''
+            }`}
+          >
+            <p
+              className="mb-3 text-[11px] uppercase tracking-[0.35em]"
+              style={{
+                color:
+                  featuredTour?.bannerImage || featuredTour?.coverImage
+                    ? '#FF6600'
+                    : 'var(--accent)',
+              }}
+            >
+              Live dates
+            </p>
+            <h1
+              className="max-w-3xl text-5xl leading-[0.92] uppercase sm:text-7xl"
+              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+            >
+              {featuredTour ? featuredTour.title : 'Upcoming Shows'}
+            </h1>
+            {featuredTour?.subtitle ? (
+              <p
+                className={`mt-4 text-sm uppercase tracking-[0.25em] ${
+                  featuredTour?.bannerImage || featuredTour?.coverImage
+                    ? 'text-white/75'
+                    : 'text-[var(--foreground-muted)]'
+                }`}
+              >
+                {featuredTour.subtitle}
+              </p>
+            ) : null}
+            <p
+              className={`mt-6 max-w-2xl text-base leading-relaxed ${
+                featuredTour?.bannerImage || featuredTour?.coverImage
+                  ? 'text-white/80'
+                  : 'text-[var(--foreground-muted)]'
+              }`}
+            >
+              {featuredTour?.description ||
+                'Tour dates and tickets. New cities drop here first.'}
+            </p>
+          </div>
         </motion.section>
 
         {shows.length === 0 ? (
@@ -138,7 +172,7 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                       return (
                         <li
                           key={show.id}
-                          className="grid grid-cols-[72px_1fr] items-center gap-4 px-5 py-6 sm:grid-cols-[88px_1fr_auto] sm:gap-6 sm:px-7"
+                          className="grid grid-cols-[72px_1fr] items-center gap-4 px-5 py-6 sm:grid-cols-[72px_88px_1fr_auto] sm:gap-6 sm:px-7"
                         >
                           <div className="text-center">
                             <div className="text-[10px] uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
@@ -156,6 +190,19 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                               {d.weekday}
                             </div>
                           </div>
+
+                          {show.artworkImage ? (
+                            <div className="hidden overflow-hidden rounded-xl border border-[var(--border)] sm:block">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={show.artworkImage}
+                                alt={`${show.city} artwork`}
+                                className="aspect-[3/4] h-[88px] w-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="hidden sm:block" />
+                          )}
 
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -237,24 +284,36 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
               {tours.map((tour) => (
                 <div
                   key={tour.id}
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-6"
+                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-semibold">{tour.title}</h3>
-                    {tour.featured ? (
-                      <span
-                        className="text-[9px] uppercase tracking-[0.2em]"
-                        style={{ color: 'var(--accent)' }}
-                      >
-                        Featured
-                      </span>
+                  {tour.coverImage || tour.bannerImage ? (
+                    <div className="aspect-[16/9] overflow-hidden bg-[var(--surface-muted)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={tour.coverImage || tour.bannerImage}
+                        alt={tour.title}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="px-6 py-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold">{tour.title}</h3>
+                      {tour.featured ? (
+                        <span
+                          className="text-[9px] uppercase tracking-[0.2em]"
+                          style={{ color: 'var(--accent)' }}
+                        >
+                          Featured
+                        </span>
+                      ) : null}
+                    </div>
+                    {tour.subtitle ? (
+                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
+                        {tour.subtitle}
+                      </p>
                     ) : null}
                   </div>
-                  {tour.subtitle ? (
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
-                      {tour.subtitle}
-                    </p>
-                  ) : null}
                 </div>
               ))}
             </div>

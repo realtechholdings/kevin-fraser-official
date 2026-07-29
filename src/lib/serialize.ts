@@ -15,6 +15,9 @@ export type PublicTour = {
   subtitle: string
   description: string
   coverImage: string
+  coverImageKey: string
+  bannerImage: string
+  bannerImageKey: string
   featured: boolean
   published: boolean
   startDate: string | null
@@ -56,6 +59,8 @@ export type PublicShow = {
   featured: boolean
   published: boolean
   externalTicketUrl: string
+  artworkImage: string
+  artworkImageKey: string
   tiers?: PublicTicketTier[]
 }
 
@@ -116,13 +121,23 @@ export type PublicKevin11Content = {
 }
 
 export function serializeTour(tour: TourDocument): PublicTour {
+  const id = String(tour._id)
+  const coverKey = tour.coverImageKey || ''
+  const bannerKey = tour.bannerImageKey || ''
   return {
-    id: String(tour._id),
+    id,
     title: tour.title,
     slug: tour.slug,
     subtitle: tour.subtitle || '',
     description: tour.description || '',
-    coverImage: tour.coverImage || '',
+    coverImageKey: coverKey,
+    bannerImageKey: bannerKey,
+    coverImage:
+      tour.coverImage ||
+      (coverKey ? `/api/tours/${id}/cover` : ''),
+    bannerImage:
+      tour.bannerImage ||
+      (bannerKey ? `/api/tours/${id}/banner` : ''),
     featured: Boolean(tour.featured),
     published: Boolean(tour.published),
     startDate: tour.startDate ? new Date(tour.startDate).toISOString() : null,
@@ -169,6 +184,10 @@ export function serializeShow(
     featured: Boolean(show.featured),
     published: Boolean(show.published),
     externalTicketUrl: show.externalTicketUrl || '',
+    artworkImageKey: show.artworkImageKey || '',
+    artworkImage:
+      show.artworkImage ||
+      (show.artworkImageKey ? `/api/shows/${String(show._id)}/artwork` : ''),
     tiers: serializedTiers,
   }
 }

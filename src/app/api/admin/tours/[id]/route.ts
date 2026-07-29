@@ -29,6 +29,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.subtitle !== undefined) tour.subtitle = String(body.subtitle)
     if (body.description !== undefined) tour.description = String(body.description)
     if (body.coverImage !== undefined) tour.coverImage = String(body.coverImage)
+    if (body.coverImageKey !== undefined) tour.coverImageKey = String(body.coverImageKey)
+    if (body.bannerImage !== undefined) tour.bannerImage = String(body.bannerImage)
+    if (body.bannerImageKey !== undefined) tour.bannerImageKey = String(body.bannerImageKey)
     if (body.published !== undefined) tour.published = Boolean(body.published)
     if (body.startDate !== undefined) {
       tour.startDate = body.startDate ? new Date(body.startDate) : undefined

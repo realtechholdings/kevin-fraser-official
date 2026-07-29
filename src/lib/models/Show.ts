@@ -27,6 +27,9 @@ const ShowSchema = new Schema(
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: true },
     externalTicketUrl: { type: String, default: '' },
+    /** Show poster / artwork URL or proxy path */
+    artworkImage: { type: String, default: '' },
+    artworkImageKey: { type: String, default: '' },
   },
   { timestamps: true }
 )

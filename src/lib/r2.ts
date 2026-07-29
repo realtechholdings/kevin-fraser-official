@@ -83,6 +83,22 @@ export function settingsMediaKey(filename: string) {
   return r2ObjectKey('settings', filename)
 }
 
+export function tourMediaKey(filename: string) {
+  return r2ObjectKey('tours', filename)
+}
+
+export function showMediaKey(filename: string) {
+  return r2ObjectKey('shows', filename)
+}
+
+export function tourImagePath(id: string, kind: 'cover' | 'banner') {
+  return `/api/tours/${id}/${kind}`
+}
+
+export function showArtworkPath(id: string) {
+  return `/api/shows/${id}/artwork`
+}
+
 export async function putR2Object(input: {
   key: string
   body: Buffer

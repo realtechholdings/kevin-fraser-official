@@ -70,7 +70,14 @@ export async function POST(req: NextRequest) {
       featured: Boolean(body.featured),
       published: body.published !== false,
       externalTicketUrl: String(body.externalTicketUrl || ''),
+      artworkImage: String(body.artworkImage || ''),
+      artworkImageKey: String(body.artworkImageKey || ''),
     })
+
+    if (show.artworkImageKey && !show.artworkImage) {
+      show.artworkImage = `/api/shows/${show._id}/artwork`
+      await show.save()
+    }
 
     await show.populate('tour')
     return NextResponse.json({ success: true, show: serializeShow(show) }, { status: 201 })

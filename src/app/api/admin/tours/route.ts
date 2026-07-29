@@ -51,11 +51,25 @@ export async function POST(req: NextRequest) {
       subtitle: String(body.subtitle || ''),
       description: String(body.description || ''),
       coverImage: String(body.coverImage || ''),
+      coverImageKey: String(body.coverImageKey || ''),
+      bannerImage: String(body.bannerImage || ''),
+      bannerImageKey: String(body.bannerImageKey || ''),
       featured: Boolean(body.featured),
       published: body.published !== false,
       startDate: body.startDate ? new Date(body.startDate) : undefined,
       endDate: body.endDate ? new Date(body.endDate) : undefined,
     })
+
+    let dirty = false
+    if (tour.coverImageKey && !tour.coverImage) {
+      tour.coverImage = `/api/tours/${tour._id}/cover`
+      dirty = true
+    }
+    if (tour.bannerImageKey && !tour.bannerImage) {
+      tour.bannerImage = `/api/tours/${tour._id}/banner`
+      dirty = true
+    }
+    if (dirty) await tour.save()
 
     return NextResponse.json({ success: true, tour: serializeTour(tour) }, { status: 201 })
   } catch (error) {
