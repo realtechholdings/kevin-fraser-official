@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  BadgeDollarSign,
   Bot,
   CalendarDays,
   Clapperboard,
@@ -23,6 +24,7 @@ export type AdminTab =
   | 'tours'
   | 'shows'
   | 'tiers'
+  | 'sales'
   | 'cms'
   | 'scanner'
   | 'bonus'
@@ -37,6 +39,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'tours', name: 'Tours', icon: Ticket },
   { id: 'shows', name: 'Shows', icon: CalendarDays },
   { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
+  { id: 'sales', name: 'Sales', icon: BadgeDollarSign },
   { id: 'cms', name: 'CMS', icon: Mail },
   { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
