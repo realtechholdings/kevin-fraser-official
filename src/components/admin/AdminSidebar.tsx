@@ -9,6 +9,7 @@ import {
   Layers,
   LayoutDashboard,
   Palette,
+  Store,
   Ticket,
   ExternalLink,
 } from 'lucide-react'
@@ -21,6 +22,7 @@ export type AdminTab =
   | 'tiers'
   | 'bonus'
   | 'studio'
+  | 'kevin11'
   | 'theme'
   | 'ai'
 
@@ -31,6 +33,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
+  { id: 'kevin11', name: 'Kevin11', icon: Store },
   { id: 'theme', name: 'Theme', icon: Palette },
   { id: 'ai', name: 'AI Kev', icon: Bot },
 ]
@@ -109,6 +112,14 @@ export default function AdminSidebar({
         >
           <ExternalLink className="h-4 w-4" />
           View Studio
+        </Link>
+        <Link
+          href="/worlds/kevin11"
+          className="admin-nav-item"
+          style={{ color: 'rgba(255,255,255,0.4)' }}
+        >
+          <ExternalLink className="h-4 w-4" />
+          View Kevin11
         </Link>
         <div className="flex items-center gap-2 px-3 pt-1">
           <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />

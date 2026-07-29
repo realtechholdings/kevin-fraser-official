@@ -5,6 +5,8 @@ import type { BonusContentDocument } from '@/lib/models/BonusContent'
 import type { StudioCategory } from '@/lib/studio/categories'
 import type { StudioContentDocument } from '@/lib/models/StudioContent'
 import type { TicketTierDocument, TierOwnerType } from '@/lib/models/TicketTier'
+import type { Kevin11Category, Kevin11OverlaySlot } from '@/lib/kevin11/categories'
+import type { Kevin11ContentDocument } from '@/lib/models/Kevin11Content'
 
 export type PublicTour = {
   id: string
@@ -85,6 +87,27 @@ export type PublicStudioContent = {
   thumbnailUrl: string
   mimeType: string
   sizeBytes: number
+  sortOrder: number
+  featured: boolean
+  published: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type PublicKevin11Content = {
+  id: string
+  title: string
+  description: string
+  category: Kevin11Category
+  mediaKey: string
+  mediaUrl: string
+  thumbnailKey: string
+  thumbnailUrl: string
+  mimeType: string
+  sizeBytes: number
+  ctaLabel: string
+  ctaUrl: string
+  overlaySlot: Kevin11OverlaySlot
   sortOrder: number
   featured: boolean
   published: boolean
@@ -198,6 +221,29 @@ export function serializeStudioContent(item: StudioContentDocument): PublicStudi
     thumbnailUrl: item.thumbnailUrl || '',
     mimeType: item.mimeType,
     sizeBytes: item.sizeBytes || 0,
+    sortOrder: item.sortOrder || 0,
+    featured: Boolean(item.featured),
+    published: Boolean(item.published),
+    createdAt: new Date(item.createdAt).toISOString(),
+    updatedAt: new Date(item.updatedAt).toISOString(),
+  }
+}
+
+export function serializeKevin11Content(item: Kevin11ContentDocument): PublicKevin11Content {
+  return {
+    id: String(item._id),
+    title: item.title,
+    description: item.description || '',
+    category: item.category as Kevin11Category,
+    mediaKey: item.mediaKey,
+    mediaUrl: item.mediaUrl,
+    thumbnailKey: item.thumbnailKey || '',
+    thumbnailUrl: item.thumbnailUrl || '',
+    mimeType: item.mimeType,
+    sizeBytes: item.sizeBytes || 0,
+    ctaLabel: item.ctaLabel || '',
+    ctaUrl: item.ctaUrl || '',
+    overlaySlot: (item.overlaySlot || 'none') as Kevin11OverlaySlot,
     sortOrder: item.sortOrder || 0,
     featured: Boolean(item.featured),
     published: Boolean(item.published),

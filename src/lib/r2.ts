@@ -52,6 +52,10 @@ export function studioFilePath(id: string, kind: 'media' | 'thumbnail' = 'media'
   return kind === 'thumbnail' ? `/api/studio/${id}/thumbnail` : `/api/studio/${id}/file`
 }
 
+export function kevin11FilePath(id: string, kind: 'media' | 'thumbnail' = 'media') {
+  return kind === 'thumbnail' ? `/api/kevin11/${id}/thumbnail` : `/api/kevin11/${id}/file`
+}
+
 export function r2ObjectKey(folder: string, filename: string) {
   const safe = filename
     .toLowerCase()
@@ -69,6 +73,10 @@ export function bonusMediaKey(filename: string) {
 
 export function studioMediaKey(filename: string) {
   return r2ObjectKey('studio', filename)
+}
+
+export function kevin11MediaKey(filename: string) {
+  return r2ObjectKey('kevin11', filename)
 }
 
 export function settingsMediaKey(filename: string) {

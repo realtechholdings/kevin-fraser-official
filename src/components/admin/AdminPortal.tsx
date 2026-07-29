@@ -19,6 +19,7 @@ import StudioAdminPanel from '@/components/admin/StudioAdminPanel'
 import ThemeAdminPanel from '@/components/admin/ThemeAdminPanel'
 import AIKevAdminPanel from '@/components/admin/AIKevAdminPanel'
 import TiersAdminPanel from '@/components/admin/TiersAdminPanel'
+import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import { cn } from '@/lib/utils'
 
 type Tab = AdminTab
@@ -416,9 +417,11 @@ export default function AdminPortal() {
               ? { title: 'Bonus Content', subtitle: 'Upload exclusive Showreel clips to Cloudflare R2' }
               : tab === 'studio'
                 ? { title: 'The Studio', subtitle: 'Behind the scenes, characters, and creative process' }
-                : tab === 'theme'
-                  ? { title: 'Theme', subtitle: 'Site accent colours for light and dark mode' }
-                  : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
+                : tab === 'kevin11'
+                  ? { title: 'Kevin11', subtitle: 'Comedy overlays, merch, and store content' }
+                  : tab === 'theme'
+                    ? { title: 'Theme', subtitle: 'Site accent colours for light and dark mode' }
+                    : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
 
   return (
     <div className="admin-app">
@@ -430,7 +433,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'bonus', 'studio', 'theme', 'ai'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'tiers', 'bonus', 'studio', 'kevin11', 'theme', 'ai'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -450,9 +453,11 @@ export default function AdminPortal() {
                     ? 'Studio'
                     : id === 'tiers'
                       ? 'Tiers'
-                      : id === 'ai'
-                        ? 'AI Kev'
-                        : id}
+                      : id === 'kevin11'
+                        ? 'Kevin11'
+                        : id === 'ai'
+                          ? 'AI Kev'
+                          : id}
               </button>
             ))}
           </div>
@@ -1049,6 +1054,19 @@ export default function AdminPortal() {
 
           {tab === 'studio' ? (
             <StudioAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'kevin11' ? (
+            <Kevin11AdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')
