@@ -184,20 +184,41 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
               </p>
 
               {show.tiers && show.tiers.length > 0 ? (
-                <ul className="mt-5 space-y-2 border-t border-[var(--border)] pt-5">
+                <ul className="mt-5 space-y-4 border-t border-[var(--border)] pt-5">
                   {show.tiers
                     .filter((t) => t.published)
-                    .map((tier) => (
-                      <li
-                        key={tier.id}
-                        className="flex items-baseline justify-between gap-3 text-sm"
-                      >
-                        <span className="text-[var(--foreground)]">{tier.name}</span>
-                        <span className="text-[var(--foreground-muted)]">
-                          {formatPrice(tier.priceCents, tier.currency)}
-                        </span>
-                      </li>
-                    ))}
+                    .slice()
+                    .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
+                    .map((tier) => {
+                      const tierSoldOut =
+                        tier.capacity > 0 && tier.ticketsSold >= tier.capacity
+                      return (
+                        <li key={tier.id} className="text-sm">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="font-medium text-[var(--foreground)]">
+                              {tier.name}
+                            </span>
+                            <span className="shrink-0 text-[var(--foreground-muted)]">
+                              {tierSoldOut ? (
+                                <span
+                                  className="text-[10px] uppercase tracking-[0.14em]"
+                                  style={{ color: 'var(--danger)' }}
+                                >
+                                  Sold Out
+                                </span>
+                              ) : (
+                                formatPrice(tier.priceCents, tier.currency)
+                              )}
+                            </span>
+                          </div>
+                          {tier.description ? (
+                            <p className="mt-1 text-xs leading-relaxed text-[var(--foreground-subtle)]">
+                              {tier.description}
+                            </p>
+                          ) : null}
+                        </li>
+                      )
+                    })}
                 </ul>
               ) : null}
 
