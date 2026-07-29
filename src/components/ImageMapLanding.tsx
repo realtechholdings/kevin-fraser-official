@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 interface Hotspot {
@@ -12,6 +12,104 @@ interface Hotspot {
   left: string
   width: string
   height: string
+}
+
+function GymTonikModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Gym & Tonik"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.5rem',
+        background: 'rgba(0,0,0,0.72)',
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          width: 'min(480px, 100%)',
+          borderRadius: '1.5rem',
+          border: '1px solid rgba(196,163,90,0.35)',
+          background: '#000',
+          padding: '2.5rem 2rem 2.25rem',
+          textAlign: 'center',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: 'absolute',
+            top: '0.9rem',
+            right: '0.9rem',
+            width: '2rem',
+            height: '2rem',
+            borderRadius: '9999px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: 'transparent',
+            color: 'rgba(255,255,255,0.75)',
+            fontSize: '0.95rem',
+            lineHeight: 1,
+            cursor: 'pointer',
+          }}
+        >
+          ×
+        </button>
+
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/gym-tonik-logo.png"
+          alt="Gym & Tonik"
+          style={{ width: '100%', maxWidth: '340px', height: 'auto', margin: '0 auto' }}
+          draggable={false}
+        />
+
+        <p
+          style={{
+            margin: '1.5rem 0 0',
+            fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+            textTransform: 'uppercase',
+            letterSpacing: '0.3em',
+            fontSize: 'clamp(11px, 1.4vw, 13px)',
+            color: '#C4A35A',
+          }}
+        >
+          Movement · Wellness · Energy
+        </p>
+        <p
+          style={{
+            margin: '0.9rem auto 0',
+            maxWidth: '320px',
+            fontSize: '0.95rem',
+            lineHeight: 1.6,
+            color: 'rgba(242,240,235,0.85)',
+          }}
+        >
+          The movement, wellness and energy app — launching later this year.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 const HOTSPOTS: Hotspot[] = [
@@ -35,8 +133,7 @@ const HOTSPOTS: Hotspot[] = [
   },
   {
     id: 'gym',
-    href: 'https://gym-and-tonic.vercel.app/',
-    external: true,
+    href: '',
     label: 'Gym & Tonik',
     top: '12%',
     left: '60%',
@@ -83,6 +180,8 @@ const HOTSPOTS: Hotspot[] = [
 ]
 
 export default function ImageMapLanding() {
+  const [gymModalOpen, setGymModalOpen] = useState(false)
+
   useEffect(() => {
     document.documentElement.classList.add('landing-lock')
     return () => document.documentElement.classList.remove('landing-lock')
@@ -192,6 +291,24 @@ export default function ImageMapLanding() {
             />
           )
 
+          if (spot.id === 'gym') {
+            return (
+              <button
+                key={spot.id}
+                type="button"
+                onClick={() => setGymModalOpen(true)}
+                style={{
+                  display: 'contents',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                }}
+              >
+                {zone}
+              </button>
+            )
+          }
+
           if (spot.external) {
             return (
               <a
@@ -265,6 +382,8 @@ export default function ImageMapLanding() {
           </span>
         ))}
       </nav>
+
+      {gymModalOpen ? <GymTonikModal onClose={() => setGymModalOpen(false)} /> : null}
     </div>
   )
 }
