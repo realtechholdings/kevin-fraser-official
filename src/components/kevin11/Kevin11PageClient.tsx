@@ -125,7 +125,10 @@ function MobileCardRail({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       className="absolute left-0 right-0 z-20"
-      style={{ top: 'max(4.75rem, calc(env(safe-area-inset-top) + 3.75rem))' }}
+      style={{
+        // Centre the rail vertically (rail is ~13rem tall incl. CTA buttons)
+        top: 'max(calc(50% - 6.5rem), calc(env(safe-area-inset-top) + 3.75rem))',
+      }}
     >
       <div
         ref={railRef}
