@@ -196,16 +196,21 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                               {[show.address, show.showTime].filter(Boolean).join(' · ')}
                             </p>
                             <p className="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--foreground-muted)] sm:hidden">
-                              {formatPrice(show.priceCents, show.currency)}
+                              {show.tiers && show.tiers.length > 1
+                                ? `From ${formatPrice(show.priceCents, show.currency)}`
+                                : formatPrice(show.priceCents, show.currency)}
                             </p>
                           </div>
 
                           <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-center">
                             <span className="hidden text-sm text-[var(--foreground-muted)] sm:block">
-                              {formatPrice(show.priceCents, show.currency)}
+                              {show.tiers && show.tiers.length > 1
+                                ? `From ${formatPrice(show.priceCents, show.currency)}`
+                                : formatPrice(show.priceCents, show.currency)}
                             </span>
                             <TicketButton
                               showId={show.id}
+                              tiers={show.tiers || []}
                               disabled={unavailable}
                               label={soldOut ? 'Sold Out' : badge || 'Tickets'}
                             />

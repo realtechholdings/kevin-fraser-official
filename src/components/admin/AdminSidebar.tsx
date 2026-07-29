@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Clapperboard,
   Film,
+  Layers,
   LayoutDashboard,
   Palette,
   Ticket,
@@ -13,12 +14,21 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type AdminTab = 'overview' | 'tours' | 'shows' | 'bonus' | 'studio' | 'theme' | 'ai'
+export type AdminTab =
+  | 'overview'
+  | 'tours'
+  | 'shows'
+  | 'tiers'
+  | 'bonus'
+  | 'studio'
+  | 'theme'
+  | 'ai'
 
 const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', name: 'Overview', icon: LayoutDashboard },
   { id: 'tours', name: 'Tours', icon: Ticket },
   { id: 'shows', name: 'Shows', icon: CalendarDays },
+  { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
   { id: 'theme', name: 'Theme', icon: Palette },

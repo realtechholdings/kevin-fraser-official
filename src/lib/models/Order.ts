@@ -3,6 +3,9 @@ import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 const OrderSchema = new Schema(
   {
     show: { type: Schema.Types.ObjectId, ref: 'Show', required: true, index: true },
+    tier: { type: Schema.Types.ObjectId, ref: 'TicketTier', default: null, index: true },
+    tierName: { type: String, default: '' },
+    unitAmountCents: { type: Number, default: 0, min: 0 },
     stripeSessionId: { type: String, required: true, unique: true },
     stripePaymentIntentId: { type: String, default: '' },
     email: { type: String, required: true, lowercase: true, trim: true },

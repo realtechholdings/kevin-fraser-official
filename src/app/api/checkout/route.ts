@@ -3,11 +3,13 @@ import dbConnect from '@/lib/db'
 import Show from '@/lib/models/Show'
 import Order from '@/lib/models/Order'
 import { appUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
+import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const showId = String(body.showId || '')
+    const tierId = String(body.tierId || '')
     const quantity = Math.max(1, Math.min(10, Number(body.quantity) || 1))
 
     if (!showId) {
@@ -37,6 +39,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, url: show.externalTicketUrl, external: true })
     }
 
+    const tiers = await resolveTiersForShow(show)
+    const selected =
+      (tierId && tiers.find((t) => t.id === tierId)) ||
+      tiers[0]
+
+    if (!selected) {
+      return NextResponse.json({ success: false, error: 'No ticket tier available.' }, { status: 400 })
+    }
+
+    if (selected.capacity > 0 && selected.ticketsSold + quantity > selected.capacity) {
+      return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
+    }
+
     const tourTitle =
       show.tour && typeof show.tour === 'object' && 'title' in show.tour
         ? String((show.tour as { title: string }).title)
@@ -64,10 +79,10 @@ export async function POST(req: NextRequest) {
           {
             quantity,
             price_data: {
-              currency: show.currency.toLowerCase(),
-              unit_amount: show.priceCents,
+              currency: selected.currency.toLowerCase(),
+              unit_amount: selected.priceCents,
               product_data: {
-                name: `${tourTitle} — ${show.city}`,
+                name: `${tourTitle} — ${show.city} (${selected.name})`,
                 description: `${show.venue} · ${new Date(show.date).toLocaleString('en-AU', {
                   dateStyle: 'medium',
                   timeStyle: 'short',
@@ -78,6 +93,8 @@ export async function POST(req: NextRequest) {
         ],
         metadata: {
           showId: String(show._id),
+          tierId: selected.legacy ? '' : selected.id,
+          tierName: selected.name,
           quantity: String(quantity),
         },
       },
@@ -86,11 +103,14 @@ export async function POST(req: NextRequest) {
 
     await Order.create({
       show: show._id,
+      tier: selected.legacy ? null : selected.id,
+      tierName: selected.name,
+      unitAmountCents: selected.priceCents,
       stripeSessionId: session.id,
       email: session.customer_email || body.email || 'pending@checkout',
       quantity,
-      amountTotal: show.priceCents * quantity,
-      currency: show.currency,
+      amountTotal: selected.priceCents * quantity,
+      currency: selected.currency,
       status: 'pending',
     })
 

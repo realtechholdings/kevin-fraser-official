@@ -14,7 +14,7 @@ export async function GET() {
   try {
     await dbConnect()
     const shows = await Show.find().populate('tour').sort({ date: 1 })
-    return NextResponse.json({ success: true, shows: shows.map(serializeShow) })
+    return NextResponse.json({ success: true, shows: shows.map((show) => serializeShow(show)) })
   } catch (error) {
     console.error('Admin shows GET:', error)
     return NextResponse.json({ success: false, error: 'Failed to load shows.' }, { status: 500 })

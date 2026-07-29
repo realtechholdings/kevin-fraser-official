@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db'
 import Tour from '@/lib/models/Tour'
 import Show from '@/lib/models/Show'
 import { serializeShow, serializeTour } from '@/lib/serialize'
+import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import StagePageClient from '@/components/stage/StagePageClient'
 
 export const metadata: Metadata = {
@@ -30,10 +31,13 @@ export default async function StagePage({ searchParams }: Props) {
       .sort({ date: 1 }),
   ])
 
+  const tiersByShow = await resolveTiersForShows(shows)
+  const publicShows = shows.map((show) => serializeShow(show, tiersByShow[String(show._id)] || []))
+
   return (
     <StagePageClient
       tours={tours.map(serializeTour)}
-      shows={shows.map(serializeShow)}
+      shows={publicShows}
       cancelled={params.cancelled === '1'}
     />
   )

@@ -4,6 +4,7 @@ import type { ShowDocument } from '@/lib/models/Show'
 import type { BonusContentDocument } from '@/lib/models/BonusContent'
 import type { StudioCategory } from '@/lib/studio/categories'
 import type { StudioContentDocument } from '@/lib/models/StudioContent'
+import type { TicketTierDocument, TierOwnerType } from '@/lib/models/TicketTier'
 
 export type PublicTour = {
   id: string
@@ -16,6 +17,22 @@ export type PublicTour = {
   published: boolean
   startDate: string | null
   endDate: string | null
+}
+
+export type PublicTicketTier = {
+  id: string
+  ownerType: TierOwnerType
+  ownerId: string
+  name: string
+  slug: string
+  description: string
+  currency: string
+  priceCents: number
+  capacity: number
+  ticketsSold: number
+  sortOrder: number
+  published: boolean
+  legacy?: boolean
 }
 
 export type PublicShow = {
@@ -37,6 +54,7 @@ export type PublicShow = {
   featured: boolean
   published: boolean
   externalTicketUrl: string
+  tiers?: PublicTicketTier[]
 }
 
 export type PublicBonusContent = {
@@ -90,7 +108,8 @@ export function serializeTour(tour: TourDocument): PublicTour {
 }
 
 export function serializeShow(
-  show: ShowDocument & { tour?: TourDocument | mongoose.Types.ObjectId }
+  show: ShowDocument & { tour?: TourDocument | mongoose.Types.ObjectId },
+  tiers?: PublicTicketTier[],
 ): PublicShow {
   const tour = show.tour
   const tourPayload =
@@ -101,6 +120,12 @@ export function serializeShow(
           slug: (tour as TourDocument).slug,
         }
       : { id: String(tour), title: '', slug: '' }
+
+  const serializedTiers = tiers || []
+  const fromPrice =
+    serializedTiers.length > 0
+      ? Math.min(...serializedTiers.map((t) => t.priceCents))
+      : show.priceCents
 
   return {
     id: String(show._id),
@@ -113,14 +138,32 @@ export function serializeShow(
     city: show.city,
     venue: show.venue,
     address: show.address || '',
-    currency: show.currency,
-    priceCents: show.priceCents,
+    currency: serializedTiers[0]?.currency || show.currency,
+    priceCents: fromPrice,
     capacity: show.capacity || 0,
     ticketsSold: show.ticketsSold || 0,
     status: show.status,
     featured: Boolean(show.featured),
     published: Boolean(show.published),
     externalTicketUrl: show.externalTicketUrl || '',
+    tiers: serializedTiers,
+  }
+}
+
+export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier {
+  return {
+    id: String(tier._id),
+    ownerType: tier.ownerType as TierOwnerType,
+    ownerId: String(tier.ownerId),
+    name: tier.name,
+    slug: tier.slug,
+    description: tier.description || '',
+    currency: tier.currency,
+    priceCents: tier.priceCents,
+    capacity: tier.capacity || 0,
+    ticketsSold: tier.ticketsSold || 0,
+    sortOrder: tier.sortOrder || 0,
+    published: Boolean(tier.published),
   }
 }
 

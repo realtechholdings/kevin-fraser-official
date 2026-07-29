@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
+import TicketTier from '@/lib/models/TicketTier'
 import { getStripe, stripeRequestOptions } from '@/lib/stripe'
 
 export async function GET(req: NextRequest) {
@@ -34,6 +35,12 @@ export async function GET(req: NextRequest) {
       await Show.findByIdAndUpdate(order.show, {
         $inc: { ticketsSold: order.quantity },
       })
+
+      if (order.tier) {
+        await TicketTier.findByIdAndUpdate(order.tier, {
+          $inc: { ticketsSold: order.quantity },
+        })
+      }
     }
 
     return NextResponse.json({
@@ -44,6 +51,7 @@ export async function GET(req: NextRequest) {
       amountTotal: session.amount_total,
       currency: session.currency,
       showId: session.metadata?.showId || (order ? String(order.show) : null),
+      tierName: order?.tierName || session.metadata?.tierName || null,
     })
   } catch (error) {
     console.error('Verify checkout error:', error)
