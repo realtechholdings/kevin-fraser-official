@@ -1,10 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ExternalLink, Send } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Send, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+
+/**
+ * Full-screen intro that plays the (black-background) contact video as an
+ * overlay above the page, then fades away when it finishes.
+ */
+function ConnectIntro({ onDone }: { onDone: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [fading, setFading] = useState(false)
+
+  function finish() {
+    setFading(true)
+    setTimeout(onDone, 700)
+  }
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    video.muted = false
+    video.volume = 1
+    video.play().catch(() => {
+      // Autoplay with sound blocked — play the intro silently instead
+      video.muted = true
+      video.play().catch(() => onDone())
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 bg-black/85 backdrop-blur-sm transition-opacity duration-700 ${
+        fading ? 'pointer-events-none opacity-0' : 'opacity-100'
+      }`}
+    >
+      <video
+        ref={videoRef}
+        src="/connect-intro.mp4"
+        playsInline
+        preload="auto"
+        onEnded={finish}
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ mixBlendMode: 'screen' }}
+      />
+      <button
+        type="button"
+        onClick={finish}
+        className="absolute z-10 inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-black/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-sm transition-colors hover:bg-black/70"
+        style={{
+          top: 'max(1rem, env(safe-area-inset-top))',
+          right: 'max(1rem, env(safe-area-inset-right))',
+        }}
+        aria-label="Skip intro"
+      >
+        Skip
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
 
 const SOCIALS = [
   {
@@ -91,6 +149,7 @@ export default function ConnectPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [introDone, setIntroDone] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,6 +180,7 @@ export default function ConnectPage() {
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      {!introDone ? <ConnectIntro onDone={() => setIntroDone(true)} /> : null}
       <header
         className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"
         style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
