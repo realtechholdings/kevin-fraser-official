@@ -41,28 +41,80 @@ const emptyForm: Kevin11Form = {
   published: true,
 }
 
-async function uploadFile(file: File) {
+async function uploadViaServer(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/api/admin/kevin11/upload', {
+    method: 'POST',
+    body: form,
+  })
+  let data: {
+    success?: boolean
+    error?: string
+    code?: string
+    key?: string
+    publicUrl?: string
+  } = {}
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(`Upload failed (${res.status}).`)
+  }
+  if (!res.ok) {
+    const err = new Error(data.error || 'Upload failed') as Error & { code?: string }
+    err.code = data.code
+    throw err
+  }
+  if (!data.key) throw new Error('Upload did not return a storage key.')
+  return {
+    key: data.key,
+    publicUrl: data.publicUrl || '',
+  }
+}
+
+async function uploadViaPresign(file: File) {
+  const contentType = file.type || 'application/octet-stream'
   const presignRes = await fetch('/api/admin/kevin11/presign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       filename: file.name,
-      contentType: file.type || 'application/octet-stream',
+      contentType,
     }),
   })
   const presign = await presignRes.json()
   if (!presignRes.ok) throw new Error(presign.error || 'Failed to get upload URL')
 
-  const putRes = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  })
-  if (!putRes.ok) throw new Error('Upload to Cloudflare R2 failed')
+  let putRes: Response
+  try {
+    putRes = await fetch(presign.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file,
+    })
+  } catch {
+    throw new Error(
+      'Could not reach Cloudflare R2 (often a CORS issue). Try a smaller file, or check bucket CORS allows PUT from this site.',
+    )
+  }
+  if (!putRes.ok) throw new Error(`Upload to Cloudflare R2 failed (${putRes.status}).`)
 
   return {
     key: presign.key as string,
     publicUrl: (presign.publicUrl as string) || '',
+  }
+}
+
+async function uploadFile(file: File) {
+  // Prefer server upload (avoids browser→R2 CORS). Fall back to presigned PUT for larger files.
+  try {
+    return await uploadViaServer(file)
+  } catch (err) {
+    const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : ''
+    if (code === 'TOO_LARGE' || file.size > 4 * 1024 * 1024) {
+      return uploadViaPresign(file)
+    }
+    throw err
   }
 }
 
@@ -198,7 +250,12 @@ export default function Kevin11AdminPanel({
       setThumbFile(null)
       await load()
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Save failed')
+      const message = err instanceof Error ? err.message : 'Save failed'
+      onError(
+        message === 'Failed to fetch'
+          ? 'Network error while uploading. Refresh and try again, or use a smaller file.'
+          : message,
+      )
     } finally {
       setBusy(false)
     }
