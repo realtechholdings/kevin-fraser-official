@@ -62,6 +62,9 @@ export type PublicShow = {
   externalTicketUrl: string
   artworkImage: string
   artworkImageKey: string
+  venueImage: string
+  venueImageKey: string
+  description: string
   tiers?: PublicTicketTier[]
 }
 
@@ -190,6 +193,11 @@ export function serializeShow(
     artworkImage:
       show.artworkImage ||
       (show.artworkImageKey ? `/api/shows/${String(show._id)}/artwork` : ''),
+    venueImageKey: show.venueImageKey || '',
+    venueImage:
+      show.venueImage ||
+      (show.venueImageKey ? `/api/shows/${String(show._id)}/venue` : ''),
+    description: show.description || '',
     tiers: serializedTiers,
   }
 }

@@ -99,6 +99,10 @@ export function showArtworkPath(id: string) {
   return `/api/shows/${id}/artwork`
 }
 
+export function showVenuePath(id: string) {
+  return `/api/shows/${id}/venue`
+}
+
 export async function putR2Object(input: {
   key: string
   body: Buffer

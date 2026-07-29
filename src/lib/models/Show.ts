@@ -30,6 +30,11 @@ const ShowSchema = new Schema(
     /** Show poster / artwork URL or proxy path */
     artworkImage: { type: String, default: '' },
     artworkImageKey: { type: String, default: '' },
+    /** Optional venue photo for the show detail page */
+    venueImage: { type: String, default: '' },
+    venueImageKey: { type: String, default: '' },
+    /** Optional blurb for the show detail page */
+    description: { type: String, default: '', trim: true },
   },
   { timestamps: true }
 )

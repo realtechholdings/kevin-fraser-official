@@ -59,6 +59,9 @@ type ShowForm = {
   externalTicketUrl: string
   artworkImage: string
   artworkImageKey: string
+  venueImage: string
+  venueImageKey: string
+  description: string
 }
 
 const emptyTour: TourForm = {
@@ -95,6 +98,9 @@ const emptyShow = (tourId = ''): ShowForm => ({
   externalTicketUrl: '',
   artworkImage: '',
   artworkImageKey: '',
+  venueImage: '',
+  venueImageKey: '',
+  description: '',
 })
 
 async function uploadAdminImage(file: File, folder: 'tours' | 'shows') {
@@ -269,6 +275,7 @@ export default function AdminPortal() {
       const payload = {
         ...showForm,
         artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
+        venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
         priceCents: Number(showForm.priceCents) || 0,
         capacity: Number(showForm.capacity) || 0,
       }
@@ -335,6 +342,9 @@ export default function AdminPortal() {
       externalTicketUrl: show.externalTicketUrl,
       artworkImage: show.artworkImage || '',
       artworkImageKey: show.artworkImageKey || '',
+      venueImage: show.venueImage || '',
+      venueImageKey: show.venueImageKey || '',
+      description: show.description || '',
     })
     setTab('shows')
     setShowFormPanel(true)
@@ -380,6 +390,25 @@ export default function AdminPortal() {
         artworkImage: uploaded.publicUrl || URL.createObjectURL(file),
       }))
       setMessage('Show artwork uploaded. Save the show to keep it.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onShowVenueChange(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadAdminImage(file, 'shows')
+      setShowForm((prev) => ({
+        ...prev,
+        venueImageKey: uploaded.key,
+        venueImage: uploaded.publicUrl || URL.createObjectURL(file),
+      }))
+      setMessage('Venue image uploaded. Save the show to keep it.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Image upload failed')
     } finally {
@@ -1005,6 +1034,44 @@ export default function AdminPortal() {
                             onClick={() => setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))}
                           >
                             Remove artwork
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Show description (optional)</label>
+                        <textarea
+                          className={`${inputClass} min-h-[90px]`}
+                          value={showForm.description}
+                          onChange={(e) => setShowForm({ ...showForm, description: e.target.value })}
+                          placeholder="Short blurb for the show page"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Venue image (optional)</label>
+                        <input
+                          className={inputClass}
+                          type="file"
+                          accept="image/*"
+                          disabled={busy}
+                          onChange={(e) => void onShowVenueChange(e.target.files?.[0] || null)}
+                        />
+                        {showForm.venueImage || showForm.venueImageKey ? (
+                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={showForm.venueImage || `/api/shows/${editingShowId}/venue`}
+                              alt=""
+                              className="aspect-[16/9] w-full max-w-lg object-cover"
+                            />
+                          </div>
+                        ) : null}
+                        {(showForm.venueImage || showForm.venueImageKey) ? (
+                          <button
+                            type="button"
+                            className="mt-2 text-xs text-white/40 hover:text-white/70"
+                            onClick={() => setShowForm((f) => ({ ...f, venueImage: '', venueImageKey: '' }))}
+                          >
+                            Remove venue image
                           </button>
                         ) : null}
                       </div>

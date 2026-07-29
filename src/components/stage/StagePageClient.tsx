@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
-import TicketButton from '@/components/stage/TicketButton'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
@@ -275,12 +274,30 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                                 ? `From ${formatPrice(show.priceCents, show.currency)}`
                                 : formatPrice(show.priceCents, show.currency)}
                             </span>
-                            <TicketButton
-                              showId={show.id}
-                              tiers={show.tiers || []}
-                              disabled={unavailable}
-                              label={soldOut ? 'Sold Out' : badge || 'Tickets'}
-                            />
+                            {unavailable && !soldOut ? (
+                              <span
+                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] opacity-40"
+                                style={{
+                                  background: 'var(--surface-muted)',
+                                  color: 'var(--foreground-subtle)',
+                                }}
+                              >
+                                {badge || 'Unavailable'}
+                              </span>
+                            ) : (
+                              <Link
+                                href={`/worlds/stage/${show.id}`}
+                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90"
+                                style={{
+                                  background: soldOut ? 'var(--surface-muted)' : 'var(--accent)',
+                                  color: soldOut
+                                    ? 'var(--foreground-subtle)'
+                                    : 'var(--accent-contrast)',
+                                }}
+                              >
+                                {soldOut ? 'Sold Out' : 'Tickets'}
+                              </Link>
+                            )}
                           </div>
                         </li>
                       )

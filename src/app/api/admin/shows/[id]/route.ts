@@ -49,6 +49,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.artworkImageKey !== undefined) {
       show.artworkImageKey = String(body.artworkImageKey)
     }
+    if (body.venueImage !== undefined) show.venueImage = String(body.venueImage)
+    if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)
+    if (body.description !== undefined) show.description = String(body.description || '').trim()
 
     await show.save()
     await show.populate('tour')

@@ -72,12 +72,21 @@ export async function POST(req: NextRequest) {
       externalTicketUrl: String(body.externalTicketUrl || ''),
       artworkImage: String(body.artworkImage || ''),
       artworkImageKey: String(body.artworkImageKey || ''),
+      venueImage: String(body.venueImage || ''),
+      venueImageKey: String(body.venueImageKey || ''),
+      description: String(body.description || '').trim(),
     })
 
+    let dirty = false
     if (show.artworkImageKey && !show.artworkImage) {
       show.artworkImage = `/api/shows/${show._id}/artwork`
-      await show.save()
+      dirty = true
     }
+    if (show.venueImageKey && !show.venueImage) {
+      show.venueImage = `/api/shows/${show._id}/venue`
+      dirty = true
+    }
+    if (dirty) await show.save()
 
     await show.populate('tour')
     return NextResponse.json({ success: true, show: serializeShow(show) }, { status: 201 })
