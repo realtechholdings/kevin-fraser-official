@@ -27,6 +27,7 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
         key: SITE_SETTINGS_KEY,
         theme: DEFAULT_SITE_SETTINGS.theme,
         ai: DEFAULT_SITE_SETTINGS.ai,
+        legal: DEFAULT_SITE_SETTINGS.legal,
       })
     }
     const data = toSiteSettingsData(doc)
@@ -45,6 +46,7 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
     return {
       theme: { ...DEFAULT_SITE_SETTINGS.theme },
       ai: { ...DEFAULT_SITE_SETTINGS.ai },
+      legal: { ...DEFAULT_SITE_SETTINGS.legal },
     }
   }
 }

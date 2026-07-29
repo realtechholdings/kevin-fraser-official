@@ -1,4 +1,8 @@
 import { KEVIN_PERSONA } from '@/lib/llm/persona'
+import {
+  DEFAULT_LEGAL_SETTINGS,
+  type LegalSettings,
+} from '@/lib/settings/legalDefaults'
 
 export const SITE_SETTINGS_KEY = 'site'
 
@@ -18,9 +22,12 @@ export type AISettings = {
   avatarUrl: string
 }
 
+export type { LegalDocumentSettings, LegalSettings } from '@/lib/settings/legalDefaults'
+
 export type SiteSettingsData = {
   theme: ThemeSettings
   ai: AISettings
+  legal: LegalSettings
 }
 
 export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
@@ -40,9 +47,12 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
   avatarUrl: '',
 }
 
+export { DEFAULT_LEGAL_SETTINGS }
+
 export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   theme: DEFAULT_THEME_SETTINGS,
   ai: DEFAULT_AI_SETTINGS,
+  legal: DEFAULT_LEGAL_SETTINGS,
 }
 
 export function hexToRgba(hex: string, alpha: number) {

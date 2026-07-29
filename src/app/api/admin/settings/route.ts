@@ -5,10 +5,12 @@ import { requireAdmin } from '@/lib/admin'
 import { isR2Configured } from '@/lib/r2'
 import {
   DEFAULT_AI_SETTINGS,
+  DEFAULT_LEGAL_SETTINGS,
   DEFAULT_THEME_SETTINGS,
   SITE_SETTINGS_KEY,
   normalizeHex,
 } from '@/lib/settings/defaults'
+import { normalizeLegalSettings } from '@/lib/settings/legalDefaults'
 import { getSiteSettings, invalidateSiteSettingsCache } from '@/lib/settings/getSiteSettings'
 import { toSiteSettingsData } from '@/lib/models/SiteSettings'
 
@@ -31,6 +33,7 @@ export async function GET() {
           // Don't dump huge default prompt twice unnecessarily in UI seed — still useful:
           systemPrompt: DEFAULT_AI_SETTINGS.systemPrompt,
         },
+        legal: DEFAULT_LEGAL_SETTINGS,
       },
     })
   } catch (error) {
@@ -55,6 +58,7 @@ export async function PUT(req: NextRequest) {
         key: SITE_SETTINGS_KEY,
         theme: DEFAULT_THEME_SETTINGS,
         ai: DEFAULT_AI_SETTINGS,
+        legal: DEFAULT_LEGAL_SETTINGS,
       })
     }
 
@@ -94,6 +98,20 @@ export async function PUT(req: NextRequest) {
         doc.ai.avatarUrl = '/api/settings/avatar'
       }
       doc.markModified('ai')
+    }
+
+    if (body.legal) {
+      const current = toSiteSettingsData(doc).legal
+      doc.legal = normalizeLegalSettings({
+        terms: body.legal.terms ? { ...current.terms, ...body.legal.terms } : current.terms,
+        refundPolicy: body.legal.refundPolicy
+          ? { ...current.refundPolicy, ...body.legal.refundPolicy }
+          : current.refundPolicy,
+        privacy: body.legal.privacy
+          ? { ...current.privacy, ...body.legal.privacy }
+          : current.privacy,
+      })
+      doc.markModified('legal')
     }
 
     await doc.save()

@@ -1,54 +1,42 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ExternalLink, Play, Volume2, VolumeX, X } from 'lucide-react'
 import type { PublicKevin11Content } from '@/lib/serialize'
 import {
-  KEVIN11_CATEGORIES,
   KEVIN11_CATEGORY_LABELS,
   type Kevin11Category,
 } from '@/lib/kevin11/categories'
 
 type Kevin11Payload = {
   success: boolean
-  items: PublicKevin11Content[]
-  byCategory: Record<Kevin11Category, PublicKevin11Content[]>
   overlays: {
-    left: PublicKevin11Content | null
-    right: PublicKevin11Content | null
+    left: PublicKevin11Content[]
+    right: PublicKevin11Content[]
   }
   error?: string
 }
 
 function OverlayCard({
   item,
-  side,
   onOpen,
 }: {
   item: PublicKevin11Content
-  side: 'left' | 'right'
   onOpen: (item: PublicKevin11Content) => void
 }) {
   const thumb = item.thumbnailUrl || (item.mimeType.startsWith('image/') ? item.mediaUrl : '')
   const hasCta = Boolean(item.ctaLabel && item.ctaUrl)
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`absolute z-20 w-[min(42vw,11.5rem)] sm:w-[13rem] ${
-        side === 'left' ? 'left-[3%] sm:left-[6%]' : 'right-[3%] sm:right-[6%]'
-      }`}
-      style={{ top: 'max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem))' }}
-    >
+    <div className="w-full">
       <button
         type="button"
         onClick={() => onOpen(item)}
-        className="group w-full overflow-hidden rounded-xl border border-white/25 bg-black/55 text-left shadow-lg backdrop-blur-md transition hover:bg-black/70"
+        className="group relative w-full overflow-hidden rounded-2xl border border-white/25 bg-black/50 text-left shadow-xl backdrop-blur-md transition hover:bg-black/65"
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-black/40">
+        <div className="relative aspect-[9/14] overflow-hidden bg-black/40">
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -58,13 +46,19 @@ function OverlayCard({
             />
           ) : (
             <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#0a3d2a] to-[#1a0a00] text-white/70">
-              <Play className="h-6 w-6 fill-current" />
+              <Play className="h-7 w-7 fill-current" />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-2.5">
-            <p className="line-clamp-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white sm:text-xs">
-              {item.title}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-black">
+              <Play className="h-4 w-4 fill-current" />
+            </span>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 p-3">
+            <p className="line-clamp-2 text-sm font-medium text-white">{item.title}</p>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
+              {KEVIN11_CATEGORY_LABELS[item.category as Kevin11Category]}
             </p>
           </div>
         </div>
@@ -74,12 +68,42 @@ function OverlayCard({
           href={item.ctaUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-white/25 bg-[#FF6600] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-md transition hover:brightness-110"
+          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-[#FF6600] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white shadow-md transition hover:brightness-110"
         >
           {item.ctaLabel}
           <ExternalLink className="h-3 w-3" />
         </a>
       ) : null}
+    </div>
+  )
+}
+
+function OverlayColumn({
+  items,
+  side,
+  onOpen,
+}: {
+  items: PublicKevin11Content[]
+  side: 'left' | 'right'
+  onOpen: (item: PublicKevin11Content) => void
+}) {
+  if (!items.length) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`absolute z-20 flex max-h-[min(72dvh,34rem)] w-[min(38vw,11rem)] flex-col gap-3 overflow-y-auto sm:w-[13rem] md:w-[14.5rem] ${
+        side === 'left' ? 'left-[2.5%] sm:left-[5%]' : 'right-[2.5%] sm:right-[5%]'
+      }`}
+      style={{
+        top: 'max(4.75rem, calc(env(safe-area-inset-top) + 3.75rem))',
+        scrollbarWidth: 'none',
+      }}
+    >
+      {items.map((item) => (
+        <OverlayCard key={item.id} item={item} onOpen={onOpen} />
+      ))}
     </motion.div>
   )
 }
@@ -88,11 +112,14 @@ export default function Kevin11PageClient() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [muted, setMuted] = useState(false)
   const [needsTap, setNeedsTap] = useState(false)
-  const [tab, setTab] = useState<Kevin11Category>('comedy')
-  const [data, setData] = useState<Kevin11Payload | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [leftItems, setLeftItems] = useState<PublicKevin11Content[]>([])
+  const [rightItems, setRightItems] = useState<PublicKevin11Content[]>([])
   const [active, setActive] = useState<PublicKevin11Content | null>(null)
+
+  useEffect(() => {
+    document.documentElement.classList.add('landing-lock')
+    return () => document.documentElement.classList.remove('landing-lock')
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -100,14 +127,13 @@ export default function Kevin11PageClient() {
       try {
         const res = await fetch('/api/kevin11')
         const json = (await res.json()) as Kevin11Payload
-        if (!res.ok || !json.success) throw new Error(json.error || 'Failed to load Kevin11')
-        if (!cancelled) setData(json)
-      } catch (err) {
+        if (!res.ok || !json.success) return
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load Kevin11')
+          setLeftItems(json.overlays?.left || [])
+          setRightItems(json.overlays?.right || [])
         }
-      } finally {
-        if (!cancelled) setLoading(false)
+      } catch {
+        // Video still plays if content fails to load.
       }
     })()
     return () => {
@@ -169,230 +195,70 @@ export default function Kevin11PageClient() {
     }
   }
 
-  const visibleTabs = useMemo(() => {
-    // Comedy always shows; merch/other only when they have published items.
-    return KEVIN11_CATEGORIES.filter((id) => {
-      if (id === 'comedy') return true
-      return (data?.byCategory?.[id]?.length || 0) > 0
-    }).map((id) => ({ id, label: KEVIN11_CATEGORY_LABELS[id] }))
-  }, [data])
-
-  const items = useMemo(() => data?.byCategory?.[tab] || [], [data, tab])
-  const leftOverlay = data?.overlays?.left || null
-  const rightOverlay = data?.overlays?.right || null
-  const showBrowseCue = Boolean(leftOverlay || rightOverlay || (data?.items?.length || 0) > 0)
-
-  useEffect(() => {
-    if (!visibleTabs.some((t) => t.id === tab)) {
-      setTab('comedy')
-    }
-  }, [visibleTabs, tab])
-
   return (
-    <div className="min-h-screen overflow-y-auto bg-black text-white">
-      <section className="relative h-[100dvh] w-full overflow-hidden bg-black">
-        <video
-          ref={videoRef}
-          src="/kevin-11-web.mp4"
-          className="absolute inset-0 h-full w-full object-cover"
-          playsInline
-          loop
-          autoPlay
-          preload="auto"
-          onClick={() => {
-            if (needsTap) void startWithAudio()
-          }}
-        />
+    <div className="fixed inset-0 overflow-hidden bg-black">
+      <video
+        ref={videoRef}
+        src="/kevin-11-web.mp4"
+        className="absolute inset-0 h-full w-full object-cover"
+        playsInline
+        loop
+        autoPlay
+        preload="auto"
+        onClick={() => {
+          if (needsTap) void startWithAudio()
+        }}
+      />
 
-        {needsTap ? (
-          <button
-            type="button"
-            onClick={() => void startWithAudio()}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-black/45"
-            aria-label="Play Kevin11 video with sound"
-          >
-            <span
-              className="rounded-full border border-white/30 bg-black/50 px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white"
-              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-            >
-              Tap to play
-            </span>
-          </button>
-        ) : null}
-
-        <Link
-          href="/"
-          className="absolute left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-2 text-white backdrop-blur-sm transition-colors hover:bg-black/65"
-          style={{
-            top: 'max(1rem, env(safe-area-inset-top))',
-            left: 'max(1rem, env(safe-area-inset-left))',
-          }}
-          aria-label="Back to home"
-        >
-          <ArrowLeft size={16} />
-          <span
-            className="text-[11px] uppercase tracking-[0.2em]"
-            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-          >
-            Back
-          </span>
-        </Link>
-
-        {leftOverlay ? (
-          <OverlayCard item={leftOverlay} side="left" onOpen={setActive} />
-        ) : null}
-        {rightOverlay ? (
-          <OverlayCard item={rightOverlay} side="right" onOpen={setActive} />
-        ) : null}
-
+      {needsTap ? (
         <button
           type="button"
-          onClick={toggleMute}
-          className="absolute z-30 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/65"
-          style={{
-            right: 'max(1rem, env(safe-area-inset-right))',
-            bottom: 'max(1rem, env(safe-area-inset-bottom))',
-          }}
-          aria-label={muted ? 'Unmute' : 'Mute'}
+          onClick={() => void startWithAudio()}
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/45"
+          aria-label="Play Kevin11 video with sound"
         >
-          {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          <span
+            className="rounded-full border border-white/30 bg-black/50 px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-white"
+            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+          >
+            Tap to play
+          </span>
         </button>
+      ) : null}
 
-        {showBrowseCue ? (
-          <a
-            href="#kevin11-store"
-            className="absolute bottom-5 left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/25 bg-black/45 px-4 py-2 text-[10px] uppercase tracking-[0.22em] text-white/90 backdrop-blur-sm"
-            style={{ bottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
-          >
-            Browse store
-          </a>
-        ) : null}
-      </section>
-
-      <section
-        id="kevin11-store"
-        className="relative border-t border-white/10 bg-[var(--background)] text-[var(--foreground)]"
+      <Link
+        href="/"
+        className="absolute left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/45 px-3 py-2 text-white backdrop-blur-sm transition-colors hover:bg-black/65"
+        style={{
+          top: 'max(1rem, env(safe-area-inset-top))',
+          left: 'max(1rem, env(safe-area-inset-left))',
+        }}
+        aria-label="Back to home"
       >
-        <main
-          className="mx-auto w-full max-w-6xl pb-24 pt-10 sm:pt-14"
-          style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
+        <ArrowLeft size={16} />
+        <span
+          className="text-[11px] uppercase tracking-[0.2em]"
+          style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
         >
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-10 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-10"
-          >
-            <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#FF6600' }}>
-              Comedy · Merch · More
-            </p>
-            <h1
-              className="text-5xl uppercase leading-[0.92] sm:text-7xl"
-              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-            >
-              Kevin11
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
-              Inside the inconvenience store — clips, merch drops, and whatever else Kevin stocks
-              the shelves with.
-            </p>
-          </motion.section>
+          Back
+        </span>
+      </Link>
 
-          <div className="mb-8 flex flex-wrap items-center gap-2">
-            {visibleTabs.map((t) => {
-              const activeTab = tab === t.id
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors"
-                  style={{
-                    background: activeTab ? 'var(--foreground)' : 'var(--surface)',
-                    color: activeTab ? 'var(--background)' : 'var(--foreground-muted)',
-                    border: `1px solid ${activeTab ? 'transparent' : 'var(--border)'}`,
-                  }}
-                >
-                  {t.label}
-                </button>
-              )
-            })}
-          </div>
+      <OverlayColumn items={leftItems} side="left" onOpen={setActive} />
+      <OverlayColumn items={rightItems} side="right" onOpen={setActive} />
 
-          {error ? (
-            <div
-              className="mb-6 rounded-2xl border px-5 py-4 text-sm"
-              style={{
-                borderColor: 'var(--danger)',
-                background: 'var(--danger-soft)',
-                color: 'var(--danger)',
-              }}
-            >
-              {error}
-            </div>
-          ) : null}
-
-          {loading ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-[9/14] animate-pulse rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
-                />
-              ))}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
-              No {KEVIN11_CATEGORY_LABELS[tab].toLowerCase()} yet — check back soon.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-              {items.map((item, index) => {
-                const thumb =
-                  item.thumbnailUrl || (item.mimeType.startsWith('image/') ? item.mediaUrl : '')
-                return (
-                  <motion.button
-                    key={item.id}
-                    type="button"
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.03, 0.3) }}
-                    onClick={() => setActive(item)}
-                    className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-left"
-                  >
-                    <div className="relative aspect-[9/14] overflow-hidden bg-[var(--surface-muted)]">
-                      {thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={thumb}
-                          alt={item.title}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#0a3d2a] to-[#1a0a00] text-sm text-white/60">
-                          Kevin11
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-                        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
-                          <Play className="h-5 w-5 fill-current" />
-                        </span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="line-clamp-2 text-sm font-medium text-white">{item.title}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
-                          {KEVIN11_CATEGORY_LABELS[item.category]}
-                        </p>
-                      </div>
-                    </div>
-                  </motion.button>
-                )
-              })}
-            </div>
-          )}
-        </main>
-      </section>
+      <button
+        type="button"
+        onClick={toggleMute}
+        className="absolute z-30 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur-sm transition-colors hover:bg-black/65"
+        style={{
+          right: 'max(1rem, env(safe-area-inset-right))',
+          bottom: 'max(1rem, env(safe-area-inset-bottom))',
+        }}
+        aria-label={muted ? 'Unmute' : 'Mute'}
+      >
+        {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+      </button>
 
       <AnimatePresence>
         {active ? (

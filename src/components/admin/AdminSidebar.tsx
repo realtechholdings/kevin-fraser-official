@@ -9,6 +9,7 @@ import {
   Layers,
   LayoutDashboard,
   Palette,
+  ScrollText,
   Store,
   Ticket,
   ExternalLink,
@@ -23,6 +24,7 @@ export type AdminTab =
   | 'bonus'
   | 'studio'
   | 'kevin11'
+  | 'legal'
   | 'theme'
   | 'ai'
 
@@ -34,6 +36,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'bonus', name: 'Bonus Content', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
   { id: 'kevin11', name: 'Kevin11', icon: Store },
+  { id: 'legal', name: 'Terms & Policies', icon: ScrollText },
   { id: 'theme', name: 'Theme', icon: Palette },
   { id: 'ai', name: 'AI Kev', icon: Bot },
 ]

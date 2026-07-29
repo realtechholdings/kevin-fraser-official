@@ -7,6 +7,11 @@ import {
   type SiteSettingsData,
   type ThemeSettings,
 } from '@/lib/settings/defaults'
+import {
+  DEFAULT_LEGAL_SETTINGS,
+  normalizeLegalSettings,
+  type LegalSettings,
+} from '@/lib/settings/legalDefaults'
 
 const ThemeSchema = new Schema(
   {
@@ -30,11 +35,33 @@ const AISchema = new Schema(
   { _id: false },
 )
 
+const LegalDocumentSchema = new Schema(
+  {
+    title: { type: String, default: '' },
+    subtitle: { type: String, default: '' },
+    body: { type: String, default: '' },
+  },
+  { _id: false },
+)
+
+const LegalSchema = new Schema(
+  {
+    terms: { type: LegalDocumentSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS.terms }) },
+    refundPolicy: {
+      type: LegalDocumentSchema,
+      default: () => ({ ...DEFAULT_LEGAL_SETTINGS.refundPolicy }),
+    },
+    privacy: { type: LegalDocumentSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS.privacy }) },
+  },
+  { _id: false },
+)
+
 const SiteSettingsSchema = new Schema(
   {
     key: { type: String, required: true, unique: true, default: SITE_SETTINGS_KEY },
     theme: { type: ThemeSchema, default: () => ({ ...DEFAULT_THEME_SETTINGS }) },
     ai: { type: AISchema, default: () => ({ ...DEFAULT_AI_SETTINGS }) },
+    legal: { type: LegalSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS }) },
   },
   { timestamps: true },
 )
@@ -43,6 +70,7 @@ export type SiteSettingsDocument = InferSchemaType<typeof SiteSettingsSchema> & 
   _id: mongoose.Types.ObjectId
   theme: ThemeSettings
   ai: AISettings
+  legal: LegalSettings
   createdAt: Date
   updatedAt: Date
 }
@@ -58,6 +86,7 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
     return {
       theme: { ...DEFAULT_THEME_SETTINGS },
       ai: { ...DEFAULT_AI_SETTINGS },
+      legal: normalizeLegalSettings(DEFAULT_LEGAL_SETTINGS),
     }
   }
   return {
@@ -75,5 +104,6 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
       avatarKey: doc.ai?.avatarKey || '',
       avatarUrl: doc.ai?.avatarUrl || '',
     },
+    legal: normalizeLegalSettings(doc.legal as Partial<LegalSettings> | undefined),
   }
 }

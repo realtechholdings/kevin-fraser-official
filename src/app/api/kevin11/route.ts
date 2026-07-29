@@ -9,6 +9,8 @@ import { kevin11FilePath, publicUrlForKey } from '@/lib/r2'
 
 export const dynamic = 'force-dynamic'
 
+const MAX_PER_SIDE = 3
+
 function resolveUrls(item: PublicKevin11Content): PublicKevin11Content {
   const mediaPublic = publicUrlForKey(item.mediaKey)
   const thumbPublic = item.thumbnailKey ? publicUrlForKey(item.thumbnailKey) : ''
@@ -20,18 +22,47 @@ function resolveUrls(item: PublicKevin11Content): PublicKevin11Content {
   }
 }
 
-/** Pick comedy items for the hero left/right slots. */
-function resolveOverlays(comedy: PublicKevin11Content[]) {
-  const left =
-    comedy.find((item) => item.overlaySlot === 'left') ||
-    comedy.find((item) => item.featured) ||
-    comedy[0] ||
-    null
-  const right =
-    comedy.find((item) => item.overlaySlot === 'right' && item.id !== left?.id) ||
-    comedy.find((item) => item.id !== left?.id && item.featured) ||
-    comedy.find((item) => item.id !== left?.id) ||
-    null
+/**
+ * Left = comedy (always when available).
+ * Right = merch/other when available; otherwise extra comedy.
+ */
+function resolveOverlays(byCategory: Record<Kevin11Category, PublicKevin11Content[]>) {
+  const comedy = [...byCategory.comedy]
+  const other = [...byCategory.merch, ...byCategory.other]
+
+  const pinnedLeft = comedy.filter((item) => item.overlaySlot === 'left')
+  const pinnedRight = comedy.filter((item) => item.overlaySlot === 'right')
+  const unpinnedComedy = comedy.filter((item) => item.overlaySlot === 'none')
+
+  const left: PublicKevin11Content[] = []
+  const right: PublicKevin11Content[] = []
+  const used = new Set<string>()
+
+  function take(list: PublicKevin11Content[], side: 'left' | 'right') {
+    for (const item of list) {
+      if (used.has(item.id)) continue
+      if ((side === 'left' ? left : right).length >= MAX_PER_SIDE) break
+      ;(side === 'left' ? left : right).push(item)
+      used.add(item.id)
+    }
+  }
+
+  take(pinnedLeft, 'left')
+  take(pinnedRight, 'right')
+
+  // Comedy fills left first (shows regardless).
+  take(unpinnedComedy.filter((i) => i.featured), 'left')
+  take(unpinnedComedy, 'left')
+
+  // Merch/other go right when present.
+  take(other.filter((i) => i.featured), 'right')
+  take(other, 'right')
+
+  // Extra comedy can fill the right side if nothing else is there.
+  take(
+    unpinnedComedy.filter((i) => !used.has(i.id)),
+    'right',
+  )
 
   return { left, right }
 }
@@ -55,7 +86,7 @@ export async function GET() {
       {} as Record<Kevin11Category, PublicKevin11Content[]>,
     )
 
-    const overlays = resolveOverlays(byCategory.comedy)
+    const overlays = resolveOverlays(byCategory)
 
     return NextResponse.json({
       success: true,
