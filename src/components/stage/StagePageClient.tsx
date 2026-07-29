@@ -70,68 +70,88 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
           </div>
         ) : null}
 
-        <motion.section
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55 }}
-          className="relative mb-12 overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] sm:mb-16"
-        >
-          {featuredTour?.bannerImage || featuredTour?.coverImage ? (
-            <div className="absolute inset-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={featuredTour.bannerImage || featuredTour.coverImage}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
-            </div>
-          ) : null}
-          <div
-            className={`relative p-7 sm:p-10 ${
-              featuredTour?.bannerImage || featuredTour?.coverImage ? 'text-white' : ''
-            }`}
-          >
-            <p
-              className="mb-3 text-[11px] uppercase tracking-[0.35em]"
-              style={{
-                color:
-                  featuredTour?.bannerImage || featuredTour?.coverImage
-                    ? '#FF6600'
-                    : 'var(--accent)',
-              }}
+        {(() => {
+          const heroImage = featuredTour?.bannerImage || featuredTour?.coverImage || ''
+          const bannerAbove = Boolean(
+            featuredTour?.bannerImage && featuredTour.bannerPosition === 'above',
+          )
+          const bannerAsBackground = Boolean(heroImage && !bannerAbove)
+
+          return (
+            <motion.section
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55 }}
+              className="mb-12 sm:mb-16"
             >
-              Live dates
-            </p>
-            <h1
-              className="max-w-3xl text-5xl leading-[0.92] uppercase sm:text-7xl"
-              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-            >
-              {featuredTour ? featuredTour.title : 'Upcoming Shows'}
-            </h1>
-            {featuredTour?.subtitle ? (
-              <p
-                className={`mt-4 text-sm uppercase tracking-[0.25em] ${
-                  featuredTour?.bannerImage || featuredTour?.coverImage
-                    ? 'text-white/75'
-                    : 'text-[var(--foreground-muted)]'
+              {bannerAbove && featuredTour?.bannerImage ? (
+                <div className="mb-4 overflow-hidden rounded-[1.75rem] border border-[var(--border)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={featuredTour.bannerImage}
+                    alt=""
+                    className="aspect-[21/9] w-full object-cover sm:aspect-[2.8/1]"
+                  />
+                </div>
+              ) : null}
+
+              <div
+                className={`relative overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] ${
+                  bannerAsBackground ? '' : ''
                 }`}
               >
-                {featuredTour.subtitle}
-              </p>
-            ) : null}
-            <p
-              className={`mt-6 max-w-2xl text-base leading-relaxed ${
-                featuredTour?.bannerImage || featuredTour?.coverImage
-                  ? 'text-white/80'
-                  : 'text-[var(--foreground-muted)]'
-              }`}
-            >
-              {featuredTour?.description ||
-                'Tour dates and tickets. New cities drop here first.'}
-            </p>
-          </div>
-        </motion.section>
+                {bannerAsBackground ? (
+                  <div className="absolute inset-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={heroImage}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
+                  </div>
+                ) : null}
+                <div
+                  className={`relative p-7 sm:p-10 ${bannerAsBackground ? 'text-white' : ''}`}
+                >
+                  <p
+                    className="mb-3 text-[11px] uppercase tracking-[0.35em]"
+                    style={{ color: bannerAsBackground ? '#FF6600' : 'var(--accent)' }}
+                  >
+                    Live dates
+                  </p>
+                  <h1
+                    className="max-w-3xl text-5xl leading-[0.92] uppercase sm:text-7xl"
+                    style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+                  >
+                    {featuredTour ? featuredTour.title : 'Upcoming Shows'}
+                  </h1>
+                  {featuredTour?.subtitle ? (
+                    <p
+                      className={`mt-4 text-sm uppercase tracking-[0.25em] ${
+                        bannerAsBackground
+                          ? 'text-white/75'
+                          : 'text-[var(--foreground-muted)]'
+                      }`}
+                    >
+                      {featuredTour.subtitle}
+                    </p>
+                  ) : null}
+                  <p
+                    className={`mt-6 max-w-2xl text-base leading-relaxed ${
+                      bannerAsBackground
+                        ? 'text-white/80'
+                        : 'text-[var(--foreground-muted)]'
+                    }`}
+                  >
+                    {featuredTour?.description ||
+                      'Tour dates and tickets. New cities drop here first.'}
+                  </p>
+                </div>
+              </div>
+            </motion.section>
+          )
+        })()}
 
         {shows.length === 0 ? (
           <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
@@ -281,41 +301,58 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
               All Tours
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              {tours.map((tour) => (
-                <div
-                  key={tour.id}
-                  className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]"
-                >
-                  {tour.coverImage || tour.bannerImage ? (
-                    <div className="aspect-[16/9] overflow-hidden bg-[var(--surface-muted)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={tour.coverImage || tour.bannerImage}
-                        alt={tour.title}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  ) : null}
-                  <div className="px-6 py-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold">{tour.title}</h3>
-                      {tour.featured ? (
-                        <span
-                          className="text-[9px] uppercase tracking-[0.2em]"
-                          style={{ color: 'var(--accent)' }}
-                        >
-                          Featured
-                        </span>
-                      ) : null}
-                    </div>
-                    {tour.subtitle ? (
-                      <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
-                        {tour.subtitle}
-                      </p>
+              {tours.map((tour) => {
+                const cardBannerAbove =
+                  Boolean(tour.bannerImage) && tour.bannerPosition === 'above'
+                const cardBgImage = cardBannerAbove
+                  ? tour.coverImage
+                  : tour.bannerImage || tour.coverImage
+
+                return (
+                  <div key={tour.id} className="space-y-3">
+                    {cardBannerAbove ? (
+                      <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={tour.bannerImage}
+                          alt=""
+                          className="aspect-[21/9] w-full object-cover"
+                        />
+                      </div>
                     ) : null}
+                    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                      {cardBgImage ? (
+                        <div className="aspect-[16/9] overflow-hidden bg-[var(--surface-muted)]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={cardBgImage}
+                            alt={tour.title}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="px-6 py-6">
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="text-lg font-semibold">{tour.title}</h3>
+                          {tour.featured ? (
+                            <span
+                              className="text-[9px] uppercase tracking-[0.2em]"
+                              style={{ color: 'var(--accent)' }}
+                            >
+                              Featured
+                            </span>
+                          ) : null}
+                        </div>
+                        {tour.subtitle ? (
+                          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--foreground-subtle)]">
+                            {tour.subtitle}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         ) : null}

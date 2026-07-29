@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import Tour from '@/lib/models/Tour'
+import Tour, { TOUR_BANNER_POSITIONS } from '@/lib/models/Tour'
 import Show from '@/lib/models/Show'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
@@ -32,6 +32,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.coverImageKey !== undefined) tour.coverImageKey = String(body.coverImageKey)
     if (body.bannerImage !== undefined) tour.bannerImage = String(body.bannerImage)
     if (body.bannerImageKey !== undefined) tour.bannerImageKey = String(body.bannerImageKey)
+    if (body.bannerPosition !== undefined) {
+      const position = String(body.bannerPosition)
+      if (!TOUR_BANNER_POSITIONS.includes(position as (typeof TOUR_BANNER_POSITIONS)[number])) {
+        return NextResponse.json(
+          { success: false, error: 'bannerPosition must be background or above.' },
+          { status: 400 },
+        )
+      }
+      tour.bannerPosition = position as (typeof TOUR_BANNER_POSITIONS)[number]
+    }
     if (body.published !== undefined) tour.published = Boolean(body.published)
     if (body.startDate !== undefined) {
       tour.startDate = body.startDate ? new Date(body.startDate) : undefined

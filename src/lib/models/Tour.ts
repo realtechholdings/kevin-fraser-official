@@ -1,5 +1,8 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 
+export const TOUR_BANNER_POSITIONS = ['background', 'above'] as const
+export type TourBannerPosition = (typeof TOUR_BANNER_POSITIONS)[number]
+
 const TourSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -12,6 +15,12 @@ const TourSchema = new Schema(
     /** Wide banner / hero image URL or proxy path */
     bannerImage: { type: String, default: '' },
     bannerImageKey: { type: String, default: '' },
+    /** How the banner sits relative to the tour card */
+    bannerPosition: {
+      type: String,
+      enum: TOUR_BANNER_POSITIONS,
+      default: 'background',
+    },
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: true },
     startDate: { type: Date },

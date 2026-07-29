@@ -34,6 +34,7 @@ type TourForm = {
   coverImageKey: string
   bannerImage: string
   bannerImageKey: string
+  bannerPosition: 'background' | 'above'
   featured: boolean
   published: boolean
   startDate: string
@@ -69,6 +70,7 @@ const emptyTour: TourForm = {
   coverImageKey: '',
   bannerImage: '',
   bannerImageKey: '',
+  bannerPosition: 'background',
   featured: false,
   published: true,
   startDate: '',
@@ -303,6 +305,7 @@ export default function AdminPortal() {
       coverImageKey: tour.coverImageKey || '',
       bannerImage: tour.bannerImage || '',
       bannerImageKey: tour.bannerImageKey || '',
+      bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
       featured: tour.featured,
       published: tour.published,
       startDate: toLocalInput(tour.startDate),
@@ -779,6 +782,29 @@ export default function AdminPortal() {
                             Remove banner image
                           </button>
                         ) : null}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className={labelClass}>Banner position</label>
+                        <select
+                          className={inputClass}
+                          value={tourForm.bannerPosition}
+                          onChange={(e) =>
+                            setTourForm({
+                              ...tourForm,
+                              bannerPosition: e.target.value === 'above' ? 'above' : 'background',
+                            })
+                          }
+                        >
+                          <option value="background" className="bg-[#141420]">
+                            Background of tour card
+                          </option>
+                          <option value="above" className="bg-[#141420]">
+                            Standalone above tour card
+                          </option>
+                        </select>
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Controls how the banner appears on The Stage for this tour.
+                        </p>
                       </div>
                       <div>
                         <label className={labelClass}>Start</label>

@@ -18,6 +18,7 @@ export type PublicTour = {
   coverImageKey: string
   bannerImage: string
   bannerImageKey: string
+  bannerPosition: 'background' | 'above'
   featured: boolean
   published: boolean
   startDate: string | null
@@ -138,6 +139,7 @@ export function serializeTour(tour: TourDocument): PublicTour {
     bannerImage:
       tour.bannerImage ||
       (bannerKey ? `/api/tours/${id}/banner` : ''),
+    bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
     featured: Boolean(tour.featured),
     published: Boolean(tour.published),
     startDate: tour.startDate ? new Date(tour.startDate).toISOString() : null,

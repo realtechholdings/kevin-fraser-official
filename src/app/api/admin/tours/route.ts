@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import Tour from '@/lib/models/Tour'
+import Tour, { TOUR_BANNER_POSITIONS } from '@/lib/models/Tour'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
@@ -54,6 +54,11 @@ export async function POST(req: NextRequest) {
       coverImageKey: String(body.coverImageKey || ''),
       bannerImage: String(body.bannerImage || ''),
       bannerImageKey: String(body.bannerImageKey || ''),
+      bannerPosition: TOUR_BANNER_POSITIONS.includes(
+        body.bannerPosition as (typeof TOUR_BANNER_POSITIONS)[number],
+      )
+        ? body.bannerPosition
+        : 'background',
       featured: Boolean(body.featured),
       published: body.published !== false,
       startDate: body.startDate ? new Date(body.startDate) : undefined,
