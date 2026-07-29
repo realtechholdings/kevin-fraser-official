@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   CalendarDays,
   CheckCircle,
@@ -13,6 +13,11 @@ import {
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
+import {
+  DEFAULT_THEME_SETTINGS,
+  hexToRgba,
+  type ThemeSettings,
+} from '@/lib/settings/defaults'
 import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
@@ -135,6 +140,24 @@ async function uploadAdminImage(file: File, folder: 'tours' | 'shows') {
   }
 }
 
+/** Blend two hex colours (weight = how much of `into` to mix in). */
+function mixHex(hex: string, into: string, weight: number) {
+  const parse = (h: string) => {
+    const raw = h.replace('#', '')
+    const full = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw
+    if (!/^[0-9a-fA-F]{6}$/.test(full)) return null
+    const n = Number.parseInt(full, 16)
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  }
+  const a = parse(hex)
+  const b = parse(into)
+  if (!a || !b) return hex
+  const mixed = a.map((v, i) => Math.round(v * (1 - weight) + b[i] * weight))
+  return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+}
+
+const ADMIN_MODE_KEY = 'admin-color-mode'
+
 function toLocalInput(iso?: string | null) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -208,6 +231,51 @@ export default function AdminPortal() {
   const [editingShowId, setEditingShowId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showFormPanel, setShowFormPanel] = useState(false)
+  const [adminMode, setAdminMode] = useState<'dark' | 'light'>('dark')
+  const [siteTheme, setSiteTheme] = useState<ThemeSettings>(DEFAULT_THEME_SETTINGS)
+  const prevTabRef = useRef<Tab>('overview')
+
+  async function loadTheme() {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      if (res.ok && data.theme) setSiteTheme(data.theme)
+    } catch {
+      // Theme is cosmetic — fall back to defaults silently
+    }
+  }
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(ADMIN_MODE_KEY)
+    if (stored === 'light' || stored === 'dark') setAdminMode(stored)
+    void loadTheme()
+  }, [])
+
+  // Pick up new colours as soon as the admin leaves the Theme tab
+  useEffect(() => {
+    if (prevTabRef.current === 'theme' && tab !== 'theme') void loadTheme()
+    prevTabRef.current = tab
+  }, [tab])
+
+  function toggleAdminMode() {
+    setAdminMode((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark'
+      window.localStorage.setItem(ADMIN_MODE_KEY, next)
+      return next
+    })
+  }
+
+  const accent = adminMode === 'light' ? siteTheme.lightAccent : siteTheme.darkAccent
+  const accentContrast =
+    adminMode === 'light' ? siteTheme.lightAccentContrast : siteTheme.darkAccentContrast
+  const themeVars = {
+    '--admin-accent': accent,
+    '--admin-accent-contrast': accentContrast,
+    '--admin-accent-soft': hexToRgba(accent, adminMode === 'light' ? 0.12 : 0.15),
+    '--admin-accent-focus': hexToRgba(accent, 0.5),
+    // On dark, plain accent text can be too dim — lift it towards white.
+    '--admin-accent-text': adminMode === 'light' ? mixHex(accent, '#000000', 0.1) : mixHex(accent, '#ffffff', 0.35),
+  } as React.CSSProperties
 
   async function load() {
     setLoading(true)
@@ -616,11 +684,16 @@ export default function AdminPortal() {
                       : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
 
   return (
-    <div className="admin-app">
+    <div className={cn('admin-app', adminMode === 'light' && 'admin-light')} style={themeVars}>
       <AdminSidebar tab={tab} onTabChange={(next) => { setTab(next); setShowFormPanel(false) }} />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <AdminHeader title={headerCopy.title} subtitle={headerCopy.subtitle} />
+        <AdminHeader
+          title={headerCopy.title}
+          subtitle={headerCopy.subtitle}
+          mode={adminMode}
+          onToggleMode={toggleAdminMode}
+        />
 
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">

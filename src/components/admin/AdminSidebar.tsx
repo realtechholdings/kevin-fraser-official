@@ -65,7 +65,7 @@ export default function AdminSidebar({
       >
         <div
           className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold"
-          style={{ background: 'var(--admin-violet-soft)', color: '#c4b5fd' }}
+          style={{ background: 'var(--admin-accent-soft)', color: 'var(--admin-accent-text)' }}
         >
           KF
         </div>
@@ -92,7 +92,7 @@ export default function AdminSidebar({
             >
               <item.icon
                 className="h-4 w-4 shrink-0"
-                style={{ color: active ? '#a78bfa' : 'rgba(255,255,255,0.3)' }}
+                style={{ color: active ? 'var(--admin-accent-text)' : 'var(--admin-subtle)' }}
               />
               <span>{item.name}</span>
             </button>
@@ -104,7 +104,7 @@ export default function AdminSidebar({
         <Link
           href="/worlds/stage"
           className="admin-nav-item"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--admin-muted)' }}
         >
           <ExternalLink className="h-4 w-4" />
           View Stage
@@ -112,7 +112,7 @@ export default function AdminSidebar({
         <Link
           href="/worlds/showreel"
           className="admin-nav-item"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--admin-muted)' }}
         >
           <ExternalLink className="h-4 w-4" />
           View Showreel
@@ -120,7 +120,7 @@ export default function AdminSidebar({
         <Link
           href="/worlds/studio"
           className="admin-nav-item"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--admin-muted)' }}
         >
           <ExternalLink className="h-4 w-4" />
           View Studio
@@ -128,7 +128,7 @@ export default function AdminSidebar({
         <Link
           href="/worlds/kevin11"
           className="admin-nav-item"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: 'var(--admin-muted)' }}
         >
           <ExternalLink className="h-4 w-4" />
           View Kevin11

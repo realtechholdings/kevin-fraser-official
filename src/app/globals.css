@@ -174,10 +174,23 @@ html.dark {
     --admin-border: rgba(255, 255, 255, 0.08);
     --admin-border-soft: rgba(255, 255, 255, 0.05);
     --admin-text: #ffffff;
+    --admin-text-secondary: rgba(255, 255, 255, 0.75);
     --admin-muted: rgba(255, 255, 255, 0.4);
     --admin-subtle: rgba(255, 255, 255, 0.3);
-    --admin-violet: #8b5cf6;
-    --admin-violet-soft: rgba(139, 92, 246, 0.15);
+    --admin-header-bg: rgba(13, 13, 22, 0.9);
+    --admin-input-bg: rgba(255, 255, 255, 0.05);
+    --admin-input-bg-focus: rgba(255, 255, 255, 0.07);
+    --admin-surface-hover: rgba(255, 255, 255, 0.1);
+    --admin-row-hover: rgba(255, 255, 255, 0.02);
+    /* Accent — overridden at runtime from the saved Theme settings */
+    --admin-accent: #8b5cf6;
+    --admin-accent-contrast: #ffffff;
+    --admin-accent-soft: rgba(139, 92, 246, 0.15);
+    --admin-accent-focus: rgba(139, 92, 246, 0.5);
+    --admin-accent-text: #c4b5fd;
+    /* Legacy aliases */
+    --admin-violet: var(--admin-accent);
+    --admin-violet-soft: var(--admin-accent-soft);
     --admin-pad: clamp(1.5rem, 3.5vw, 2.5rem);
 
     display: flex;
@@ -187,6 +200,26 @@ html.dark {
     background: var(--admin-bg);
     color: var(--admin-text);
     color-scheme: dark;
+    accent-color: var(--admin-accent);
+  }
+
+  .admin-app.admin-light {
+    --admin-bg: #f2f1f6;
+    --admin-panel: #ffffff;
+    --admin-surface: #ffffff;
+    --admin-border: rgba(20, 20, 40, 0.14);
+    --admin-border-soft: rgba(20, 20, 40, 0.08);
+    --admin-text: #17171f;
+    --admin-text-secondary: rgba(23, 23, 31, 0.75);
+    --admin-muted: rgba(23, 23, 31, 0.55);
+    --admin-subtle: rgba(23, 23, 31, 0.42);
+    --admin-header-bg: rgba(255, 255, 255, 0.88);
+    --admin-input-bg: rgba(20, 20, 40, 0.04);
+    --admin-input-bg-focus: rgba(20, 20, 40, 0.07);
+    --admin-surface-hover: rgba(20, 20, 40, 0.08);
+    --admin-row-hover: rgba(20, 20, 40, 0.03);
+    --admin-accent-text: var(--admin-accent);
+    color-scheme: light;
   }
 
   .admin-sidebar {
@@ -195,7 +228,7 @@ html.dark {
   }
 
   .admin-header {
-    background: rgba(13, 13, 22, 0.9);
+    background: var(--admin-header-bg);
     border-bottom: 1px solid var(--admin-border-soft);
     backdrop-filter: blur(10px);
   }
@@ -214,7 +247,7 @@ html.dark {
     width: 100%;
     border-radius: 0.75rem;
     border: 1px solid var(--admin-border);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--admin-input-bg);
     padding: 0.65rem 0.85rem;
     font-size: 0.875rem;
     color: var(--admin-text);
@@ -222,12 +255,12 @@ html.dark {
   }
 
   .admin-input:focus {
-    border-color: rgba(139, 92, 246, 0.5);
-    background: rgba(255, 255, 255, 0.07);
+    border-color: var(--admin-accent-focus);
+    background: var(--admin-input-bg-focus);
   }
 
   .admin-input::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: var(--admin-subtle);
   }
 
   .admin-label {
@@ -244,7 +277,7 @@ html.dark {
     justify-content: center;
     gap: 0.5rem;
     border-radius: 0.75rem;
-    background: #8b5cf6;
+    background: var(--admin-accent);
     padding: 0.55rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
@@ -253,7 +286,7 @@ html.dark {
   }
 
   .admin-btn-primary:hover {
-    background: #a78bfa;
+    filter: brightness(1.12);
   }
 
   .admin-btn-primary:disabled {
@@ -267,27 +300,27 @@ html.dark {
     gap: 0.5rem;
     border-radius: 0.75rem;
     border: 1px solid var(--admin-border);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--admin-input-bg);
     padding: 0.55rem 1rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--admin-text-secondary);
     transition: background 0.15s ease, color 0.15s ease;
   }
 
   .admin-btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+    background: var(--admin-surface-hover);
+    color: var(--admin-text);
   }
 
   .admin-btn-ghost {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #c4b5fd;
+    color: var(--admin-accent-text);
   }
 
   .admin-btn-ghost:hover {
-    color: #ddd6fe;
+    filter: brightness(1.12);
   }
 
   .admin-btn-danger {
@@ -309,18 +342,18 @@ html.dark {
     padding: 0.65rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--admin-muted);
     transition: background 0.15s ease, color 0.15s ease;
   }
 
   .admin-nav-item:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.85);
+    background: var(--admin-input-bg);
+    color: var(--admin-text-secondary);
   }
 
   .admin-nav-item.is-active {
-    background: var(--admin-violet-soft);
-    color: #c4b5fd;
+    background: var(--admin-accent-soft);
+    color: var(--admin-accent-text);
   }
 
   .admin-table th {
@@ -341,10 +374,113 @@ html.dark {
   }
 
   .admin-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--admin-row-hover);
   }
 
   .admin-table tr:last-child td {
     border-bottom: none;
   }
+}
+
+/* ─── Admin light mode ───────────────────────────────────────────────────────
+   The admin panels use white-alpha Tailwind utilities designed for the dark
+   console. These unlayered overrides remap them to dark-on-light equivalents
+   when .admin-light is active (unlayered CSS beats Tailwind's utility layer). */
+.admin-app.admin-light .text-white {
+  color: var(--admin-text);
+}
+.admin-app.admin-light .text-white\/90 {
+  color: rgba(23, 23, 31, 0.9);
+}
+.admin-app.admin-light .text-white\/80 {
+  color: rgba(23, 23, 31, 0.8);
+}
+.admin-app.admin-light .text-white\/70,
+.admin-app.admin-light .hover\:text-white\/70:hover {
+  color: rgba(23, 23, 31, 0.7);
+}
+.admin-app.admin-light .text-white\/60 {
+  color: rgba(23, 23, 31, 0.6);
+}
+.admin-app.admin-light .text-white\/50 {
+  color: rgba(23, 23, 31, 0.52);
+}
+.admin-app.admin-light .text-white\/40 {
+  color: rgba(23, 23, 31, 0.55);
+}
+.admin-app.admin-light .text-white\/35 {
+  color: rgba(23, 23, 31, 0.5);
+}
+.admin-app.admin-light .text-white\/30 {
+  color: rgba(23, 23, 31, 0.45);
+}
+.admin-app.admin-light .text-white\/25 {
+  color: rgba(23, 23, 31, 0.35);
+}
+.admin-app.admin-light .bg-white\/5 {
+  background-color: rgba(20, 20, 40, 0.05);
+}
+.admin-app.admin-light .bg-white\/\[0\.02\],
+.admin-app.admin-light .hover\:bg-white\/\[0\.02\]:hover {
+  background-color: rgba(20, 20, 40, 0.025);
+}
+.admin-app.admin-light .bg-white\/\[0\.03\] {
+  background-color: rgba(20, 20, 40, 0.035);
+}
+.admin-app.admin-light .border-white\/5 {
+  border-color: rgba(20, 20, 40, 0.08);
+}
+.admin-app.admin-light .border-white\/10 {
+  border-color: rgba(20, 20, 40, 0.12);
+}
+.admin-app.admin-light .border-white\/15 {
+  border-color: rgba(20, 20, 40, 0.18);
+}
+.admin-app.admin-light .divide-white\/5 > :not(:last-child),
+.admin-app.admin-light .divide-white\/5 > * + * {
+  border-color: rgba(20, 20, 40, 0.08);
+}
+/* Semantic tones: darken for legibility on light surfaces */
+.admin-app.admin-light .text-emerald-400 {
+  color: #059669;
+}
+.admin-app.admin-light .text-emerald-300 {
+  color: #047857;
+}
+.admin-app.admin-light .text-amber-400 {
+  color: #b45309;
+}
+.admin-app.admin-light .text-amber-300 {
+  color: #92400e;
+}
+.admin-app.admin-light .text-amber-200,
+.admin-app.admin-light .text-amber-100 {
+  color: #78350f;
+}
+.admin-app.admin-light .text-red-400 {
+  color: #dc2626;
+}
+.admin-app.admin-light .text-red-300 {
+  color: #b91c1c;
+}
+.admin-app.admin-light .text-sky-400 {
+  color: #0284c7;
+}
+.admin-app.admin-light .text-sky-300 {
+  color: #0369a1;
+}
+.admin-app.admin-light .text-violet-400 {
+  color: #7c3aed;
+}
+.admin-app.admin-light .text-violet-300,
+.admin-app.admin-light .hover\:text-violet-200:hover {
+  color: #6d28d9;
+}
+.admin-app.admin-light .text-violet-200 {
+  color: #5b21b6;
+}
+/* Native form controls (select dropdowns carry dark bg-[#141420] options) */
+.admin-app.admin-light option {
+  background-color: #ffffff !important;
+  color: #17171f;
 }

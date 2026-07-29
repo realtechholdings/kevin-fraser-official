@@ -81,7 +81,8 @@ export default function ThemeAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Theme</h2>
           <p className="mt-1 text-sm text-white/40">
-            Set the site accent colours for light and dark mode.
+            Set the accent colours for light and dark mode — used across the public site and
+            this admin console.
           </p>
         </div>
         <div className="flex gap-2">
