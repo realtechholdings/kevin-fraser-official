@@ -34,9 +34,10 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/85 backdrop-blur-sm transition-opacity duration-700 ${
+      className={`fixed inset-0 z-50 transition-opacity duration-700 ${
         fading ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
+      style={{ background: '#F3EFEA' }}
     >
       <video
         ref={videoRef}
@@ -44,8 +45,7 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
         playsInline
         preload="auto"
         onEnded={finish}
-        className="absolute inset-0 h-full w-full object-contain"
-        style={{ mixBlendMode: 'screen' }}
+        className="absolute inset-0 h-full w-full scale-[1.02] object-cover"
       />
       <button
         type="button"
