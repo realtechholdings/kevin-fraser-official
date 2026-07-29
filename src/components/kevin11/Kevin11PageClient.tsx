@@ -126,8 +126,8 @@ function MobileCardRail({
       animate={{ opacity: 1, y: 0 }}
       className="absolute left-0 right-0 z-20"
       style={{
-        // Centre the rail vertically (rail is ~13rem tall incl. CTA buttons)
-        top: 'max(calc(50% - 6.5rem), calc(env(safe-area-inset-top) + 3.75rem))',
+        // Slightly above vertical centre (rail is ~13rem tall incl. CTA buttons)
+        top: 'max(calc(50% - 6.5rem - 50px), calc(env(safe-area-inset-top) + 3.75rem))',
       }}
     >
       <div
@@ -270,6 +270,19 @@ export default function Kevin11PageClient() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [active])
+
+  // Only one video should play at a time: pause the background video while a
+  // card is open, resume it when the card closes.
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    if (active) {
+      video.pause()
+    } else if (!needsTap) {
+      void video.play().catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 
   async function startWithAudio() {
