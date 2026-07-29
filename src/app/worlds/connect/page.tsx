@@ -13,6 +13,8 @@ import ThemeToggle from '@/components/theme/ThemeToggle'
 function ConnectIntro({ onDone }: { onDone: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [fading, setFading] = useState(false)
+  // null until measured on the client, so we never download the wrong video
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   function finish() {
     setFading(true)
@@ -20,6 +22,11 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
   }
 
   useEffect(() => {
+    setIsMobile(window.matchMedia('(max-width: 767px)').matches)
+  }, [])
+
+  useEffect(() => {
+    if (isMobile === null) return
     const video = videoRef.current
     if (!video) return
     video.muted = false
@@ -30,7 +37,9 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
       video.play().catch(() => onDone())
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [isMobile])
+
+  const videoSrc = isMobile ? '/connect-intro-mobile.mp4' : '/connect-intro.mp4'
 
   return (
     <div
@@ -39,14 +48,17 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
       }`}
       style={{ background: '#F3EFEA' }}
     >
-      <video
-        ref={videoRef}
-        src="/connect-intro.mp4"
-        playsInline
-        preload="auto"
-        onEnded={finish}
-        className="absolute inset-0 h-full w-full scale-[1.02] object-cover"
-      />
+      {isMobile !== null ? (
+        <video
+          key={videoSrc}
+          ref={videoRef}
+          src={videoSrc}
+          playsInline
+          preload="auto"
+          onEnded={finish}
+          className="absolute inset-0 h-full w-full scale-[1.02] object-cover"
+        />
+      ) : null}
       <button
         type="button"
         onClick={finish}
