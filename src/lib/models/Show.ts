@@ -1,4 +1,7 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
+// Registers the Tour schema so populate('tour') works in serverless bundles
+// that import Show without importing Tour directly.
+import '@/lib/models/Tour'
 
 export const SHOW_STATUSES = ['on_sale', 'sold_out', 'cancelled', 'coming_soon'] as const
 export type ShowStatus = (typeof SHOW_STATUSES)[number]
