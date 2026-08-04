@@ -182,63 +182,63 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
 /**
  * Mobile: vertically stacked panels in kevin-hero-mobile.
  * Percentages are relative to the image itself (not the viewport).
- * Panel bands (approx): Stage 9–19%, Showreel 21–33%, Studio 35–47%,
- * Gym 49–61%, Kevin11 63–75%, Connect 77–89%.
+ * Panel bands (approx): Stage 4–17%, Showreel 18–33%, Studio 34–49%,
+ * Gym 50–66%, Kevin11 67–82%, Connect 83–97%.
  */
 const MOBILE_HOTSPOTS: Hotspot[] = [
   {
     id: 'stage',
     href: '/worlds/stage',
     label: 'The Stage',
-    top: '9%',
+    top: '4.5%',
     left: '4%',
     width: '92%',
-    height: '10%',
+    height: '12%',
   },
   {
     id: 'showreel',
     href: '/worlds/showreel',
     label: 'The Showreel',
-    top: '21%',
+    top: '18%',
     left: '4%',
     width: '92%',
-    height: '12%',
+    height: '15%',
   },
   {
     id: 'studio',
     href: '/worlds/studio',
     label: 'The Studio',
-    top: '35%',
+    top: '34.5%',
     left: '4%',
     width: '92%',
-    height: '12%',
+    height: '14.5%',
   },
   {
     id: 'gym',
     href: '',
     label: 'Gym & Tonik',
-    top: '49%',
+    top: '50.5%',
     left: '4%',
     width: '92%',
-    height: '12%',
+    height: '14.5%',
   },
   {
     id: 'kevin11',
     href: '/worlds/kevin11',
     label: 'Kevin11',
-    top: '63%',
+    top: '67%',
     left: '4%',
     width: '92%',
-    height: '12%',
+    height: '14.5%',
   },
   {
     id: 'connect',
     href: '/worlds/connect',
     label: 'Connect',
-    top: '77%',
+    top: '83%',
     left: '4%',
     width: '92%',
-    height: '12%',
+    height: '14%',
   },
 ]
 
