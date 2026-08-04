@@ -290,25 +290,6 @@ function BrandLockup({ compact }: { compact?: boolean }) {
       >
         Explore. Laugh. Move. Connect.
       </p>
-      <svg
-        width="180"
-        height="10"
-        viewBox="0 0 180 10"
-        fill="none"
-        aria-hidden="true"
-        style={{
-          marginTop: '6px',
-          width: compact ? 'clamp(70px, 22vw, 110px)' : 'clamp(70px, 10vw, 120px)',
-          height: 'auto',
-        }}
-      >
-        <path
-          d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
-          stroke="#C4A35A"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
     </div>
   )
 }
