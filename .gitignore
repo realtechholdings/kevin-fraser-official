@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Source master for mobile hero — serve compressed .webp/.jpg instead
+public/kevin-hero-mobile.png

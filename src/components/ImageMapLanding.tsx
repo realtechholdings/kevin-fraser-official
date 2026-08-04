@@ -112,7 +112,8 @@ function GymTonikModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-const HOTSPOTS: Hotspot[] = [
+/** Desktop: 2×3 grid around Kevin (viewport-relative, image object-fit contain). */
+const DESKTOP_HOTSPOTS: Hotspot[] = [
   {
     id: 'stage',
     href: '/worlds/stage',
@@ -167,7 +168,6 @@ const HOTSPOTS: Hotspot[] = [
     width: '35%',
     height: '25%',
   },
-  // The "1990" wall behind Kevin — kept last so it stacks above neighbouring zones
   {
     id: 'about',
     href: '/about',
@@ -179,83 +179,351 @@ const HOTSPOTS: Hotspot[] = [
   },
 ]
 
+/**
+ * Mobile: vertically stacked panels in kevin-hero-mobile.
+ * Percentages are relative to the image itself (not the viewport).
+ * Panel bands (approx): Stage 9–19%, Showreel 21–33%, Studio 35–47%,
+ * Gym 49–61%, Kevin11 63–75%, Connect 77–89%.
+ */
+const MOBILE_HOTSPOTS: Hotspot[] = [
+  {
+    id: 'stage',
+    href: '/worlds/stage',
+    label: 'The Stage',
+    top: '9%',
+    left: '4%',
+    width: '92%',
+    height: '10%',
+  },
+  {
+    id: 'showreel',
+    href: '/worlds/showreel',
+    label: 'The Showreel',
+    top: '21%',
+    left: '4%',
+    width: '92%',
+    height: '12%',
+  },
+  {
+    id: 'studio',
+    href: '/worlds/studio',
+    label: 'The Studio',
+    top: '35%',
+    left: '4%',
+    width: '92%',
+    height: '12%',
+  },
+  {
+    id: 'gym',
+    href: '',
+    label: 'Gym & Tonik',
+    top: '49%',
+    left: '4%',
+    width: '92%',
+    height: '12%',
+  },
+  {
+    id: 'kevin11',
+    href: '/worlds/kevin11',
+    label: 'Kevin11',
+    top: '63%',
+    left: '4%',
+    width: '92%',
+    height: '12%',
+  },
+  {
+    id: 'connect',
+    href: '/worlds/connect',
+    label: 'Connect',
+    top: '77%',
+    left: '4%',
+    width: '92%',
+    height: '12%',
+  },
+]
+
+function BrandLockup({ compact }: { compact?: boolean }) {
+  return (
+    <div
+      aria-label="Welcome to the world of Kevin Fraser. Explore. Laugh. Move. Connect."
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          fontSize: compact ? 'clamp(10px, 2.8vw, 12px)' : 'clamp(10px, 1.2vw, 13px)',
+          letterSpacing: '0.18em',
+          lineHeight: 1,
+          color: '#C4A35A',
+        }}
+      >
+        Welcome to the World of
+      </p>
+      <p
+        style={{
+          margin: '4px 0 0',
+          fontSize: compact ? 'clamp(26px, 9vw, 40px)' : 'clamp(28px, 5vw, 52px)',
+          letterSpacing: '0.02em',
+          lineHeight: 0.9,
+          color: '#F2F0EB',
+        }}
+      >
+        Kevin Fraser
+      </p>
+      <p
+        style={{
+          margin: '6px 0 0',
+          fontSize: compact ? 'clamp(10px, 2.6vw, 13px)' : 'clamp(10px, 1.3vw, 14px)',
+          letterSpacing: '0.16em',
+          lineHeight: 1,
+          color: '#FFFFFF',
+        }}
+      >
+        Explore. Laugh. Move. Connect.
+      </p>
+      <svg
+        width="180"
+        height="10"
+        viewBox="0 0 180 10"
+        fill="none"
+        aria-hidden="true"
+        style={{
+          marginTop: '6px',
+          width: compact ? 'clamp(70px, 22vw, 110px)' : 'clamp(70px, 10vw, 120px)',
+          height: 'auto',
+        }}
+      >
+        <path
+          d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
+          stroke="#C4A35A"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  )
+}
+
+function HotspotLayer({
+  spots,
+  onGymClick,
+}: {
+  spots: Hotspot[]
+  onGymClick: () => void
+}) {
+  return (
+    <>
+      {spots.map((spot) => {
+        const zone = (
+          <div
+            className="absolute cursor-pointer"
+            style={{
+              top: spot.top,
+              left: spot.left,
+              width: spot.width,
+              height: spot.height,
+            }}
+            aria-label={spot.label}
+          />
+        )
+
+        if (spot.id === 'gym') {
+          return (
+            <button
+              key={spot.id}
+              type="button"
+              onClick={onGymClick}
+              style={{
+                display: 'contents',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+              }}
+            >
+              {zone}
+            </button>
+          )
+        }
+
+        if (spot.external) {
+          return (
+            <a
+              key={spot.id}
+              href={spot.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'contents' }}
+            >
+              {zone}
+            </a>
+          )
+        }
+
+        return (
+          <Link key={spot.id} href={spot.href} style={{ display: 'contents' }}>
+            {zone}
+          </Link>
+        )
+      })}
+    </>
+  )
+}
+
+function LegalNav({ sticky }: { sticky?: boolean }) {
+  return (
+    <nav
+      aria-label="Legal"
+      style={{
+        ...(sticky
+          ? {
+              position: 'relative' as const,
+              marginTop: '1.25rem',
+              marginBottom: 'max(1rem, env(safe-area-inset-bottom))',
+            }
+          : {
+              position: 'fixed' as const,
+              bottom: 'max(12px, env(safe-area-inset-bottom))',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }),
+        zIndex: 50,
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '10px 14px',
+        maxWidth: 'calc(100vw - 2rem)',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+        textTransform: 'uppercase',
+        fontSize: 'clamp(10px, 1.2vw, 12px)',
+        letterSpacing: '0.14em',
+      }}
+    >
+      {[
+        { href: '/terms', label: 'Terms of Service' },
+        { href: '/refund-policy', label: 'Refund Policy' },
+        { href: '/privacy', label: 'Privacy' },
+      ].map((link, i) => (
+        <span key={link.href} style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
+          {i > 0 ? (
+            <span aria-hidden="true" style={{ color: 'rgba(196,163,90,0.55)' }}>
+              ·
+            </span>
+          ) : null}
+          <Link
+            href={link.href}
+            style={{
+              color: 'rgba(242,240,235,0.72)',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#C4A35A'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
+            }}
+          >
+            {link.label}
+          </Link>
+        </span>
+      ))}
+    </nav>
+  )
+}
+
 export default function ImageMapLanding() {
   const [gymModalOpen, setGymModalOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
   useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)')
+    const apply = () => setIsMobile(query.matches)
+    apply()
+    query.addEventListener('change', apply)
+    return () => query.removeEventListener('change', apply)
+  }, [])
+
+  useEffect(() => {
+    // Desktop locks viewport scroll; mobile needs to scroll the stacked hero.
+    if (isMobile) {
+      document.documentElement.classList.remove('landing-lock')
+      return
+    }
     document.documentElement.classList.add('landing-lock')
     return () => document.documentElement.classList.remove('landing-lock')
-  }, [])
+  }, [isMobile])
+
+  if (isMobile === null) {
+    return <div className="fixed inset-0 bg-black" />
+  }
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-black">
+        <header
+          style={{
+            paddingTop: 'max(1rem, env(safe-area-inset-top))',
+            paddingBottom: '0.75rem',
+            paddingLeft: '1rem',
+            paddingRight: '1rem',
+          }}
+        >
+          <BrandLockup compact />
+        </header>
+
+        <div style={{ position: 'relative', width: '100%' }}>
+          <picture>
+            <source srcSet="/kevin-hero-mobile.webp" type="image/webp" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/kevin-hero-mobile.jpg"
+              alt="Kevin Fraser World"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: 'auto',
+                userSelect: 'none',
+              }}
+              draggable={false}
+            />
+          </picture>
+
+          <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
+            <HotspotLayer spots={MOBILE_HOTSPOTS} onGymClick={() => setGymModalOpen(true)} />
+          </div>
+        </div>
+
+        <LegalNav sticky />
+
+        {gymModalOpen ? <GymTonikModal onClose={() => setGymModalOpen(false)} /> : null}
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
-      {/* Brand lockup — top center */}
       <div
-        aria-label="Welcome to the world of Kevin Fraser. Explore. Laugh. Move. Connect."
         style={{
           position: 'fixed',
           top: '20px',
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 50,
-          pointerEvents: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
-          textTransform: 'uppercase',
-          whiteSpace: 'nowrap',
         }}
       >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 'clamp(10px, 1.2vw, 13px)',
-            letterSpacing: '0.18em',
-            lineHeight: 1,
-            color: '#C4A35A',
-          }}
-        >
-          Welcome to the World of
-        </p>
-        <p
-          style={{
-            margin: '4px 0 0',
-            fontSize: 'clamp(28px, 5vw, 52px)',
-            letterSpacing: '0.02em',
-            lineHeight: 0.9,
-            color: '#F2F0EB',
-          }}
-        >
-          Kevin Fraser
-        </p>
-        <p
-          style={{
-            margin: '6px 0 0',
-            fontSize: 'clamp(10px, 1.3vw, 14px)',
-            letterSpacing: '0.16em',
-            lineHeight: 1,
-            color: '#FFFFFF',
-          }}
-        >
-          Explore. Laugh. Move. Connect.
-        </p>
-        <svg
-          width="180"
-          height="10"
-          viewBox="0 0 180 10"
-          fill="none"
-          aria-hidden="true"
-          style={{ marginTop: '6px', width: 'clamp(70px, 10vw, 120px)', height: 'auto' }}
-        >
-          <path
-            d="M2 6.5 C40 2.5, 140 2.5, 178 6.5"
-            stroke="#C4A35A"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <BrandLockup />
       </div>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -275,113 +543,11 @@ export default function ImageMapLanding() {
         draggable={false}
       />
 
-      {/* Click-through hotspots only — no hover videos */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
-        {HOTSPOTS.map((spot) => {
-          const zone = (
-            <div
-              className="absolute cursor-pointer"
-              style={{
-                top: spot.top,
-                left: spot.left,
-                width: spot.width,
-                height: spot.height,
-              }}
-              aria-label={spot.label}
-            />
-          )
-
-          if (spot.id === 'gym') {
-            return (
-              <button
-                key={spot.id}
-                type="button"
-                onClick={() => setGymModalOpen(true)}
-                style={{
-                  display: 'contents',
-                  background: 'none',
-                  border: 'none',
-                  padding: 0,
-                }}
-              >
-                {zone}
-              </button>
-            )
-          }
-
-          if (spot.external) {
-            return (
-              <a
-                key={spot.id}
-                href={spot.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: 'contents' }}
-              >
-                {zone}
-              </a>
-            )
-          }
-
-          return (
-            <Link key={spot.id} href={spot.href} style={{ display: 'contents' }}>
-              {zone}
-            </Link>
-          )
-        })}
+        <HotspotLayer spots={DESKTOP_HOTSPOTS} onGymClick={() => setGymModalOpen(true)} />
       </div>
 
-      {/* Legal links — middle bottom */}
-      <nav
-        aria-label="Legal"
-        style={{
-          position: 'fixed',
-          bottom: 'max(12px, env(safe-area-inset-bottom))',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '10px 14px',
-          maxWidth: 'calc(100vw - 2rem)',
-          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
-          textTransform: 'uppercase',
-          fontSize: 'clamp(10px, 1.2vw, 12px)',
-          letterSpacing: '0.14em',
-        }}
-      >
-        {[
-          { href: '/terms', label: 'Terms of Service' },
-          { href: '/refund-policy', label: 'Refund Policy' },
-          { href: '/privacy', label: 'Privacy' },
-        ].map((link, i) => (
-          <span key={link.href} style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
-            {i > 0 ? (
-              <span aria-hidden="true" style={{ color: 'rgba(196,163,90,0.55)' }}>
-                ·
-              </span>
-            ) : null}
-            <Link
-              href={link.href}
-              style={{
-                color: 'rgba(242,240,235,0.72)',
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#C4A35A'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
-              }}
-            >
-              {link.label}
-            </Link>
-          </span>
-        ))}
-      </nav>
+      <LegalNav />
 
       {gymModalOpen ? <GymTonikModal onClose={() => setGymModalOpen(false)} /> : null}
     </div>
