@@ -6,6 +6,7 @@ import '@/lib/models/Tour'
 import Order from '@/lib/models/Order'
 import { appUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
+import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
     }
 
     const tiers = await resolveTiersForShow(show)
+    if (areAllTiersSoldOut(tiers)) {
+      return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
+    }
+
     const selected =
       (tierId && tiers.find((t) => t.id === tierId)) ||
       tiers[0]
@@ -50,6 +55,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No ticket tier available.' }, { status: 400 })
     }
 
+    if (isTierSoldOut(selected)) {
+      return NextResponse.json({ success: false, error: 'This ticket tier is sold out.' }, { status: 400 })
+    }
     if (selected.capacity > 0 && selected.ticketsSold + quantity > selected.capacity) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
     }

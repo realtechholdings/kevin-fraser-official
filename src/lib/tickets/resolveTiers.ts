@@ -54,6 +54,7 @@ function legacyTier(
     priceCents: show.priceCents,
     capacity: 0,
     ticketsSold: 0,
+    soldOut: false,
     sortOrder: 0,
     published: true,
     legacy: true,

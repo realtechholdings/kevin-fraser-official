@@ -4,10 +4,10 @@ import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 // Registers the Tour schema for .populate('tour')
 import '@/lib/models/Tour'
-import TicketTier from '@/lib/models/TicketTier'
 import { getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { emailConfigured } from '@/lib/email/resend'
 import { sendTicketEmail } from '@/lib/email/ticket'
+import { fulfillPaidOrder } from '@/lib/tickets/fulfillPaidOrder'
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,25 +26,8 @@ export async function GET(req: NextRequest) {
     await dbConnect()
     const order = await Order.findOne({ stripeSessionId: sessionId })
 
-    if (session.payment_status === 'paid' && order && order.status !== 'paid') {
-      order.status = 'paid'
-      order.email = session.customer_details?.email || session.customer_email || order.email
-      order.stripePaymentIntentId =
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id || ''
-      order.amountTotal = session.amount_total || order.amountTotal
-      await order.save()
-
-      await Show.findByIdAndUpdate(order.show, {
-        $inc: { ticketsSold: order.quantity },
-      })
-
-      if (order.tier) {
-        await TicketTier.findByIdAndUpdate(order.tier, {
-          $inc: { ticketsSold: order.quantity },
-        })
-      }
+    if (session.payment_status === 'paid' && order) {
+      await fulfillPaidOrder(order, session)
     }
 
     // Send the ticket PDF email once, after payment is confirmed

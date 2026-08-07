@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db'
 import TicketTier, { slugifyTierName } from '@/lib/models/TicketTier'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTicketTier } from '@/lib/serialize'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -36,8 +37,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (body.capacity !== undefined) tier.capacity = Math.max(0, Number(body.capacity) || 0)
     if (body.sortOrder !== undefined) tier.sortOrder = Number(body.sortOrder) || 0
     if (body.published !== undefined) tier.published = Boolean(body.published)
+    if (body.soldOut !== undefined) tier.soldOut = Boolean(body.soldOut)
 
     await tier.save()
+
+    if (tier.ownerType === 'show') {
+      await maybeMarkShowSoldOut(String(tier.ownerId))
+    }
+
     return NextResponse.json({ success: true, tier: serializeTicketTier(tier) })
   } catch (error) {
     console.error('Admin tiers PATCH:', error)

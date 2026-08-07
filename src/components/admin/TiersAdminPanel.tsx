@@ -24,6 +24,7 @@ type TierForm = {
   capacity: string
   sortOrder: string
   published: boolean
+  soldOut: boolean
 }
 
 const emptyForm = (ownerType: 'tour' | 'show' = 'tour', ownerId = ''): TierForm => ({
@@ -37,6 +38,7 @@ const emptyForm = (ownerType: 'tour' | 'show' = 'tour', ownerId = ''): TierForm 
   capacity: '0',
   sortOrder: '0',
   published: true,
+  soldOut: false,
 })
 
 export default function TiersAdminPanel({
@@ -130,6 +132,7 @@ export default function TiersAdminPanel({
       capacity: String(tier.capacity),
       sortOrder: String(tier.sortOrder),
       published: tier.published,
+      soldOut: Boolean(tier.soldOut),
     })
     setShowForm(true)
   }
@@ -372,14 +375,24 @@ export default function TiersAdminPanel({
             />
           </div>
 
-          <label className="inline-flex items-center gap-2 text-sm text-white/70">
-            <input
-              type="checkbox"
-              checked={form.published}
-              onChange={(e) => setForm((f) => ({ ...f, published: e.target.checked }))}
-            />
-            Published
-          </label>
+          <div className="flex flex-wrap gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={form.published}
+                onChange={(e) => setForm((f) => ({ ...f, published: e.target.checked }))}
+              />
+              Published
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={form.soldOut}
+                onChange={(e) => setForm((f) => ({ ...f, soldOut: e.target.checked }))}
+              />
+              Sold out
+            </label>
+          </div>
 
           <button type="submit" disabled={busy} className={btnPrimary}>
             {busy ? 'Saving…' : editingId ? 'Save changes' : 'Create tier'}
@@ -413,6 +426,7 @@ export default function TiersAdminPanel({
                   <p className="mt-0.5 text-xs text-white/40">
                     {ownerLabel(tier)} · {formatPrice(tier.priceCents, tier.currency)} ·{' '}
                     {tier.published ? 'Published' : 'Draft'}
+                    {tier.soldOut ? ' · Sold out' : ''}
                     {tier.capacity > 0 ? ` · ${tier.ticketsSold}/${tier.capacity} sold` : ''}
                   </p>
                 </div>

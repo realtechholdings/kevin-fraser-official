@@ -7,16 +7,18 @@ export type ShowTierConfigInput = {
   overridePrice?: boolean
   priceCents?: number
   currency?: string
+  soldOut?: boolean
 }
 
 /**
  * Apply per-show tier configs against the owning tour's tiers.
  *
- * For each tour tier the admin can set a per-show allocation and optionally
- * override the price/currency. An active config is stored as a show-owned
- * TicketTier with the same slug (picked up by resolveTiers as an override).
- * Clearing a config removes the override so the show falls back to the tour
- * tier — unless tickets were already sold against it.
+ * For each tour tier the admin can set a per-show allocation, optionally
+ * override the price/currency, and mark the tier sold out. An active config
+ * is stored as a show-owned TicketTier with the same slug (picked up by
+ * resolveTiers as an override). Clearing a config removes the override so
+ * the show falls back to the tour tier — unless tickets were already sold
+ * against it.
  */
 export async function applyShowTierConfigs(
   showId: string,
@@ -37,7 +39,8 @@ export async function applyShowTierConfigs(
 
     const capacity = Math.max(0, Number(config.capacity) || 0)
     const overridePrice = Boolean(config.overridePrice)
-    const active = capacity > 0 || overridePrice
+    const soldOut = Boolean(config.soldOut)
+    const active = capacity > 0 || overridePrice || soldOut
     const existing = existingBySlug.get(slug)
 
     if (!active) {
@@ -46,6 +49,7 @@ export async function applyShowTierConfigs(
       } else if (existing) {
         existing.capacity = 0
         existing.inheritPrice = true
+        existing.soldOut = false
         await existing.save()
       }
       continue
@@ -65,6 +69,7 @@ export async function applyShowTierConfigs(
       existing.inheritPrice = !overridePrice
       existing.priceCents = priceCents
       existing.currency = currency
+      existing.soldOut = soldOut
       existing.sortOrder = tourTier.sortOrder
       existing.published = true
       await existing.save()
@@ -80,6 +85,7 @@ export async function applyShowTierConfigs(
         inheritPrice: !overridePrice,
         capacity,
         ticketsSold: 0,
+        soldOut,
         sortOrder: tourTier.sortOrder,
         published: true,
       })

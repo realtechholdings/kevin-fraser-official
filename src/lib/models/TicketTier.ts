@@ -29,6 +29,8 @@ const TicketTierSchema = new Schema(
     inheritPrice: { type: Boolean, default: false },
     capacity: { type: Number, default: 0, min: 0 },
     ticketsSold: { type: Number, default: 0, min: 0 },
+    /** Manual override — blocks sales even when capacity remains. */
+    soldOut: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
   },

@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -94,8 +95,15 @@ export async function POST(req: NextRequest) {
       await applyShowTierConfigs(String(show._id), tourId, body.tierConfigs)
     }
 
-    await show.populate('tour')
-    return NextResponse.json({ success: true, show: serializeShow(show) }, { status: 201 })
+    if (status === 'on_sale') {
+      await maybeMarkShowSoldOut(String(show._id))
+    }
+
+    const fresh = await Show.findById(show._id).populate('tour')
+    return NextResponse.json(
+      { success: true, show: serializeShow(fresh || show) },
+      { status: 201 },
+    )
   } catch (error) {
     console.error('Admin shows POST:', error)
     return NextResponse.json({ success: false, error: 'Failed to create show.' }, { status: 500 })

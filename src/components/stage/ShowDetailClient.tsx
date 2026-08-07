@@ -7,9 +7,10 @@ import TicketButton from '@/components/stage/TicketButton'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import type { PublicShow } from '@/lib/serialize'
+import { isShowEffectivelySoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 
-function statusLabel(status: string) {
-  if (status === 'sold_out') return 'Sold Out'
+function statusLabel(status: string, effectivelySoldOut: boolean) {
+  if (effectivelySoldOut || status === 'sold_out') return 'Sold Out'
   if (status === 'cancelled') return 'Cancelled'
   if (status === 'coming_soon') return 'Coming Soon'
   return null
@@ -17,10 +18,10 @@ function statusLabel(status: string) {
 
 export default function ShowDetailClient({ show }: { show: PublicShow }) {
   const d = formatShowDate(show.date)
-  const soldOut = show.status === 'sold_out'
+  const soldOut = isShowEffectivelySoldOut(show)
   const unavailable =
     soldOut || show.status === 'cancelled' || show.status === 'coming_soon'
-  const badge = statusLabel(show.status)
+  const badge = statusLabel(show.status, soldOut)
   const heroImage = show.artworkImage || show.venueImage
   const blurb =
     show.description ||
@@ -190,8 +191,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     .slice()
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
                     .map((tier) => {
-                      const tierSoldOut =
-                        tier.capacity > 0 && tier.ticketsSold >= tier.capacity
+                      const tierSoldOut = isTierSoldOut(tier)
                       return (
                         <li key={tier.id} className="text-sm">
                           <div className="flex items-baseline justify-between gap-3">

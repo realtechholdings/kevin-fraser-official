@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
       currency,
       priceCents,
       capacity: Math.max(0, Number(body.capacity) || 0),
+      soldOut: Boolean(body.soldOut),
       sortOrder: Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0,
       published: body.published !== false,
     })

@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
+import { isShowEffectivelySoldOut } from '@/lib/tickets/soldOut'
 
 type Props = {
   tours: PublicTour[]
@@ -13,8 +14,8 @@ type Props = {
   cancelled?: boolean
 }
 
-function statusLabel(status: string) {
-  if (status === 'sold_out') return 'Sold Out'
+function statusLabel(status: string, effectivelySoldOut: boolean) {
+  if (effectivelySoldOut || status === 'sold_out') return 'Sold Out'
   if (status === 'cancelled') return 'Cancelled'
   if (status === 'coming_soon') return 'Coming Soon'
   return null
@@ -183,10 +184,10 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                   <ul className="divide-y divide-[var(--border)]">
                     {countryShows.map((show) => {
                       const d = formatShowDate(show.date)
-                      const soldOut = show.status === 'sold_out'
+                      const soldOut = isShowEffectivelySoldOut(show)
                       const unavailable =
                         soldOut || show.status === 'cancelled' || show.status === 'coming_soon'
-                      const badge = statusLabel(show.status)
+                      const badge = statusLabel(show.status, soldOut)
 
                       return (
                         <li

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
+import { isTierSoldOut } from '@/lib/tickets/soldOut'
 
 type Props = {
   showId: string
@@ -19,21 +20,22 @@ export default function TicketButton({
   label = 'Get Tickets',
   className = '',
 }: Props) {
-  const availableTiers = useMemo(
-    () =>
-      tiers.filter((tier) => {
-        if (!tier.published) return false
-        if (tier.capacity > 0 && tier.ticketsSold >= tier.capacity) return false
-        return true
-      }),
+  const publishedTiers = useMemo(
+    () => tiers.filter((tier) => tier.published),
     [tiers],
   )
 
-  const [tierId, setTierId] = useState(availableTiers[0]?.id || '')
+  const purchasableTiers = useMemo(
+    () => publishedTiers.filter((tier) => !isTierSoldOut(tier)),
+    [publishedTiers],
+  )
+
+  const [tierId, setTierId] = useState(purchasableTiers[0]?.id || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const selected = availableTiers.find((t) => t.id === tierId) || availableTiers[0]
+  const selected =
+    purchasableTiers.find((t) => t.id === tierId) || purchasableTiers[0]
 
   async function checkout() {
     if (disabled || loading || !selected) return
@@ -56,20 +58,33 @@ export default function TicketButton({
       window.location.href = data.url
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed')
+    } finally {
       setLoading(false)
     }
   }
 
-  if (!availableTiers.length) {
+  if (!purchasableTiers.length) {
     return (
       <div className={className}>
+        {publishedTiers.length > 1 ? (
+          <select
+            disabled
+            className="mb-2 w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none opacity-60"
+          >
+            {publishedTiers.map((tier) => (
+              <option key={tier.id} value={tier.id}>
+                {tier.name} — Sold Out
+              </option>
+            ))}
+          </select>
+        ) : null}
         <button
           type="button"
           disabled
           className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] opacity-40"
           style={{ background: 'var(--surface-muted)', color: 'var(--foreground-subtle)' }}
         >
-          Unavailable
+          Sold Out
         </button>
       </div>
     )
@@ -77,18 +92,22 @@ export default function TicketButton({
 
   return (
     <div className={className}>
-      {availableTiers.length > 1 ? (
+      {publishedTiers.length > 1 ? (
         <select
           value={selected?.id || ''}
           onChange={(e) => setTierId(e.target.value)}
           disabled={disabled || loading}
           className="mb-2 w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
         >
-          {availableTiers.map((tier) => (
-            <option key={tier.id} value={tier.id}>
-              {tier.name} — {formatPrice(tier.priceCents, tier.currency)}
-            </option>
-          ))}
+          {publishedTiers.map((tier) => {
+            const soldOut = isTierSoldOut(tier)
+            return (
+              <option key={tier.id} value={tier.id} disabled={soldOut}>
+                {tier.name} —{' '}
+                {soldOut ? 'Sold Out' : formatPrice(tier.priceCents, tier.currency)}
+              </option>
+            )
+          })}
         </select>
       ) : null}
       <button

@@ -16,7 +16,7 @@ async function verify(sessionId?: string) {
     const { getStripe, stripeRequestOptions } = await import('@/lib/stripe')
     const dbConnect = (await import('@/lib/db')).default
     const Order = (await import('@/lib/models/Order')).default
-    const Show = (await import('@/lib/models/Show')).default
+    const { fulfillPaidOrder } = await import('@/lib/tickets/fulfillPaidOrder')
 
     const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(
@@ -27,16 +27,8 @@ async function verify(sessionId?: string) {
     await dbConnect()
     const order = await Order.findOne({ stripeSessionId: sessionId })
 
-    if (session.payment_status === 'paid' && order && order.status !== 'paid') {
-      order.status = 'paid'
-      order.email = session.customer_details?.email || session.customer_email || order.email
-      order.stripePaymentIntentId =
-        typeof session.payment_intent === 'string'
-          ? session.payment_intent
-          : session.payment_intent?.id || ''
-      order.amountTotal = session.amount_total || order.amountTotal
-      await order.save()
-      await Show.findByIdAndUpdate(order.show, { $inc: { ticketsSold: order.quantity } })
+    if (session.payment_status === 'paid' && order) {
+      await fulfillPaidOrder(order, session)
     }
 
     return {

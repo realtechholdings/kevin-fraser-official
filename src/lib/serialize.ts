@@ -36,6 +36,7 @@ export type PublicTicketTier = {
   priceCents: number
   capacity: number
   ticketsSold: number
+  soldOut: boolean
   sortOrder: number
   published: boolean
   legacy?: boolean
@@ -216,6 +217,7 @@ export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier 
     priceCents: tier.priceCents,
     capacity: tier.capacity || 0,
     ticketsSold: tier.ticketsSold || 0,
+    soldOut: Boolean(tier.soldOut),
     sortOrder: tier.sortOrder || 0,
     published: Boolean(tier.published),
     inheritPrice: Boolean(tier.inheritPrice),

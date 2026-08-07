@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -61,8 +62,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       await applyShowTierConfigs(String(show._id), String(show.tour), body.tierConfigs)
     }
 
-    await show.populate('tour')
-    return NextResponse.json({ success: true, show: serializeShow(show) })
+    // Tier capacity edits can exhaust inventory without a sale — sync status.
+    // Skip if admin explicitly chose cancelled / coming_soon / sold_out.
+    if (body.status === undefined || body.status === 'on_sale') {
+      await maybeMarkShowSoldOut(String(show._id))
+    }
+
+    const fresh = await Show.findById(show._id).populate('tour')
+    if (!fresh) {
+      return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
+    }
+    return NextResponse.json({ success: true, show: serializeShow(fresh) })
   } catch (error) {
     console.error('Admin shows PATCH:', error)
     return NextResponse.json({ success: false, error: 'Failed to update show.' }, { status: 500 })

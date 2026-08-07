@@ -60,6 +60,7 @@ type TierConfigForm = {
   priceCents: string
   currency: string
   sold: number
+  soldOut: boolean
 }
 
 type ShowForm = {
@@ -365,6 +366,7 @@ export default function AdminPortal() {
         priceCents: overridePrice && o ? String(o.priceCents) : String(tt.priceCents),
         currency: overridePrice && o ? o.currency : tt.currency,
         sold: o?.ticketsSold || 0,
+        soldOut: Boolean(o?.soldOut),
       }
     })
   }
@@ -429,6 +431,7 @@ export default function AdminPortal() {
           overridePrice: c.overridePrice,
           priceCents: Number(c.priceCents) || 0,
           currency: c.currency,
+          soldOut: c.soldOut,
         })),
       }
       const res = await fetch(
@@ -597,6 +600,32 @@ export default function AdminPortal() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Update failed')
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function toggleSoldOutShow(show: PublicShow) {
+    const nextStatus = show.status === 'sold_out' ? 'on_sale' : 'sold_out'
+    setBusy(true)
+    setMessage('')
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/shows/${show.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
+      setMessage(
+        nextStatus === 'sold_out'
+          ? `${show.city} marked sold out.`
+          : `${show.city} put back on sale.`,
+      )
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed')
@@ -1116,8 +1145,8 @@ export default function AdminPortal() {
                           <label className={labelClass}>Ticket tiers — allocation & pricing</label>
                           <p className="mb-3 text-xs text-white/35">
                             Tiers come from this show&apos;s tour. Set how many tickets each tier
-                            has for this show (0 = unlimited) and optionally override the tour
-                            price for this show only.
+                            has for this show (0 = unlimited), mark a tier sold out, and optionally
+                            override the tour price for this show only.
                           </p>
                           <div className="space-y-3">
                             {showForm.tierConfigs.map((config) => (
@@ -1145,7 +1174,19 @@ export default function AdminPortal() {
                                       }
                                     />
                                   </div>
-                                  <div className="flex items-end pb-2 sm:pb-2.5">
+                                  <div className="flex flex-col justify-end gap-2 pb-2 sm:pb-2.5">
+                                    <label className="flex items-center gap-2 text-sm text-white/70">
+                                      <input
+                                        type="checkbox"
+                                        checked={config.soldOut}
+                                        onChange={(e) =>
+                                          updateTierConfig(config.slug, {
+                                            soldOut: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Sold out
+                                    </label>
                                     <label className="flex items-center gap-2 text-sm text-white/70">
                                       <input
                                         type="checkbox"
@@ -1245,6 +1286,10 @@ export default function AdminPortal() {
                           value={showForm.capacity}
                           onChange={(e) => setShowForm({ ...showForm, capacity: e.target.value })}
                         />
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Informational only — sold out is driven by ticket tiers or the status
+                          below.
+                        </p>
                       </div>
                       <div>
                         <label className={labelClass}>Status</label>
@@ -1258,6 +1303,31 @@ export default function AdminPortal() {
                           <option value="coming_soon" className="bg-[#141420]">Coming soon</option>
                           <option value="cancelled" className="bg-[#141420]">Cancelled</option>
                         </select>
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Choose Sold out to stop ticket sales immediately. Shows also auto-mark
+                          sold out when every tier hits 0 remaining.
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-red-500"
+                            checked={showForm.status === 'sold_out'}
+                            onChange={(e) =>
+                              setShowForm({
+                                ...showForm,
+                                status: e.target.checked ? 'sold_out' : 'on_sale',
+                              })
+                            }
+                          />
+                          <span>
+                            <span className="font-medium text-white">Mark as sold out</span>
+                            <span className="mt-0.5 block text-xs text-white/40">
+                              Blocks checkout regardless of venue capacity or remaining tier stock.
+                            </span>
+                          </span>
+                        </label>
                       </div>
                       <div className="md:col-span-2">
                         <label className={labelClass}>External ticket URL (optional)</label>
@@ -1536,6 +1606,14 @@ export default function AdminPortal() {
                                 <div className="flex justify-end gap-3">
                                   <button type="button" onClick={() => editShow(show)} className={btnGhost}>
                                     Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy || show.status === 'cancelled'}
+                                    onClick={() => toggleSoldOutShow(show)}
+                                    className={btnGhost}
+                                  >
+                                    {show.status === 'sold_out' ? 'Put on sale' : 'Sold out'}
                                   </button>
                                   <button
                                     type="button"
