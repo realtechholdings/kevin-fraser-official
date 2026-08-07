@@ -3,7 +3,7 @@ import type { HydratedDocument } from 'mongoose'
 import type { OrderDocument } from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import TicketTier from '@/lib/models/TicketTier'
-import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 
 /**
  * Mark a pending order paid and increment show + tier inventory.

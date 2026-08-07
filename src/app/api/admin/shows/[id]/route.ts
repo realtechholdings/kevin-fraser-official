@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
-import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 
 type Ctx = { params: Promise<{ id: string }> }
 

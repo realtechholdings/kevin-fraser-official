@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db'
 import TicketTier, { slugifyTierName } from '@/lib/models/TicketTier'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTicketTier } from '@/lib/serialize'
-import { maybeMarkShowSoldOut } from '@/lib/tickets/soldOut'
+import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 
 type Params = { params: Promise<{ id: string }> }
 
