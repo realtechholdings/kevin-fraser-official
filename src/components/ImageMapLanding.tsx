@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
 
 interface Hotspot {
   id: string
@@ -297,9 +298,11 @@ function BrandLockup({ compact }: { compact?: boolean }) {
 function HotspotLayer({
   spots,
   onGymClick,
+  onNavigate,
 }: {
   spots: Hotspot[]
   onGymClick: () => void
+  onNavigate: (href: string) => void
 }) {
   return (
     <>
@@ -350,9 +353,17 @@ function HotspotLayer({
         }
 
         return (
-          <Link key={spot.id} href={spot.href} style={{ display: 'contents' }}>
+          <a
+            key={spot.id}
+            href={spot.href}
+            style={{ display: 'contents' }}
+            onClick={(e) => {
+              e.preventDefault()
+              onNavigate(spot.href)
+            }}
+          >
             {zone}
-          </Link>
+          </a>
         )
       })}
     </>
@@ -427,6 +438,7 @@ function LegalNav({ sticky }: { sticky?: boolean }) {
 export default function ImageMapLanding() {
   const [gymModalOpen, setGymModalOpen] = useState(false)
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
+  const { pending, navigate } = usePendingNav()
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 767px)')
@@ -453,6 +465,7 @@ export default function ImageMapLanding() {
   if (isMobile) {
     return (
       <div className="min-h-screen overflow-x-hidden overflow-y-auto bg-black">
+        {pending ? <NavPendingOverlay /> : null}
         <header
           style={{
             paddingTop: 'max(1rem, env(safe-area-inset-top))',
@@ -482,7 +495,11 @@ export default function ImageMapLanding() {
           </picture>
 
           <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
-            <HotspotLayer spots={MOBILE_HOTSPOTS} onGymClick={() => setGymModalOpen(true)} />
+            <HotspotLayer
+              spots={MOBILE_HOTSPOTS}
+              onGymClick={() => setGymModalOpen(true)}
+              onNavigate={navigate}
+            />
           </div>
         </div>
 
@@ -495,6 +512,7 @@ export default function ImageMapLanding() {
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-black">
+      {pending ? <NavPendingOverlay /> : null}
       <div
         style={{
           position: 'fixed',
@@ -525,7 +543,11 @@ export default function ImageMapLanding() {
       />
 
       <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
-        <HotspotLayer spots={DESKTOP_HOTSPOTS} onGymClick={() => setGymModalOpen(true)} />
+        <HotspotLayer
+          spots={DESKTOP_HOTSPOTS}
+          onGymClick={() => setGymModalOpen(true)}
+          onNavigate={navigate}
+        />
       </div>
 
       <LegalNav />

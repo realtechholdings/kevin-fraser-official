@@ -2,8 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import Link from 'next/link'
-import Image from 'next/image'
+import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
 
 interface WorldContainerProps {
   id: string
@@ -35,6 +34,7 @@ export default function WorldContainer({
 }: WorldContainerProps) {
   const [hovered, setHovered] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const { pending, navigate } = usePendingNav()
 
   const flickerAnimation = {
     slow: { animationName: 'neon-flicker', animationDuration: '3s' },
@@ -146,8 +146,16 @@ export default function WorldContainer({
   }
 
   return (
-    <Link href={href} className="block h-full">
-      {containerContent}
-    </Link>
+    <>
+      {pending ? <NavPendingOverlay /> : null}
+      <button
+        type="button"
+        onClick={() => navigate(href)}
+        disabled={pending}
+        className="block h-full w-full border-0 bg-transparent p-0 text-left disabled:cursor-wait"
+      >
+        {containerContent}
+      </button>
+    </>
   )
 }

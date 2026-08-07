@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { isShowEffectivelySoldOut } from '@/lib/tickets/soldOut'
@@ -24,9 +25,11 @@ function statusLabel(status: string, effectivelySoldOut: boolean) {
 export default function StagePageClient({ tours, shows, cancelled }: Props) {
   const featuredTour = tours.find((t) => t.featured) || tours[0]
   const countries = Array.from(new Set(shows.map((s) => s.country)))
+  const { pending, navigate } = usePendingNav()
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
+      {pending ? <NavPendingOverlay label="Loading show" /> : null}
       <header
         className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"
         style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}
@@ -286,9 +289,11 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                                 {badge || 'Unavailable'}
                               </span>
                             ) : (
-                              <Link
-                                href={`/worlds/stage/${show.id}`}
-                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90"
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/worlds/stage/${show.id}`)}
+                                disabled={pending}
+                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90 disabled:cursor-wait"
                                 style={{
                                   background: soldOut ? 'var(--surface-muted)' : 'var(--accent)',
                                   color: soldOut
@@ -297,7 +302,7 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                                 }}
                               >
                                 {soldOut ? 'Sold Out' : 'Tickets'}
-                              </Link>
+                              </button>
                             )}
                           </div>
                         </li>
