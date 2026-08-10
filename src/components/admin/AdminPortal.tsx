@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import { toWallInput } from '@/lib/wallDate'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
 import {
   DEFAULT_THEME_SETTINGS,
@@ -159,12 +160,6 @@ function mixHex(hex: string, into: string, weight: number) {
 
 const ADMIN_MODE_KEY = 'admin-color-mode'
 
-function toLocalInput(iso?: string | null) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -470,8 +465,8 @@ export default function AdminPortal() {
       bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
       featured: tour.featured,
       published: tour.published,
-      startDate: toLocalInput(tour.startDate),
-      endDate: toLocalInput(tour.endDate),
+      startDate: toWallInput(tour.startDate),
+      endDate: toWallInput(tour.endDate),
     })
     setTab('tours')
     setShowFormPanel(true)
@@ -482,7 +477,7 @@ export default function AdminPortal() {
     setShowForm({
       tourId: show.tour.id,
       title: show.title,
-      date: toLocalInput(show.date),
+      date: toWallInput(show.date),
       showTime: show.showTime,
       country: show.country,
       city: show.city,

@@ -4,6 +4,7 @@ import Tour, { TOUR_BANNER_POSITIONS } from '@/lib/models/Tour'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
+import { parseWallDate } from '@/lib/wallDate'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -61,8 +62,8 @@ export async function POST(req: NextRequest) {
         : 'background',
       featured: Boolean(body.featured),
       published: body.published !== false,
-      startDate: body.startDate ? new Date(body.startDate) : undefined,
-      endDate: body.endDate ? new Date(body.endDate) : undefined,
+      startDate: body.startDate ? parseWallDate(body.startDate) || undefined : undefined,
+      endDate: body.endDate ? parseWallDate(body.endDate) || undefined : undefined,
     })
 
     let dirty = false

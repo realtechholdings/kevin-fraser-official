@@ -7,6 +7,7 @@ import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { parseWallDate } from '@/lib/wallDate'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     const city = String(body.city || '').trim()
     const venue = String(body.venue || '').trim()
     const country = String(body.country || '').trim()
-    const date = body.date ? new Date(body.date) : null
+    const date = body.date ? parseWallDate(body.date) : null
 
     if (!tourId || !title || !city || !venue || !country || !date || Number.isNaN(date.getTime())) {
       return NextResponse.json(

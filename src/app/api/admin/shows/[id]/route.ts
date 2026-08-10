@@ -6,6 +6,7 @@ import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { parseWallDate } from '@/lib/wallDate'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -27,7 +28,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     if (body.tourId !== undefined) show.tour = body.tourId
     if (body.title !== undefined) show.title = String(body.title).trim()
-    if (body.date !== undefined) show.date = new Date(body.date)
+    if (body.date !== undefined) {
+      const date = parseWallDate(body.date)
+      if (!date) {
+        return NextResponse.json({ success: false, error: 'Invalid date.' }, { status: 400 })
+      }
+      show.date = date
+    }
     if (body.doorsTime !== undefined) show.doorsTime = String(body.doorsTime)
     if (body.showTime !== undefined) show.showTime = String(body.showTime)
     if (body.country !== undefined) show.country = String(body.country).trim()

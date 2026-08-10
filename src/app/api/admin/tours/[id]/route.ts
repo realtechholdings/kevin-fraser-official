@@ -5,6 +5,7 @@ import Show from '@/lib/models/Show'
 import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
+import { parseWallDate } from '@/lib/wallDate'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -44,10 +45,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (body.published !== undefined) tour.published = Boolean(body.published)
     if (body.startDate !== undefined) {
-      tour.startDate = body.startDate ? new Date(body.startDate) : undefined
+      tour.startDate = body.startDate ? parseWallDate(body.startDate) || undefined : undefined
     }
     if (body.endDate !== undefined) {
-      tour.endDate = body.endDate ? new Date(body.endDate) : undefined
+      tour.endDate = body.endDate ? parseWallDate(body.endDate) || undefined : undefined
     }
     if (body.featured !== undefined) {
       if (body.featured) {

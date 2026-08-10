@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
               product_data: {
                 name: `${tourTitle} — ${show.city} (${selected.name})`,
                 description: `${show.venue} · ${new Date(show.date).toLocaleString('en-AU', {
+                  timeZone: 'UTC',
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 })}`,

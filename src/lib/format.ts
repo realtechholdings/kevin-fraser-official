@@ -11,13 +11,16 @@ export function formatPrice(cents: number, currency: string) {
   }
 }
 
+/** Format show calendar date in UTC so the wall-clock day never shifts by timezone. */
 export function formatShowDate(iso: string) {
   const d = new Date(iso)
+  const utc = { timeZone: 'UTC' as const }
   return {
-    day: d.toLocaleDateString('en-AU', { day: 'numeric' }),
-    month: d.toLocaleDateString('en-AU', { month: 'short' }).toUpperCase(),
-    weekday: d.toLocaleDateString('en-AU', { weekday: 'short' }),
+    day: d.toLocaleDateString('en-AU', { ...utc, day: 'numeric' }),
+    month: d.toLocaleDateString('en-AU', { ...utc, month: 'short' }).toUpperCase(),
+    weekday: d.toLocaleDateString('en-AU', { ...utc, weekday: 'short' }),
     full: d.toLocaleDateString('en-AU', {
+      ...utc,
       weekday: 'long',
       day: 'numeric',
       month: 'long',
