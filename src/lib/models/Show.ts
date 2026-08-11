@@ -13,6 +13,8 @@ const ShowSchema = new Schema(
     date: { type: Date, required: true, index: true },
     doorsTime: { type: String, default: '' },
     showTime: { type: String, default: '' },
+    /** Optional finish time label (e.g. "10:30 PM") */
+    showEndTime: { type: String, default: '' },
     country: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
     venue: { type: String, required: true, trim: true },
@@ -33,6 +35,8 @@ const ShowSchema = new Schema(
     /** Show poster / artwork URL or proxy path */
     artworkImage: { type: String, default: '' },
     artworkImageKey: { type: String, default: '' },
+    /** CSS object-position for artwork crop (e.g. "center top") */
+    artworkPosition: { type: String, default: 'center center' },
     /** Optional venue photo for the show detail page */
     venueImage: { type: String, default: '' },
     venueImageKey: { type: String, default: '' },

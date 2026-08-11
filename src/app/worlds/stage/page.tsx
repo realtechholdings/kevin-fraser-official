@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 type Props = {
-  searchParams: Promise<{ cancelled?: string }>
+  searchParams: Promise<{ cancelled?: string; tour?: string }>
 }
 
 export default async function StagePage({ searchParams }: Props) {
@@ -39,6 +39,7 @@ export default async function StagePage({ searchParams }: Props) {
       tours={tours.map(serializeTour)}
       shows={publicShows}
       cancelled={params.cancelled === '1'}
+      tourSlug={params.tour || null}
     />
   )
 }

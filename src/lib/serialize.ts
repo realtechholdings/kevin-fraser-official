@@ -52,6 +52,7 @@ export type PublicShow = {
   date: string
   doorsTime: string
   showTime: string
+  showEndTime: string
   country: string
   city: string
   venue: string
@@ -66,6 +67,7 @@ export type PublicShow = {
   externalTicketUrl: string
   artworkImage: string
   artworkImageKey: string
+  artworkPosition: string
   venueImage: string
   venueImageKey: string
   description: string
@@ -181,6 +183,7 @@ export function serializeShow(
     date: toWallIso(show.date),
     doorsTime: show.doorsTime || '',
     showTime: show.showTime || '',
+    showEndTime: show.showEndTime || '',
     country: show.country,
     city: show.city,
     venue: show.venue,
@@ -197,6 +200,7 @@ export function serializeShow(
     artworkImage:
       show.artworkImage ||
       (show.artworkImageKey ? `/api/shows/${String(show._id)}/artwork` : ''),
+    artworkPosition: show.artworkPosition || 'center center',
     venueImageKey: show.venueImageKey || '',
     venueImage:
       show.venueImage ||

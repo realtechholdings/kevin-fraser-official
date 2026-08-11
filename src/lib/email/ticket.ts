@@ -2,7 +2,7 @@ import type { OrderDocument } from '@/lib/models/Order'
 import type { ShowDocument } from '@/lib/models/Show'
 import type { TourDocument } from '@/lib/models/Tour'
 import { getEmailSettings } from '@/lib/models/EmailSettings'
-import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
@@ -35,7 +35,7 @@ export function ticketTemplateVars(
     venue: show.venue,
     address: show.address || '',
     date: d.full,
-    time: show.showTime || '',
+    time: formatShowTimeRange(show.showTime, show.showEndTime) || '',
     doors: show.doorsTime || '',
     tier: order.tierName || 'General Admission',
     quantity: String(order.quantity),

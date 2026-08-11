@@ -1,11 +1,12 @@
 'use client'
 
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
-import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { isShowEffectivelySoldOut } from '@/lib/tickets/soldOut'
 
@@ -13,6 +14,7 @@ type Props = {
   tours: PublicTour[]
   shows: PublicShow[]
   cancelled?: boolean
+  tourSlug?: string | null
 }
 
 function statusLabel(status: string, effectivelySoldOut: boolean) {
@@ -22,9 +24,17 @@ function statusLabel(status: string, effectivelySoldOut: boolean) {
   return null
 }
 
-export default function StagePageClient({ tours, shows, cancelled }: Props) {
-  const featuredTour = tours.find((t) => t.featured) || tours[0]
-  const countries = Array.from(new Set(shows.map((s) => s.country)))
+export default function StagePageClient({ tours, shows, cancelled, tourSlug }: Props) {
+  const activeTour = useMemo(
+    () => (tourSlug ? tours.find((t) => t.slug === tourSlug) || null : null),
+    [tours, tourSlug],
+  )
+  const featuredTour = activeTour || tours.find((t) => t.featured) || tours[0]
+  const visibleShows = useMemo(
+    () => (activeTour ? shows.filter((s) => s.tour.id === activeTour.id) : shows),
+    [shows, activeTour],
+  )
+  const countries = Array.from(new Set(visibleShows.map((s) => s.country)))
   const { pending, navigate } = usePendingNav()
 
   return (
@@ -70,6 +80,20 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
             }}
           >
             Checkout cancelled — your tickets were not purchased.
+          </div>
+        ) : null}
+
+        {activeTour ? (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[var(--foreground-muted)]">
+              Showing dates for <span className="font-medium text-[var(--foreground)]">{activeTour.title}</span>
+            </p>
+            <Link
+              href="/worlds/stage"
+              className="text-xs uppercase tracking-[0.18em] text-[var(--foreground-subtle)] transition-colors hover:text-[var(--foreground)]"
+            >
+              View all tours
+            </Link>
           </div>
         ) : null}
 
@@ -156,14 +180,14 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
           )
         })()}
 
-        {shows.length === 0 ? (
+        {visibleShows.length === 0 ? (
           <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
-            New dates dropping soon.
+            {activeTour ? 'No upcoming dates for this tour yet.' : 'New dates dropping soon.'}
           </div>
         ) : (
           <div className="space-y-8 sm:space-y-10">
             {countries.map((country, countryIndex) => {
-              const countryShows = shows.filter((s) => s.country === country)
+              const countryShows = visibleShows.filter((s) => s.country === country)
               return (
                 <motion.section
                   key={country}
@@ -212,6 +236,9 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                             <div className="mt-1 text-[10px] uppercase tracking-widest text-[var(--foreground-subtle)]">
                               {d.weekday}
                             </div>
+                            <div className="mt-0.5 text-[10px] tracking-widest text-[var(--foreground-subtle)]">
+                              {d.year}
+                            </div>
                           </div>
 
                           {show.artworkImage ? (
@@ -221,6 +248,7 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                                 src={show.artworkImage}
                                 alt={`${show.city} artwork`}
                                 className="aspect-[3/4] h-[88px] w-full object-cover"
+                                style={{ objectPosition: show.artworkPosition || 'center center' }}
                               />
                             </div>
                           ) : (
@@ -263,7 +291,12 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                               {show.venue}
                             </p>
                             <p className="mt-0.5 text-xs text-[var(--foreground-subtle)]">
-                              {[show.address, show.showTime].filter(Boolean).join(' · ')}
+                              {[
+                                show.address,
+                                formatShowTimeRange(show.showTime, show.showEndTime),
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
                             </p>
                             <p className="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--foreground-muted)] sm:hidden">
                               {show.tiers && show.tiers.length > 1
@@ -330,9 +363,15 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                 const cardBgImage = cardBannerAbove
                   ? tour.coverImage
                   : tour.bannerImage || tour.coverImage
+                const isActive = activeTour?.id === tour.id
 
                 return (
-                  <div key={tour.id} className="space-y-3">
+                  <Link
+                    key={tour.id}
+                    href={`/worlds/stage?tour=${encodeURIComponent(tour.slug)}`}
+                    className="block space-y-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                    aria-current={isActive ? 'page' : undefined}
+                  >
                     {cardBannerAbove ? (
                       <div className="overflow-hidden rounded-2xl border border-[var(--border)]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -343,7 +382,14 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                         />
                       </div>
                     ) : null}
-                    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+                    <div
+                      className="overflow-hidden rounded-2xl border bg-[var(--surface)]"
+                      style={{
+                        borderColor: isActive
+                          ? 'color-mix(in srgb, var(--accent) 55%, transparent)'
+                          : 'var(--border)',
+                      }}
+                    >
                       {cardBgImage ? (
                         <div className="aspect-[16/9] overflow-hidden bg-[var(--surface-muted)]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -371,9 +417,12 @@ export default function StagePageClient({ tours, shows, cancelled }: Props) {
                             {tour.subtitle}
                           </p>
                         ) : null}
+                        <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-[var(--foreground-muted)]">
+                          View shows
+                        </p>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>

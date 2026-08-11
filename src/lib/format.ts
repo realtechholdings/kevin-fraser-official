@@ -28,6 +28,7 @@ export function formatShowDate(iso: string) {
     day: d.toLocaleDateString('en-AU', { ...utc, day: 'numeric' }),
     month: d.toLocaleDateString('en-AU', { ...utc, month: 'short' }).toUpperCase(),
     weekday: d.toLocaleDateString('en-AU', { ...utc, weekday: 'short' }),
+    year: String(parts.year),
     full: d.toLocaleDateString('en-AU', {
       ...utc,
       weekday: 'long',
@@ -36,6 +37,14 @@ export function formatShowDate(iso: string) {
       year: 'numeric',
     }),
   }
+}
+
+/** Display show start/end labels as a range when both are set. */
+export function formatShowTimeRange(start?: string | null, end?: string | null) {
+  const s = (start || '').trim()
+  const e = (end || '').trim()
+  if (s && e) return `${s} – ${e}`
+  return s || e
 }
 
 export function slugify(value: string) {

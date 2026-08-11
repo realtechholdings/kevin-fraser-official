@@ -37,6 +37,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (body.doorsTime !== undefined) show.doorsTime = String(body.doorsTime)
     if (body.showTime !== undefined) show.showTime = String(body.showTime)
+    if (body.showEndTime !== undefined) show.showEndTime = String(body.showEndTime)
     if (body.country !== undefined) show.country = String(body.country).trim()
     if (body.city !== undefined) show.city = String(body.city).trim()
     if (body.venue !== undefined) show.venue = String(body.venue).trim()
@@ -58,6 +59,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.artworkImage !== undefined) show.artworkImage = String(body.artworkImage)
     if (body.artworkImageKey !== undefined) {
       show.artworkImageKey = String(body.artworkImageKey)
+    }
+    if (body.artworkPosition !== undefined) {
+      show.artworkPosition = String(body.artworkPosition || 'center center').trim() || 'center center'
     }
     if (body.venueImage !== undefined) show.venueImage = String(body.venueImage)
     if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)

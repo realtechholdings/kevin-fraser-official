@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, CalendarDays } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
 import ThemeToggle from '@/components/theme/ThemeToggle'
-import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
 import { isShowEffectivelySoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
@@ -82,7 +82,12 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
           {heroImage ? (
             <div className="relative aspect-[16/9] sm:aspect-[2.4/1]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroImage} alt="" className="h-full w-full object-cover" />
+              <img
+                src={heroImage}
+                alt=""
+                className="h-full w-full object-cover"
+                style={{ objectPosition: show.artworkPosition || 'center center' }}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-8">
                 <p className="text-[11px] uppercase tracking-[0.3em] text-[#FF6600]">
@@ -148,10 +153,12 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-[var(--foreground-subtle)]" />
                   <div>
                     <p className="font-medium text-[var(--foreground)]">
-                      {d.weekday} {d.day} {d.month}
+                      {d.weekday} {d.day} {d.month} {d.year}
                     </p>
-                    {show.showTime ? (
-                      <p className="mt-0.5 text-[var(--foreground-muted)]">Show {show.showTime}</p>
+                    {formatShowTimeRange(show.showTime, show.showEndTime) ? (
+                      <p className="mt-0.5 text-[var(--foreground-muted)]">
+                        Show {formatShowTimeRange(show.showTime, show.showEndTime)}
+                      </p>
                     ) : null}
                     {show.doorsTime ? (
                       <p className="text-[var(--foreground-subtle)]">Doors {show.doorsTime}</p>
@@ -194,7 +201,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   : formatPrice(fromPrice, show.currency)}
               </p>
               <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                Choose your ticket type, then continue to secure checkout.
+                Choose your ticket type and quantity, then continue to secure checkout.
               </p>
 
               {show.tiers && show.tiers.length > 0 ? (

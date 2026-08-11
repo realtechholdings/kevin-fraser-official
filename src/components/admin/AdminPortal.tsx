@@ -69,6 +69,8 @@ type ShowForm = {
   title: string
   date: string
   showTime: string
+  showEndTime: string
+  doorsTime: string
   country: string
   city: string
   venue: string
@@ -82,6 +84,7 @@ type ShowForm = {
   externalTicketUrl: string
   artworkImage: string
   artworkImageKey: string
+  artworkPosition: string
   venueImage: string
   venueImageKey: string
   description: string
@@ -108,7 +111,9 @@ const emptyShow = (tourId = ''): ShowForm => ({
   tourId,
   title: '',
   date: '',
-  showTime: '19:30',
+  showTime: '7:30 PM',
+  showEndTime: '',
+  doorsTime: '',
   country: 'Australia',
   city: '',
   venue: '',
@@ -122,11 +127,24 @@ const emptyShow = (tourId = ''): ShowForm => ({
   externalTicketUrl: '',
   artworkImage: '',
   artworkImageKey: '',
+  artworkPosition: 'center center',
   venueImage: '',
   venueImageKey: '',
   description: '',
   tierConfigs: [],
 })
+
+const ARTWORK_POSITIONS = [
+  { value: 'center center', label: 'Centre' },
+  { value: 'center top', label: 'Top' },
+  { value: 'center bottom', label: 'Bottom' },
+  { value: 'left center', label: 'Left' },
+  { value: 'right center', label: 'Right' },
+  { value: 'left top', label: 'Top left' },
+  { value: 'right top', label: 'Top right' },
+  { value: 'left bottom', label: 'Bottom left' },
+  { value: 'right bottom', label: 'Bottom right' },
+] as const
 
 async function uploadAdminImage(file: File, folder: 'tours' | 'shows') {
   const form = new FormData()
@@ -480,6 +498,8 @@ export default function AdminPortal() {
       title: show.title,
       date: toWallInput(show.date),
       showTime: show.showTime,
+      showEndTime: show.showEndTime || '',
+      doorsTime: show.doorsTime || '',
       country: show.country,
       city: show.city,
       venue: show.venue,
@@ -493,6 +513,7 @@ export default function AdminPortal() {
       externalTicketUrl: show.externalTicketUrl,
       artworkImage: show.artworkImage || '',
       artworkImageKey: show.artworkImageKey || '',
+      artworkPosition: show.artworkPosition || 'center center',
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
@@ -1094,11 +1115,30 @@ export default function AdminPortal() {
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Show time label</label>
+                        <label className={labelClass}>Show start time</label>
                         <input
                           className={inputClass}
                           value={showForm.showTime}
                           onChange={(e) => setShowForm({ ...showForm, showTime: e.target.value })}
+                          placeholder="7:30 PM"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Show end time</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.showEndTime}
+                          onChange={(e) => setShowForm({ ...showForm, showEndTime: e.target.value })}
+                          placeholder="10:00 PM"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Doors time</label>
+                        <input
+                          className={inputClass}
+                          value={showForm.doorsTime}
+                          onChange={(e) => setShowForm({ ...showForm, doorsTime: e.target.value })}
+                          placeholder="7:00 PM"
                         />
                       </div>
                       <div>
@@ -1346,23 +1386,45 @@ export default function AdminPortal() {
                           onChange={(e) => void onShowArtworkChange(e.target.files?.[0] || null)}
                         />
                         {showForm.artworkImage || showForm.artworkImageKey ? (
-                          <div className="mt-2 max-w-xs overflow-hidden rounded-xl border border-white/10">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={showForm.artworkImage || `/api/shows/${editingShowId}/artwork`}
-                              alt=""
-                              className="aspect-[3/4] w-full object-cover"
-                            />
+                          <div className="mt-3 grid gap-3 sm:grid-cols-[200px_1fr]">
+                            <div className="overflow-hidden rounded-xl border border-white/10">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={showForm.artworkImage || `/api/shows/${editingShowId}/artwork`}
+                                alt=""
+                                className="aspect-[16/9] w-full object-cover"
+                                style={{ objectPosition: showForm.artworkPosition || 'center center' }}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelClass}>Artwork crop / focus</label>
+                              <select
+                                className={inputClass}
+                                value={showForm.artworkPosition || 'center center'}
+                                onChange={(e) =>
+                                  setShowForm({ ...showForm, artworkPosition: e.target.value })
+                                }
+                              >
+                                {ARTWORK_POSITIONS.map((pos) => (
+                                  <option key={pos.value} value={pos.value} className="bg-[#141420]">
+                                    {pos.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="mt-2 text-xs text-white/35">
+                                Controls which part of the image stays visible on the event page hero.
+                              </p>
+                              <button
+                                type="button"
+                                className="mt-3 text-xs text-white/40 hover:text-white/70"
+                                onClick={() =>
+                                  setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
+                                }
+                              >
+                                Remove artwork
+                              </button>
+                            </div>
                           </div>
-                        ) : null}
-                        {(showForm.artworkImage || showForm.artworkImageKey) ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs text-white/40 hover:text-white/70"
-                            onClick={() => setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))}
-                          >
-                            Remove artwork
-                          </button>
                         ) : null}
                       </div>
                       <div className="md:col-span-2">
