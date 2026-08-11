@@ -1,11 +1,13 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, CalendarDays } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
 import { isShowEffectivelySoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 
@@ -33,6 +35,17 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
     show.tiers && show.tiers.length
       ? Math.min(...show.tiers.map((t) => t.priceCents))
       : show.priceCents
+
+  useEffect(() => {
+    trackMeta('ViewContent', {
+      content_ids: [show.id],
+      content_name: `${show.city} · ${show.venue}`,
+      content_type: 'product',
+      content_category: show.tour.title || 'Live show',
+      value: centsToMetaValue(fromPrice),
+      currency: show.currency,
+    })
+  }, [show.id, show.city, show.venue, show.tour.title, show.currency, fromPrice])
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">

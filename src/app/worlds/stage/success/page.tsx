@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { CheckCircle2 } from 'lucide-react'
+import MetaPurchasePixel from '@/components/analytics/MetaPurchasePixel'
 
 export const metadata: Metadata = {
   title: 'Tickets Confirmed | Kevin Fraser Official',
@@ -31,10 +32,17 @@ async function verify(sessionId?: string) {
       await fulfillPaidOrder(order, session)
     }
 
+    const showId =
+      session.metadata?.showId || (order?.show ? String(order.show) : null)
+
     return {
       paid: session.payment_status === 'paid',
       email: session.customer_details?.email || session.customer_email || order?.email || null,
-      quantity: order?.quantity || 1,
+      quantity: order?.quantity || Number(session.metadata?.quantity || 1),
+      amountTotal: session.amount_total ?? order?.amountTotal ?? null,
+      currency: session.currency || order?.currency || null,
+      showId,
+      contentName: order?.tierName || session.metadata?.tierName || null,
     }
   } catch {
     return null
@@ -43,12 +51,24 @@ async function verify(sessionId?: string) {
 
 export default async function StageSuccessPage({ searchParams }: Props) {
   const params = await searchParams
-  const result = await verify(params.session_id)
+  const sessionId = params.session_id || ''
+  const result = await verify(sessionId || undefined)
 
   return (
     <div
       className="flex min-h-screen items-center justify-center overflow-y-auto bg-[var(--background)] px-6"
     >
+      {result?.paid && sessionId ? (
+        <MetaPurchasePixel
+          sessionId={sessionId}
+          paid
+          amountTotal={result.amountTotal}
+          currency={result.currency}
+          showId={result.showId}
+          quantity={result.quantity}
+          contentName={result.contentName}
+        />
+      ) : null}
       <div className="w-full max-w-md rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-8 py-12 text-center">
         <CheckCircle2 className="mx-auto mb-5" size={48} style={{ color: 'var(--accent)' }} />
         <h1

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
+import { centsToMetaValue, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
 
 type Props = {
@@ -55,6 +56,18 @@ export default function TicketButton({
       if (!res.ok || !data.url) {
         throw new Error(data.error || 'Checkout failed')
       }
+
+      const checkoutParams = {
+        content_ids: [showId],
+        content_name: selected.name,
+        content_type: 'product',
+        value: centsToMetaValue(selected.priceCents),
+        currency: selected.currency,
+        num_items: 1,
+      }
+      trackMeta('InitiateCheckout', checkoutParams)
+      savePendingCheckout({ ...checkoutParams, showId })
+
       window.location.href = data.url
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed')
