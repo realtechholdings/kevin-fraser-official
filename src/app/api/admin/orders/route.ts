@@ -5,6 +5,7 @@ import Order from '@/lib/models/Order'
 // Registers schemas for .populate()
 import '@/lib/models/Show'
 import '@/lib/models/Tour'
+import { toWallIso } from '@/lib/wallDate'
 
 const MAX_ORDERS = 500
 
@@ -58,7 +59,7 @@ export async function GET() {
                 id: String(show._id),
                 city: show.city || '',
                 venue: show.venue || '',
-                date: show.date ? new Date(show.date).toISOString() : null,
+                date: show.date ? toWallIso(show.date) : null,
                 tour: show.tour && typeof show.tour === 'object' ? show.tour.title || '' : '',
               }
             : null,

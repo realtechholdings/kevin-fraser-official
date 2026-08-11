@@ -383,8 +383,8 @@ export default function AdminPortal() {
         ...tourForm,
         coverImage: tourForm.coverImage.startsWith('blob:') ? '' : tourForm.coverImage,
         bannerImage: tourForm.bannerImage.startsWith('blob:') ? '' : tourForm.bannerImage,
-        startDate: tourForm.startDate || null,
-        endDate: tourForm.endDate || null,
+        startDate: tourForm.startDate ? toWallInput(tourForm.startDate) : null,
+        endDate: tourForm.endDate ? toWallInput(tourForm.endDate) : null,
       }
       const res = await fetch(
         editingTourId ? `/api/admin/tours/${editingTourId}` : '/api/admin/tours',
@@ -416,6 +416,7 @@ export default function AdminPortal() {
     try {
       const payload = {
         ...showForm,
+        date: toWallInput(showForm.date),
         artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
         venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
         priceCents: Number(showForm.priceCents) || 0,

@@ -7,6 +7,7 @@ import type { StudioContentDocument } from '@/lib/models/StudioContent'
 import type { TicketTierDocument, TierOwnerType } from '@/lib/models/TicketTier'
 import type { Kevin11Category, Kevin11OverlaySlot } from '@/lib/kevin11/categories'
 import type { Kevin11ContentDocument } from '@/lib/models/Kevin11Content'
+import { toWallIso } from '@/lib/wallDate'
 
 export type PublicTour = {
   id: string
@@ -148,8 +149,8 @@ export function serializeTour(tour: TourDocument): PublicTour {
     bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
     featured: Boolean(tour.featured),
     published: Boolean(tour.published),
-    startDate: tour.startDate ? new Date(tour.startDate).toISOString() : null,
-    endDate: tour.endDate ? new Date(tour.endDate).toISOString() : null,
+    startDate: tour.startDate ? toWallIso(tour.startDate) : null,
+    endDate: tour.endDate ? toWallIso(tour.endDate) : null,
   }
 }
 
@@ -177,7 +178,7 @@ export function serializeShow(
     id: String(show._id),
     tour: tourPayload,
     title: show.title,
-    date: new Date(show.date).toISOString(),
+    date: toWallIso(show.date),
     doorsTime: show.doorsTime || '',
     showTime: show.showTime || '',
     country: show.country,

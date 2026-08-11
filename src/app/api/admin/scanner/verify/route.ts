@@ -7,6 +7,7 @@ import Order, { type OrderDocument } from '@/lib/models/Order'
 import '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
+import { toWallIso } from '@/lib/wallDate'
 
 export type ScanVerdict =
   | 'valid'
@@ -56,7 +57,7 @@ function serializeScan(order: OrderDocument, ticket: number | null) {
     tour?: { title?: string } | null
   } | null
 
-  const dateLabel = show?.date ? formatShowDate(new Date(show.date).toISOString()).full : ''
+  const dateLabel = show?.date ? formatShowDate(toWallIso(show.date) || String(show.date)).full : ''
 
   return {
     orderId: String(order._id),

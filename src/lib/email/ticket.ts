@@ -3,6 +3,7 @@ import type { ShowDocument } from '@/lib/models/Show'
 import type { TourDocument } from '@/lib/models/Tour'
 import { getEmailSettings } from '@/lib/models/EmailSettings'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import { toWallIso } from '@/lib/wallDate'
 import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
 import { sendEmail } from '@/lib/email/resend'
@@ -23,7 +24,7 @@ export function ticketTemplateVars(
   show: ShowDocument & { tour?: TourDocument | unknown },
   order: TicketOrderLike,
 ) {
-  const d = formatShowDate(new Date(show.date).toISOString())
+  const d = formatShowDate(toWallIso(show.date) || String(show.date))
   const tourTitle = tourTitleOf(show)
   return {
     name: order.email.split('@')[0],

@@ -1,3 +1,5 @@
+import { parseWallParts } from '@/lib/wallDate'
+
 export function formatPrice(cents: number, currency: string) {
   try {
     return new Intl.NumberFormat('en-AU', {
@@ -11,10 +13,17 @@ export function formatPrice(cents: number, currency: string) {
   }
 }
 
-/** Format show calendar date in UTC so the wall-clock day never shifts by timezone. */
+/** Format show calendar date from wall-clock digits only (no timezone shift). */
 export function formatShowDate(iso: string) {
-  const d = new Date(iso)
+  const parts = parseWallParts(iso)
+  if (!parts) {
+    return { day: '', month: '', weekday: '', full: '' }
+  }
+
+  // Build a UTC date from the wall digits so weekday/month names stay on that calendar day.
+  const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0))
   const utc = { timeZone: 'UTC' as const }
+
   return {
     day: d.toLocaleDateString('en-AU', { ...utc, day: 'numeric' }),
     month: d.toLocaleDateString('en-AU', { ...utc, month: 'short' }).toUpperCase(),

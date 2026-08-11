@@ -7,6 +7,7 @@ import Order from '@/lib/models/Order'
 import { appUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
+import { toWallInput } from '@/lib/wallDate'
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,11 +96,7 @@ export async function POST(req: NextRequest) {
               unit_amount: selected.priceCents,
               product_data: {
                 name: `${tourTitle} — ${show.city} (${selected.name})`,
-                description: `${show.venue} · ${new Date(show.date).toLocaleString('en-AU', {
-                  timeZone: 'UTC',
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}`,
+                description: `${show.venue} · ${toWallInput(show.date).replace('T', ' ')}`,
               },
             },
           },
