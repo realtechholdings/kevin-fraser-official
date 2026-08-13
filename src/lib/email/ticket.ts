@@ -1,13 +1,15 @@
 import type { OrderDocument } from '@/lib/models/Order'
 import type { ShowDocument } from '@/lib/models/Show'
 import type { TourDocument } from '@/lib/models/Tour'
+import type { TicketTierDocument } from '@/lib/models/TicketTier'
+import TicketTier from '@/lib/models/TicketTier'
 import { getEmailSettings } from '@/lib/models/EmailSettings'
 import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
 import { fromAddress, sendEmail } from '@/lib/email/resend'
-import { generateTicketsPdf } from '@/lib/email/ticketPdf'
+import { generateTicketPdfs } from '@/lib/email/ticketPdf'
 import { createR2DownloadUrl, publicUrlForKey } from '@/lib/r2'
 
 function tourOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
@@ -24,7 +26,7 @@ function tourTitleOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
 export type TicketOrderLike = Pick<
   OrderDocument,
   'email' | 'quantity' | 'amountTotal' | 'currency' | 'tierName'
-> & { _id: unknown }
+> & { _id: unknown; tier?: unknown }
 
 export function ticketTemplateVars(
   show: ShowDocument & { tour?: TourDocument | unknown },
@@ -50,14 +52,14 @@ export function ticketTemplateVars(
   }
 }
 
-async function resolveArtworkBytes(
-  show: ShowDocument & { tour?: TourDocument | unknown },
-): Promise<Uint8Array | undefined> {
-  const tour = tourOf(show)
-  const key = tour?.ticketArtworkKey || show.artworkImageKey || ''
-  const urlHint = tour?.ticketArtwork || show.artworkImage || ''
-
+async function resolveArtworkBytes(opts: {
+  artworkKey?: string
+  artworkUrl?: string
+}): Promise<Uint8Array | undefined> {
+  const key = opts.artworkKey || ''
+  const urlHint = opts.artworkUrl || ''
   const candidates: string[] = []
+
   if (key) {
     const pub = publicUrlForKey(key)
     if (pub) candidates.push(pub)
@@ -85,7 +87,40 @@ async function resolveArtworkBytes(
   return undefined
 }
 
-/** Build + send the ticket confirmation email with the PDF tickets attached. */
+async function resolveTicketBranding(
+  show: ShowDocument & { tour?: TourDocument | unknown },
+  order: TicketOrderLike,
+) {
+  const tour = tourOf(show)
+  let tier: TicketTierDocument | null = null
+  if (order.tier) {
+    try {
+      tier = await TicketTier.findById(String(order.tier))
+    } catch {
+      tier = null
+    }
+  }
+
+  const accentHex =
+    String(tier?.ticketAccent || '').trim() ||
+    String(tour?.ticketAccent || '').trim() ||
+    '#FF6600'
+
+  const artworkKey =
+    String(tier?.ticketArtworkKey || '').trim() ||
+    String(tour?.ticketArtworkKey || '').trim() ||
+    String(show.artworkImageKey || '').trim()
+
+  const artworkUrl =
+    String(tier?.ticketArtwork || '').trim() ||
+    String(tour?.ticketArtwork || '').trim() ||
+    String(show.artworkImage || '').trim()
+
+  const artworkBytes = await resolveArtworkBytes({ artworkKey, artworkUrl })
+  return { accentHex, artworkBytes }
+}
+
+/** Build + send the ticket confirmation email with one PDF attachment per ticket. */
 export async function sendTicketEmail(
   order: TicketOrderLike,
   show: ShowDocument & { tour?: TourDocument | unknown },
@@ -108,9 +143,8 @@ export async function sendTicketEmail(
     appUrl: appUrl(),
   })
 
-  const tour = tourOf(show)
-  const artworkBytes = await resolveArtworkBytes(show)
-  const pdf = await generateTicketsPdf({
+  const branding = await resolveTicketBranding(show, order)
+  const pdfs = await generateTicketPdfs({
     orderId: String(order._id),
     buyerEmail: order.email,
     tourTitle: vars.tour,
@@ -122,8 +156,8 @@ export async function sendTicketEmail(
     timeLabel: vars.time,
     tierName: vars.tier,
     quantity: order.quantity,
-    accentHex: tour?.ticketAccent || '#FF6600',
-    artworkBytes,
+    accentHex: branding.accentHex,
+    artworkBytes: branding.artworkBytes,
   })
 
   const from = fromAddress(opts?.host)
@@ -133,13 +167,11 @@ export async function sendTicketEmail(
     subject,
     text,
     html,
-    attachments: [
-      {
-        filename: `kevin-fraser-tickets-${String(order._id).slice(-8)}.pdf`,
-        content: Buffer.from(pdf).toString('base64'),
-      },
-    ],
+    attachments: pdfs.map((pdf) => ({
+      filename: pdf.filename,
+      content: Buffer.from(pdf.bytes).toString('base64'),
+    })),
   })
 
-  return { skipped: false as const, id: result.id, from }
+  return { skipped: false as const, id: result.id, from, attachmentCount: pdfs.length }
 }

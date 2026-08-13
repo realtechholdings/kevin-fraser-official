@@ -86,8 +86,15 @@ export async function POST(req: NextRequest) {
       soldOut: Boolean(body.soldOut),
       sortOrder: Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0,
       published: body.published !== false,
+      ticketAccent: String(body.ticketAccent || '').trim(),
+      ticketArtwork: String(body.ticketArtwork || ''),
+      ticketArtworkKey: String(body.ticketArtworkKey || ''),
     })
 
+    if (tier.ticketArtworkKey && !tier.ticketArtwork) {
+      tier.ticketArtwork = `/api/tiers/${tier._id}/ticket-artwork`
+      await tier.save()
+    }
     return NextResponse.json({ success: true, tier: serializeTicketTier(tier) }, { status: 201 })
   } catch (error) {
     console.error('Admin tiers POST:', error)

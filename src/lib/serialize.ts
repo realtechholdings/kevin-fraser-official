@@ -47,6 +47,9 @@ export type PublicTicketTier = {
   legacy?: boolean
   /** Show-owned tier that inherits price/currency from the matching tour tier */
   inheritPrice?: boolean
+  ticketAccent: string
+  ticketArtwork: string
+  ticketArtworkKey: string
 }
 
 export type PublicShow = {
@@ -231,8 +234,10 @@ export function serializeShow(
 }
 
 export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier {
+  const id = String(tier._id)
+  const ticketArtKey = tier.ticketArtworkKey || ''
   return {
-    id: String(tier._id),
+    id,
     ownerType: tier.ownerType as TierOwnerType,
     ownerId: String(tier.ownerId),
     name: tier.name,
@@ -246,6 +251,11 @@ export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier 
     sortOrder: tier.sortOrder || 0,
     published: Boolean(tier.published),
     inheritPrice: Boolean(tier.inheritPrice),
+    ticketAccent: String(tier.ticketAccent || '').trim(),
+    ticketArtworkKey: ticketArtKey,
+    ticketArtwork:
+      tier.ticketArtwork ||
+      (ticketArtKey ? `/api/tiers/${id}/ticket-artwork` : ''),
   }
 }
 

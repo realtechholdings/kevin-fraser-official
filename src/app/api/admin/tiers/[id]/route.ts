@@ -38,6 +38,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (body.sortOrder !== undefined) tier.sortOrder = Number(body.sortOrder) || 0
     if (body.published !== undefined) tier.published = Boolean(body.published)
     if (body.soldOut !== undefined) tier.soldOut = Boolean(body.soldOut)
+    if (body.ticketAccent !== undefined) {
+      tier.ticketAccent = String(body.ticketAccent || '').trim()
+    }
+    if (body.ticketArtwork !== undefined) tier.ticketArtwork = String(body.ticketArtwork)
+    if (body.ticketArtworkKey !== undefined) {
+      tier.ticketArtworkKey = String(body.ticketArtworkKey || '')
+      if (tier.ticketArtworkKey && !tier.ticketArtwork) {
+        tier.ticketArtwork = `/api/tiers/${tier._id}/ticket-artwork`
+      }
+    }
 
     await tier.save()
 

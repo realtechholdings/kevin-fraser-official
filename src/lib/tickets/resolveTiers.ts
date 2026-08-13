@@ -58,6 +58,9 @@ function legacyTier(
     sortOrder: 0,
     published: true,
     legacy: true,
+    ticketAccent: '',
+    ticketArtwork: '',
+    ticketArtworkKey: '',
   }
 }
 

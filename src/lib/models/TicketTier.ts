@@ -33,6 +33,11 @@ const TicketTierSchema = new Schema(
     soldOut: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
+    /** Optional ticket PDF accent colour override for this tier (hex) */
+    ticketAccent: { type: String, default: '', trim: true },
+    /** Optional ticket PDF side artwork for this tier */
+    ticketArtwork: { type: String, default: '' },
+    ticketArtworkKey: { type: String, default: '' },
   },
   { timestamps: true },
 )

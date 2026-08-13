@@ -91,6 +91,10 @@ export function tourMediaKey(filename: string) {
   return r2ObjectKey('tours', filename)
 }
 
+export function tierMediaKey(filename: string) {
+  return r2ObjectKey('tiers', filename)
+}
+
 export function showMediaKey(filename: string) {
   return r2ObjectKey('shows', filename)
 }

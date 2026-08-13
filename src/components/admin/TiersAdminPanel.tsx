@@ -5,6 +5,7 @@ import { Layers, Plus, Trash2 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
+import ImageCropField from '@/components/admin/ImageCropField'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -25,6 +26,9 @@ type TierForm = {
   sortOrder: string
   published: boolean
   soldOut: boolean
+  ticketAccent: string
+  ticketArtwork: string
+  ticketArtworkKey: string
 }
 
 const emptyForm = (ownerType: 'tour' | 'show' = 'tour', ownerId = ''): TierForm => ({
@@ -39,8 +43,24 @@ const emptyForm = (ownerType: 'tour' | 'show' = 'tour', ownerId = ''): TierForm 
   sortOrder: '0',
   published: true,
   soldOut: false,
+  ticketAccent: '',
+  ticketArtwork: '',
+  ticketArtworkKey: '',
 })
 
+async function uploadTierImage(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('folder', 'tiers')
+  const res = await fetch('/api/admin/media/upload', { method: 'POST', body: form })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Image upload failed')
+  if (!data.key) throw new Error('Upload did not return a storage key.')
+  return {
+    key: data.key as string,
+    publicUrl: (data.publicUrl as string) || '',
+  }
+}
 export default function TiersAdminPanel({
   onMessage,
   onError,
@@ -133,8 +153,30 @@ export default function TiersAdminPanel({
       sortOrder: String(tier.sortOrder),
       published: tier.published,
       soldOut: Boolean(tier.soldOut),
+      ticketAccent: tier.ticketAccent || '',
+      ticketArtwork: tier.ticketArtwork || '',
+      ticketArtworkKey: tier.ticketArtworkKey || '',
     })
     setShowForm(true)
+  }
+
+  async function onTierArtworkChange(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    onError('')
+    try {
+      const uploaded = await uploadTierImage(file)
+      setForm((prev) => ({
+        ...prev,
+        ticketArtworkKey: uploaded.key,
+        ticketArtwork: uploaded.publicUrl || URL.createObjectURL(file),
+      }))
+      onMessage('Tier ticket artwork uploaded. Save the tier to keep it.')
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function save(e: React.FormEvent) {
@@ -145,6 +187,7 @@ export default function TiersAdminPanel({
     try {
       const payload = {
         ...form,
+        ticketArtwork: form.ticketArtwork.startsWith('blob:') ? '' : form.ticketArtwork,
         priceCents: Number(form.priceCents) || 0,
         capacity: Number(form.capacity) || 0,
         sortOrder: Number(form.sortOrder) || 0,
@@ -373,6 +416,66 @@ export default function TiersAdminPanel({
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             />
+          </div>
+
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+              Ticket branding (optional)
+            </p>
+            <p className="mb-4 text-xs text-white/35">
+              Overrides tour ticket branding for this class (e.g. VIP vs GA). Leave blank to inherit
+              the tour defaults.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Ticket accent colour</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+                    value={
+                      /^#[0-9a-fA-F]{6}$/.test(form.ticketAccent) ? form.ticketAccent : '#FF6600'
+                    }
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, ticketAccent: e.target.value.toUpperCase() }))
+                    }
+                    disabled={busy}
+                  />
+                  <input
+                    className={inputClass}
+                    value={form.ticketAccent}
+                    onChange={(e) => setForm((f) => ({ ...f, ticketAccent: e.target.value }))}
+                    placeholder="#FF6600 or blank = tour default"
+                  />
+                </div>
+                {form.ticketAccent ? (
+                  <button
+                    type="button"
+                    className={`${btnGhost} mt-2`}
+                    onClick={() => setForm((f) => ({ ...f, ticketAccent: '' }))}
+                  >
+                    Clear accent (use tour default)
+                  </button>
+                ) : null}
+              </div>
+              <div>
+                <ImageCropField
+                  label="Ticket artwork"
+                  preset="ticketArt"
+                  currentUrl={
+                    form.ticketArtwork ||
+                    (form.ticketArtworkKey && editingId
+                      ? `/api/tiers/${editingId}/ticket-artwork`
+                      : '')
+                  }
+                  disabled={busy}
+                  onCropped={(file) => void onTierArtworkChange(file)}
+                  onRemoveCurrent={() =>
+                    setForm((f) => ({ ...f, ticketArtwork: '', ticketArtworkKey: '' }))
+                  }
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-4">

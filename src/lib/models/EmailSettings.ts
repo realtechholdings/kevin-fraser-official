@@ -4,11 +4,11 @@ export const DEFAULT_TICKET_SUBJECT = 'Your tickets — {{show}} in {{city}}'
 
 export const DEFAULT_TICKET_BODY = `Hi {{name}},
 
-Thanks for your purchase! Your {{quantity}} x {{tier}} ticket(s) for {{show}} at {{venue}}, {{city}} on {{date}} are attached as a PDF.
+Thanks for your purchase! Your {{quantity}} x {{tier}} ticket(s) for {{show}} at {{venue}}, {{city}} on {{date}} are attached — one PDF per ticket so you can forward them individually.
 
 Show starts at {{time}}. Order reference: {{orderId}}.
 
-Bring the attached PDF (printed or on your phone) to the door — see you there!`
+Bring each attached PDF (printed or on your phone) to the door — see you there!`
 
 /** Singleton document (key: 'default') holding CMS email configuration. */
 const EmailSettingsSchema = new Schema(
