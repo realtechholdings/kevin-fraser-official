@@ -4,7 +4,7 @@ import Show from '@/lib/models/Show'
 // Registers the Tour schema so .populate('tour') works in this route
 import '@/lib/models/Tour'
 import Order from '@/lib/models/Order'
-import { appUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
+import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 import { toWallInput } from '@/lib/wallDate'
@@ -80,13 +80,14 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = getStripe()
+    const returnBase = checkoutReturnUrl(req)
     const session = await stripe.checkout.sessions.create(
       {
         mode: 'payment',
         // Show buyers their local currency at checkout (charge stays in the show's currency)
         adaptive_pricing: { enabled: true },
-        success_url: `${appUrl()}/worlds/stage/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl()}/worlds/stage?cancelled=1`,
+        success_url: `${returnBase}/worlds/stage/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${returnBase}/worlds/stage?cancelled=1`,
         customer_email: typeof body.email === 'string' ? body.email : undefined,
         line_items: [
           {
