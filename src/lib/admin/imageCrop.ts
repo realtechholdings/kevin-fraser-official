@@ -65,7 +65,7 @@ export const IMAGE_CROP_PRESETS = {
     label: '2.4:1 hero',
     aspect: 2.4,
     outputWidth: 2400,
-    hint: 'Event page artwork',
+    hint: 'Event page banner (list uses a square fit of the same image)',
   },
   venue: {
     id: 'venue',

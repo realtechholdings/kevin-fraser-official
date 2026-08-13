@@ -248,13 +248,12 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                           </div>
 
                           {show.artworkImage ? (
-                            <div className="hidden overflow-hidden rounded-xl border border-[var(--border)] sm:block">
+                            <div className="hidden h-[88px] w-[88px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] sm:block">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={show.artworkImage}
                                 alt={`${show.city} artwork`}
-                                className="aspect-[3/4] h-[88px] w-full object-cover"
-                                style={{ objectPosition: show.artworkPosition || 'center center' }}
+                                className="h-full w-full object-contain"
                               />
                             </div>
                           ) : (

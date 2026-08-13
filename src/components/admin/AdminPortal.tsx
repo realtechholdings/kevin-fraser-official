@@ -1479,7 +1479,7 @@ export default function AdminPortal() {
                       </div>
                       <div className="md:col-span-2">
                         <ImageCropField
-                          label="Show artwork"
+                          label="Show artwork (event banner)"
                           preset="showArtwork"
                           currentUrl={
                             showForm.artworkImage ||
@@ -1493,6 +1493,9 @@ export default function AdminPortal() {
                             setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
                           }
                         />
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Cropped for the show page hero. On the Stage list it shows square and fitted (not cropped again).
+                        </p>
                         {(showForm.artworkImage || showForm.artworkImageKey) ? (
                           <div className="mt-3 max-w-sm">
                             <label className={labelClass}>Fine-tune focus (optional)</label>
