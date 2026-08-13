@@ -374,14 +374,9 @@ function HotspotLayer({
 
 function PoweredByGroundEffect({
   align = 'end',
-  large = false,
 }: {
   align?: 'center' | 'end'
-  /** Desktop — doubled logo only */
-  large?: boolean
 }) {
-  const logoHeight = large ? 72 : 36
-
   return (
     <a
       href="https://www.groundeffect.ai/"
@@ -420,7 +415,7 @@ function PoweredByGroundEffect({
         height={375}
         style={{
           display: 'block',
-          height: logoHeight,
+          height: 72,
           width: 'auto',
           objectFit: 'contain',
         }}
@@ -519,7 +514,7 @@ function LegalNav({ sticky }: { sticky?: boolean }) {
               }
         }
       >
-        <PoweredByGroundEffect align={sticky ? 'center' : 'end'} large={!sticky} />
+        <PoweredByGroundEffect align={sticky ? 'center' : 'end'} />
       </div>
     </div>
   )
