@@ -372,68 +372,151 @@ function HotspotLayer({
   )
 }
 
+function PoweredByGroundEffect({
+  align = 'end',
+}: {
+  align?: 'center' | 'end'
+}) {
+  return (
+    <a
+      href="https://www.groundeffect.ai/"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Powered by Ground Effect"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.4rem',
+        textDecoration: 'none',
+        color: 'rgba(242,240,235,0.55)',
+        fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+        textTransform: 'uppercase',
+        fontSize: '10px',
+        letterSpacing: '0.12em',
+        justifyContent: align === 'center' ? 'center' : 'flex-end',
+        opacity: 0.9,
+        transition: 'opacity 0.15s ease, color 0.15s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.opacity = '1'
+        e.currentTarget.style.color = 'rgba(242,240,235,0.85)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.opacity = '0.9'
+        e.currentTarget.style.color = 'rgba(242,240,235,0.55)'
+      }}
+    >
+      <span>Powered by</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/ground-effect-logo.jpg"
+        alt="Ground Effect"
+        width={96}
+        height={54}
+        style={{
+          display: 'block',
+          height: '18px',
+          width: 'auto',
+          objectFit: 'contain',
+        }}
+      />
+    </a>
+  )
+}
+
 function LegalNav({ sticky }: { sticky?: boolean }) {
   return (
-    <nav
-      aria-label="Legal"
+    <div
       style={{
         ...(sticky
           ? {
               position: 'relative' as const,
               marginTop: '1.25rem',
               marginBottom: 'max(1rem, env(safe-area-inset-bottom))',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              alignItems: 'center',
+              gap: '0.75rem',
+              paddingLeft: '1rem',
+              paddingRight: '1rem',
             }
           : {
               position: 'fixed' as const,
+              insetInline: 0,
               bottom: 'max(12px, env(safe-area-inset-bottom))',
-              left: '50%',
-              transform: 'translateX(-50%)',
+              zIndex: 50,
+              display: 'grid',
+              gridTemplateColumns: '1fr auto 1fr',
+              alignItems: 'center',
+              paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+              paddingRight: 'max(1rem, env(safe-area-inset-right))',
+              pointerEvents: 'none' as const,
             }),
         zIndex: 50,
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '10px 14px',
-        maxWidth: 'calc(100vw - 2rem)',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-        fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
-        textTransform: 'uppercase',
-        fontSize: 'clamp(10px, 1.2vw, 12px)',
-        letterSpacing: '0.14em',
       }}
     >
-      {[
-        { href: '/terms', label: 'Terms of Service' },
-        { href: '/refund-policy', label: 'Refund Policy' },
-        { href: '/privacy', label: 'Privacy' },
-      ].map((link, i) => (
-        <span key={link.href} style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
-          {i > 0 ? (
-            <span aria-hidden="true" style={{ color: 'rgba(196,163,90,0.55)' }}>
-              ·
-            </span>
-          ) : null}
-          <Link
-            href={link.href}
-            style={{
-              color: 'rgba(242,240,235,0.72)',
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#C4A35A'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
-            }}
-          >
-            {link.label}
-          </Link>
-        </span>
-      ))}
-    </nav>
+      {!sticky ? <span aria-hidden="true" /> : null}
+      <nav
+        aria-label="Legal"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '10px 14px',
+          maxWidth: 'calc(100vw - 2rem)',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
+          textTransform: 'uppercase',
+          fontSize: 'clamp(10px, 1.2vw, 12px)',
+          letterSpacing: '0.14em',
+          pointerEvents: 'auto',
+        }}
+      >
+        {[
+          { href: '/terms', label: 'Terms of Service' },
+          { href: '/refund-policy', label: 'Refund Policy' },
+          { href: '/privacy', label: 'Privacy' },
+        ].map((link, i) => (
+          <span key={link.href} style={{ display: 'inline-flex', alignItems: 'center', gap: '14px' }}>
+            {i > 0 ? (
+              <span aria-hidden="true" style={{ color: 'rgba(196,163,90,0.55)' }}>
+                ·
+              </span>
+            ) : null}
+            <Link
+              href={link.href}
+              style={{
+                color: 'rgba(242,240,235,0.72)',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#C4A35A'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
+              }}
+            >
+              {link.label}
+            </Link>
+          </span>
+        ))}
+      </nav>
+      <div
+        style={
+          sticky
+            ? { pointerEvents: 'auto' }
+            : {
+                justifySelf: 'end',
+                pointerEvents: 'auto',
+              }
+        }
+      >
+        <PoweredByGroundEffect align={sticky ? 'center' : 'end'} />
+      </div>
+    </div>
   )
 }
 
