@@ -136,6 +136,8 @@ export default function Kevin11AdminPanel({
   const [thumbFile, setThumbFile] = useState<File | null>(null)
   const [thumbPreview, setThumbPreview] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingItem, setEditingItem] = useState<PublicKevin11Content | null>(null)
+  const [removeThumbnail, setRemoveThumbnail] = useState(false)
   const [filter, setFilter] = useState<Kevin11Category | 'all'>('all')
 
   async function load() {
@@ -179,14 +181,17 @@ export default function Kevin11AdminPanel({
 
   function openCreate() {
     setEditingId(null)
+    setEditingItem(null)
     setForm(emptyForm)
     setMediaFile(null)
     setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
   function openEdit(item: PublicKevin11Content) {
     setEditingId(item.id)
+    setEditingItem(item)
     setForm({
       title: item.title,
       description: item.description,
@@ -200,6 +205,7 @@ export default function Kevin11AdminPanel({
     })
     setMediaFile(null)
     setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
@@ -209,7 +215,7 @@ export default function Kevin11AdminPanel({
     onMessage('')
     onError('')
     try {
-      const payload = {
+      const basePayload = {
         title: form.title,
         description: form.description,
         category: form.category,
@@ -222,6 +228,25 @@ export default function Kevin11AdminPanel({
       }
 
       if (editingId) {
+        const payload: Record<string, unknown> = { ...basePayload }
+
+        if (mediaFile) {
+          const media = await uploadFile(mediaFile)
+          payload.mediaKey = media.key
+          payload.mediaUrl = media.publicUrl || `/api/kevin11/${editingId}/file`
+          payload.mimeType = mediaFile.type || 'application/octet-stream'
+          payload.sizeBytes = mediaFile.size
+        }
+
+        if (thumbFile) {
+          const thumb = await uploadFile(thumbFile)
+          payload.thumbnailKey = thumb.key
+          payload.thumbnailUrl = thumb.publicUrl || `/api/kevin11/${editingId}/thumbnail`
+        } else if (removeThumbnail) {
+          payload.thumbnailKey = ''
+          payload.thumbnailUrl = ''
+        }
+
         const res = await fetch(`/api/admin/kevin11/${editingId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -245,7 +270,7 @@ export default function Kevin11AdminPanel({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...payload,
+            ...basePayload,
             mediaKey: media.key,
             mediaUrl: media.publicUrl,
             thumbnailKey,
@@ -261,9 +286,11 @@ export default function Kevin11AdminPanel({
 
       setShowForm(false)
       setEditingId(null)
+      setEditingItem(null)
       setForm(emptyForm)
       setMediaFile(null)
       setCroppedThumb(null)
+      setRemoveThumbnail(false)
       await load()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Save failed'
@@ -365,6 +392,10 @@ export default function Kevin11AdminPanel({
               onClick={() => {
                 setShowForm(false)
                 setEditingId(null)
+                setEditingItem(null)
+                setMediaFile(null)
+                setCroppedThumb(null)
+                setRemoveThumbnail(false)
               }}
             >
               Cancel
@@ -464,29 +495,54 @@ export default function Kevin11AdminPanel({
             </div>
           </div>
 
-          {!editingId ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Media (video or image)</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="video/*,image/*"
-                  onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                  required
-                />
-              </div>
-              <ImageCropField
-                label="Thumbnail (optional)"
-                preset="kevin11Thumb"
-                pendingUrl={thumbPreview}
-                pendingFileName={thumbFile?.name}
-                disabled={busy}
-                onCropped={(file) => setCroppedThumb(file)}
-                onClearPending={() => setCroppedThumb(null)}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>
+                {editingId ? 'Replace media (optional)' : 'Media (video or image)'}
+              </label>
+              {editingId && editingItem?.mediaUrl ? (
+                <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                  {editingItem.mimeType.startsWith('video/') ? (
+                    <video
+                      src={editingItem.mediaUrl}
+                      controls
+                      className="max-h-40 w-full object-contain"
+                      preload="metadata"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={editingItem.mediaUrl}
+                      alt=""
+                      className="max-h-40 w-full object-contain"
+                    />
+                  )}
+                  <p className="truncate px-3 py-2 text-[11px] text-white/40">
+                    Current media{mediaFile ? ` · replacing with ${mediaFile.name}` : ''}
+                  </p>
+                </div>
+              ) : null}
+              <input
+                className={inputClass}
+                type="file"
+                accept="video/*,image/*"
+                onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                required={!editingId}
               />
             </div>
-          ) : null}
+            <ImageCropField
+              label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
+              preset="kevin11Thumb"
+              currentUrl={editingItem?.thumbnailUrl || ''}
+              pendingUrl={thumbPreview}
+              pendingFileName={thumbFile?.name}
+              disabled={busy}
+              onCropped={(file) => setCroppedThumb(file)}
+              onClearPending={() => setCroppedThumb(null)}
+              removeCurrentChecked={removeThumbnail}
+              onRemoveCurrentChange={setRemoveThumbnail}
+            />
+          </div>
 
           <div className="flex flex-wrap gap-4 text-sm text-white/70">
             <label className="inline-flex items-center gap-2">

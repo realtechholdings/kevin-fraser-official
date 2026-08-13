@@ -70,6 +70,8 @@ export default function BonusAdminPanel({
   const [thumbFile, setThumbFile] = useState<File | null>(null)
   const [thumbPreview, setThumbPreview] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingItem, setEditingItem] = useState<PublicBonusContent | null>(null)
+  const [removeThumbnail, setRemoveThumbnail] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -107,14 +109,17 @@ export default function BonusAdminPanel({
 
   function openCreate() {
     setEditingId(null)
+    setEditingItem(null)
     setForm(emptyForm)
     setMediaFile(null)
     setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
   function openEdit(item: PublicBonusContent) {
     setEditingId(item.id)
+    setEditingItem(item)
     setForm({
       title: item.title,
       description: item.description,
@@ -124,6 +129,7 @@ export default function BonusAdminPanel({
     })
     setMediaFile(null)
     setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
@@ -134,16 +140,35 @@ export default function BonusAdminPanel({
     onError('')
     try {
       if (editingId) {
+        const payload: Record<string, unknown> = {
+          title: form.title,
+          description: form.description,
+          sortOrder: Number(form.sortOrder) || 0,
+          featured: form.featured,
+          published: form.published,
+        }
+
+        if (mediaFile) {
+          const media = await uploadFile(mediaFile)
+          payload.mediaKey = media.key
+          payload.mediaUrl = media.publicUrl || `/api/bonus/${editingId}/file`
+          payload.mimeType = mediaFile.type || 'application/octet-stream'
+          payload.sizeBytes = mediaFile.size
+        }
+
+        if (thumbFile) {
+          const thumb = await uploadFile(thumbFile)
+          payload.thumbnailKey = thumb.key
+          payload.thumbnailUrl = thumb.publicUrl || `/api/bonus/${editingId}/thumbnail`
+        } else if (removeThumbnail) {
+          payload.thumbnailKey = ''
+          payload.thumbnailUrl = ''
+        }
+
         const res = await fetch(`/api/admin/bonus/${editingId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: form.title,
-            description: form.description,
-            sortOrder: Number(form.sortOrder) || 0,
-            featured: form.featured,
-            published: form.published,
-          }),
+          body: JSON.stringify(payload),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Update failed')
@@ -183,9 +208,11 @@ export default function BonusAdminPanel({
 
       setShowForm(false)
       setEditingId(null)
+      setEditingItem(null)
       setForm(emptyForm)
       setMediaFile(null)
       setCroppedThumb(null)
+      setRemoveThumbnail(false)
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Save failed')
@@ -267,6 +294,10 @@ export default function BonusAdminPanel({
               onClick={() => {
                 setShowForm(false)
                 setEditingId(null)
+                setEditingItem(null)
+                setMediaFile(null)
+                setCroppedThumb(null)
+                setRemoveThumbnail(false)
               }}
             >
               Cancel
@@ -304,29 +335,56 @@ export default function BonusAdminPanel({
             />
           </div>
 
-          {!editingId ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Media file</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="video/*,image/*,audio/*"
-                  onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                  required
-                />
-              </div>
-              <ImageCropField
-                label="Thumbnail (optional)"
-                preset="bonusThumb"
-                pendingUrl={thumbPreview}
-                pendingFileName={thumbFile?.name}
-                disabled={busy}
-                onCropped={(file) => setCroppedThumb(file)}
-                onClearPending={() => setCroppedThumb(null)}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>
+                {editingId ? 'Replace media (optional)' : 'Media file'}
+              </label>
+              {editingId && editingItem?.mediaUrl ? (
+                <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                  {editingItem.mimeType.startsWith('video/') ? (
+                    <video
+                      src={editingItem.mediaUrl}
+                      controls
+                      className="max-h-40 w-full object-contain"
+                      preload="metadata"
+                    />
+                  ) : editingItem.mimeType.startsWith('image/') ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={editingItem.mediaUrl}
+                      alt=""
+                      className="max-h-40 w-full object-contain"
+                    />
+                  ) : (
+                    <p className="px-3 py-4 text-xs text-white/50">Current media on file</p>
+                  )}
+                  <p className="truncate px-3 py-2 text-[11px] text-white/40">
+                    Current media{mediaFile ? ` · replacing with ${mediaFile.name}` : ''}
+                  </p>
+                </div>
+              ) : null}
+              <input
+                className={inputClass}
+                type="file"
+                accept="video/*,image/*,audio/*"
+                onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                required={!editingId}
               />
             </div>
-          ) : null}
+            <ImageCropField
+              label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
+              preset="bonusThumb"
+              currentUrl={editingItem?.thumbnailUrl || ''}
+              pendingUrl={thumbPreview}
+              pendingFileName={thumbFile?.name}
+              disabled={busy}
+              onCropped={(file) => setCroppedThumb(file)}
+              onClearPending={() => setCroppedThumb(null)}
+              removeCurrentChecked={removeThumbnail}
+              onRemoveCurrentChange={setRemoveThumbnail}
+            />
+          </div>
 
           <div className="flex flex-wrap gap-4 text-sm text-white/70">
             <label className="inline-flex items-center gap-2">
