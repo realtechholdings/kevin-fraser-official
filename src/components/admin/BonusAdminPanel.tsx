@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Film, Plus, Star, Trash2 } from 'lucide-react'
 import type { PublicBonusContent } from '@/lib/serialize'
+import ImageCropField from '@/components/admin/ImageCropField'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -67,6 +68,7 @@ export default function BonusAdminPanel({
   const [form, setForm] = useState<BonusForm>(emptyForm)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [thumbFile, setThumbFile] = useState<File | null>(null)
+  const [thumbPreview, setThumbPreview] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
 
   async function load() {
@@ -89,11 +91,25 @@ export default function BonusAdminPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (thumbPreview.startsWith('blob:')) URL.revokeObjectURL(thumbPreview)
+    }
+  }, [thumbPreview])
+
+  function setCroppedThumb(file: File | null) {
+    setThumbPreview((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : ''
+    })
+    setThumbFile(file)
+  }
+
   function openCreate() {
     setEditingId(null)
     setForm(emptyForm)
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
     setShowForm(true)
   }
 
@@ -107,7 +123,7 @@ export default function BonusAdminPanel({
       published: item.published,
     })
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
     setShowForm(true)
   }
 
@@ -169,7 +185,7 @@ export default function BonusAdminPanel({
       setEditingId(null)
       setForm(emptyForm)
       setMediaFile(null)
-      setThumbFile(null)
+      setCroppedThumb(null)
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Save failed')
@@ -300,15 +316,15 @@ export default function BonusAdminPanel({
                   required
                 />
               </div>
-              <div>
-                <label className={labelClass}>Thumbnail (optional)</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setThumbFile(e.target.files?.[0] || null)}
-                />
-              </div>
+              <ImageCropField
+                label="Thumbnail (optional)"
+                preset="bonusThumb"
+                pendingUrl={thumbPreview}
+                pendingFileName={thumbFile?.name}
+                disabled={busy}
+                onCropped={(file) => setCroppedThumb(file)}
+                onClearPending={() => setCroppedThumb(null)}
+              />
             </div>
           ) : null}
 

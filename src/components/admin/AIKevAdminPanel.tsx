@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ImagePlus, RotateCcw } from 'lucide-react'
 import type { AISettings } from '@/lib/settings/defaults'
 import { DEFAULT_AI_SETTINGS } from '@/lib/settings/defaults'
+import ImageCropField from '@/components/admin/ImageCropField'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -180,7 +181,7 @@ export default function AIKevAdminPanel({
 
       <section className="admin-card space-y-4 p-5">
         <h3 className="text-sm font-semibold text-white">Avatar</h3>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white/5 text-2xl">
             {previewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -189,20 +190,21 @@ export default function AIKevAdminPanel({
               '🎭'
             )}
           </div>
-          <div className="min-w-0 flex-1 space-y-2">
-            <label className={labelClass}>Upload image</label>
-            <input
-              className={inputClass}
-              type="file"
-              accept="image/*"
+          <div className="min-w-0 flex-1">
+            <ImageCropField
+              label="Avatar image"
+              preset="avatar"
+              currentUrl={ai.avatarUrl || ''}
+              pendingUrl={avatarFile ? previewUrl : ''}
+              pendingFileName={avatarFile?.name}
               disabled={!r2Configured || busy}
-              onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+              onCropped={(file) => setAvatarFile(file)}
+              onClearPending={() => {
+                setAvatarFile(null)
+                setPreviewUrl(ai.avatarUrl || '')
+              }}
+              onRemoveCurrent={clearAvatar}
             />
-            <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={clearAvatar} className={btnGhost}>
-                Remove avatar
-              </button>
-            </div>
           </div>
         </div>
       </section>

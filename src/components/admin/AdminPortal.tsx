@@ -32,6 +32,7 @@ import ScannerAdminPanel from '@/components/admin/ScannerAdminPanel'
 import SalesAdminPanel from '@/components/admin/SalesAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
+import ImageCropField from '@/components/admin/ImageCropField'
 import { cn } from '@/lib/utils'
 
 type Tab = AdminTab
@@ -955,63 +956,38 @@ export default function AdminPortal() {
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Card image</label>
-                        <input
-                          className={inputClass}
-                          type="file"
-                          accept="image/*"
+                        <ImageCropField
+                          label="Card image"
+                          preset="tourCover"
+                          currentUrl={
+                            tourForm.coverImage ||
+                            (tourForm.coverImageKey && editingTourId
+                              ? `/api/tours/${editingTourId}/cover`
+                              : '')
+                          }
                           disabled={busy}
-                          onChange={(e) => void onTourImageChange('cover', e.target.files?.[0] || null)}
+                          onCropped={(file) => void onTourImageChange('cover', file)}
+                          onRemoveCurrent={() =>
+                            setTourForm((f) => ({ ...f, coverImage: '', coverImageKey: '' }))
+                          }
                         />
-                        {tourForm.coverImage || tourForm.coverImageKey ? (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={tourForm.coverImage || `/api/tours/${editingTourId}/cover`}
-                              alt=""
-                              className="h-28 w-full object-cover"
-                            />
-                          </div>
-                        ) : null}
-                        {(tourForm.coverImage || tourForm.coverImageKey) ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs text-white/40 hover:text-white/70"
-                            onClick={() => setTourForm((f) => ({ ...f, coverImage: '', coverImageKey: '' }))}
-                          >
-                            Remove card image
-                          </button>
-                        ) : null}
                       </div>
                       <div>
-                        <label className={labelClass}>Banner image</label>
-                        <input
-                          className={inputClass}
-                          type="file"
-                          accept="image/*"
+                        <ImageCropField
+                          label="Banner image"
+                          preset="tourBanner"
+                          currentUrl={
+                            tourForm.bannerImage ||
+                            (tourForm.bannerImageKey && editingTourId
+                              ? `/api/tours/${editingTourId}/banner`
+                              : '')
+                          }
                           disabled={busy}
-                          onChange={(e) => void onTourImageChange('banner', e.target.files?.[0] || null)}
+                          onCropped={(file) => void onTourImageChange('banner', file)}
+                          onRemoveCurrent={() =>
+                            setTourForm((f) => ({ ...f, bannerImage: '', bannerImageKey: '' }))
+                          }
                         />
-                        {tourForm.bannerImage || tourForm.bannerImageKey ? (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={tourForm.bannerImage || `/api/tours/${editingTourId}/banner`}
-                              alt=""
-                              className="h-28 w-full object-cover"
-                              style={{ objectPosition: tourForm.bannerFocus || 'center center' }}
-                            />
-                          </div>
-                        ) : null}
-                        {(tourForm.bannerImage || tourForm.bannerImageKey) ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs text-white/40 hover:text-white/70"
-                            onClick={() => setTourForm((f) => ({ ...f, bannerImage: '', bannerImageKey: '' }))}
-                          >
-                            Remove banner image
-                          </button>
-                        ) : null}
                       </div>
                       <div>
                         <label className={labelClass}>Banner layout</label>
@@ -1425,54 +1401,37 @@ export default function AdminPortal() {
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className={labelClass}>Show artwork</label>
-                        <input
-                          className={inputClass}
-                          type="file"
-                          accept="image/*"
+                        <ImageCropField
+                          label="Show artwork"
+                          preset="showArtwork"
+                          currentUrl={
+                            showForm.artworkImage ||
+                            (showForm.artworkImageKey && editingShowId
+                              ? `/api/shows/${editingShowId}/artwork`
+                              : '')
+                          }
                           disabled={busy}
-                          onChange={(e) => void onShowArtworkChange(e.target.files?.[0] || null)}
+                          onCropped={(file) => void onShowArtworkChange(file)}
+                          onRemoveCurrent={() =>
+                            setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
+                          }
                         />
-                        {showForm.artworkImage || showForm.artworkImageKey ? (
-                          <div className="mt-3 grid gap-3 sm:grid-cols-[200px_1fr]">
-                            <div className="overflow-hidden rounded-xl border border-white/10">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={showForm.artworkImage || `/api/shows/${editingShowId}/artwork`}
-                                alt=""
-                                className="aspect-[16/9] w-full object-cover"
-                                style={{ objectPosition: showForm.artworkPosition || 'center center' }}
-                              />
-                            </div>
-                            <div>
-                              <label className={labelClass}>Artwork crop / focus</label>
-                              <select
-                                className={inputClass}
-                                value={showForm.artworkPosition || 'center center'}
-                                onChange={(e) =>
-                                  setShowForm({ ...showForm, artworkPosition: e.target.value })
-                                }
-                              >
-                                {IMAGE_FOCUS_POSITIONS.map((pos) => (
-                                  <option key={pos.value} value={pos.value} className="bg-[#141420]">
-                                    {pos.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <p className="mt-2 text-xs text-white/35">
-                                Ideal size ~2400×1000 (2.4:1). Mobile crops to 16:9. Pick the focus
-                                point that should stay visible.
-                              </p>
-                              <button
-                                type="button"
-                                className="mt-3 text-xs text-white/40 hover:text-white/70"
-                                onClick={() =>
-                                  setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
-                                }
-                              >
-                                Remove artwork
-                              </button>
-                            </div>
+                        {(showForm.artworkImage || showForm.artworkImageKey) ? (
+                          <div className="mt-3 max-w-sm">
+                            <label className={labelClass}>Fine-tune focus (optional)</label>
+                            <select
+                              className={inputClass}
+                              value={showForm.artworkPosition || 'center center'}
+                              onChange={(e) =>
+                                setShowForm({ ...showForm, artworkPosition: e.target.value })
+                              }
+                            >
+                              {IMAGE_FOCUS_POSITIONS.map((pos) => (
+                                <option key={pos.value} value={pos.value} className="bg-[#141420]">
+                                  {pos.label}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         ) : null}
                       </div>
@@ -1486,33 +1445,21 @@ export default function AdminPortal() {
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className={labelClass}>Venue image (optional)</label>
-                        <input
-                          className={inputClass}
-                          type="file"
-                          accept="image/*"
+                        <ImageCropField
+                          label="Venue image (optional)"
+                          preset="venue"
+                          currentUrl={
+                            showForm.venueImage ||
+                            (showForm.venueImageKey && editingShowId
+                              ? `/api/shows/${editingShowId}/venue`
+                              : '')
+                          }
                           disabled={busy}
-                          onChange={(e) => void onShowVenueChange(e.target.files?.[0] || null)}
+                          onCropped={(file) => void onShowVenueChange(file)}
+                          onRemoveCurrent={() =>
+                            setShowForm((f) => ({ ...f, venueImage: '', venueImageKey: '' }))
+                          }
                         />
-                        {showForm.venueImage || showForm.venueImageKey ? (
-                          <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={showForm.venueImage || `/api/shows/${editingShowId}/venue`}
-                              alt=""
-                              className="aspect-[16/9] w-full max-w-lg object-cover"
-                            />
-                          </div>
-                        ) : null}
-                        {(showForm.venueImage || showForm.venueImageKey) ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs text-white/40 hover:text-white/70"
-                            onClick={() => setShowForm((f) => ({ ...f, venueImage: '', venueImageKey: '' }))}
-                          >
-                            Remove venue image
-                          </button>
-                        ) : null}
                       </div>
                       <div className="flex items-center gap-6 md:col-span-2">
                         <label className="flex items-center gap-2 text-sm text-white/70">

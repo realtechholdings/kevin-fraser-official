@@ -32,21 +32,67 @@ export type AdminTab =
   | 'theme'
   | 'ai'
 
-const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
-  { id: 'overview', name: 'Overview', icon: LayoutDashboard },
-  { id: 'tours', name: 'Tours', icon: Ticket },
-  { id: 'shows', name: 'Shows', icon: CalendarDays },
-  { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
-  { id: 'sales', name: 'Sales', icon: BadgeDollarSign },
-  { id: 'cms', name: 'CMS', icon: Mail },
-  { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
-  { id: 'bonus', name: 'Showreel', icon: Film },
-  { id: 'studio', name: 'The Studio', icon: Clapperboard },
-  { id: 'kevin11', name: 'Kevin11', icon: Store },
-  { id: 'legal', name: 'Terms & Policies', icon: ScrollText },
-  { id: 'theme', name: 'Theme', icon: Palette },
-  { id: 'ai', name: 'AI Kev', icon: Bot },
+type NavItem = { id: AdminTab; name: string; icon: typeof LayoutDashboard }
+type NavGroup = { label: string; items: NavItem[] }
+type NavEntry = { type: 'item'; item: NavItem } | { type: 'group'; group: NavGroup }
+
+const nav: NavEntry[] = [
+  { type: 'item', item: { id: 'overview', name: 'Overview', icon: LayoutDashboard } },
+  { type: 'item', item: { id: 'tours', name: 'Tours', icon: Ticket } },
+  { type: 'item', item: { id: 'shows', name: 'Shows', icon: CalendarDays } },
+  { type: 'item', item: { id: 'sales', name: 'Sales', icon: BadgeDollarSign } },
+  { type: 'item', item: { id: 'cms', name: 'CMS', icon: Mail } },
+  {
+    type: 'group',
+    group: {
+      label: 'Ticketing',
+      items: [
+        { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
+        { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
+      ],
+    },
+  },
+  {
+    type: 'group',
+    group: {
+      label: 'Website',
+      items: [
+        { id: 'bonus', name: 'Showreel', icon: Film },
+        { id: 'studio', name: 'The Studio', icon: Clapperboard },
+        { id: 'kevin11', name: 'Kevin11', icon: Store },
+        { id: 'legal', name: 'Terms & Policies', icon: ScrollText },
+        { id: 'theme', name: 'Theme', icon: Palette },
+        { id: 'ai', name: 'AI Kev', icon: Bot },
+      ],
+    },
+  },
 ]
+
+function NavButton({
+  item,
+  active,
+  onTabChange,
+  nested,
+}: {
+  item: NavItem
+  active: boolean
+  onTabChange: (tab: AdminTab) => void
+  nested?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onTabChange(item.id)}
+      className={cn('admin-nav-item', active && 'is-active', nested && 'pl-3')}
+    >
+      <item.icon
+        className="h-4 w-4 shrink-0"
+        style={{ color: active ? 'var(--admin-accent-text)' : 'var(--admin-subtle)' }}
+      />
+      <span>{item.name}</span>
+    </button>
+  )
+}
 
 export default function AdminSidebar({
   tab,
@@ -79,21 +125,38 @@ export default function AdminSidebar({
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
-        {nav.map((item) => {
-          const active = tab === item.id
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onTabChange(item.id)}
-              className={cn('admin-nav-item', active && 'is-active')}
-            >
-              <item.icon
-                className="h-4 w-4 shrink-0"
-                style={{ color: active ? 'var(--admin-accent-text)' : 'var(--admin-subtle)' }}
+        {nav.map((entry) => {
+          if (entry.type === 'item') {
+            return (
+              <NavButton
+                key={entry.item.id}
+                item={entry.item}
+                active={tab === entry.item.id}
+                onTabChange={onTabChange}
               />
-              <span>{item.name}</span>
-            </button>
+            )
+          }
+
+          return (
+            <div key={entry.group.label} className="pt-4 first:pt-0">
+              <p
+                className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: 'var(--admin-subtle)' }}
+              >
+                {entry.group.label}
+              </p>
+              <div className="space-y-1">
+                {entry.group.items.map((item) => (
+                  <NavButton
+                    key={item.id}
+                    item={item}
+                    active={tab === item.id}
+                    onTabChange={onTabChange}
+                    nested
+                  />
+                ))}
+              </div>
+            </div>
           )
         })}
       </nav>

@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db'
 import StudioContent from '@/lib/models/StudioContent'
 import { requireAdmin } from '@/lib/admin'
 import { serializeStudioContent } from '@/lib/serialize'
-import { isR2Configured } from '@/lib/r2'
+import { isR2Configured, publicUrlForKey, studioFilePath } from '@/lib/r2'
 import { getSiteSettings } from '@/lib/settings/getSiteSettings'
 
 export async function GET() {
@@ -20,7 +20,20 @@ export async function GET() {
       success: true,
       r2Configured: isR2Configured(),
       categories: settings.studio.categories,
-      items: items.map(serializeStudioContent),
+      items: items.map((doc) => {
+        const serialized = serializeStudioContent(doc)
+        const mediaPublic = publicUrlForKey(serialized.mediaKey)
+        const thumbPublic = serialized.thumbnailKey
+          ? publicUrlForKey(serialized.thumbnailKey)
+          : ''
+        return {
+          ...serialized,
+          mediaUrl: mediaPublic || studioFilePath(serialized.id, 'media'),
+          thumbnailUrl:
+            thumbPublic ||
+            (serialized.thumbnailKey ? studioFilePath(serialized.id, 'thumbnail') : ''),
+        }
+      }),
     })
   } catch (error) {
     console.error('Admin studio GET:', error)

@@ -6,43 +6,30 @@ import {
   type ShowreelImageSlot,
   type ShowreelSettings,
 } from '@/lib/settings/defaults'
+import ImageCropField from '@/components/admin/ImageCropField'
+import type { IMAGE_CROP_PRESETS } from '@/lib/admin/imageCrop'
 
-const inputClass = 'admin-input'
-const labelClass = 'admin-label'
 const btnPrimary = 'admin-btn-primary disabled:opacity-50'
-const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
-
-const FOCUS_POSITIONS = [
-  { value: 'center center', label: 'Centre' },
-  { value: 'center top', label: 'Top' },
-  { value: 'center bottom', label: 'Bottom' },
-  { value: 'left center', label: 'Left' },
-  { value: 'right center', label: 'Right' },
-  { value: 'left top', label: 'Top left' },
-  { value: 'right top', label: 'Top right' },
-  { value: 'left bottom', label: 'Bottom left' },
-  { value: 'right bottom', label: 'Bottom right' },
-] as const
 
 const SLOTS: {
   key: keyof ShowreelSettings
   title: string
-  hint: string
+  preset: keyof typeof IMAGE_CROP_PRESETS
 }[] = [
   {
     key: 'pageHero',
     title: 'Page hero',
-    hint: 'Behind “The Showreel” heading. Ideal ~2400×1000 (2.4:1).',
+    preset: 'showreelHero',
   },
   {
     key: 'reelsBanner',
     title: 'Reels tab banner',
-    hint: 'Shown under the tabs when Reels is selected. Ideal ~2400×800 (3:1).',
+    preset: 'showreelTab',
   },
   {
     key: 'bonusBanner',
     title: 'Bonus tab banner',
-    hint: 'Shown under the tabs when Bonus Content is selected. Ideal ~2400×800 (3:1).',
+    preset: 'showreelTab',
   },
 ]
 
@@ -103,8 +90,7 @@ export default function ShowreelAdminPanel({
     }))
   }
 
-  async function onFileChange(key: keyof ShowreelSettings, file: File | null) {
-    if (!file) return
+  async function onCropped(key: keyof ShowreelSettings, file: File) {
     setBusy(true)
     onError('')
     try {
@@ -113,8 +99,9 @@ export default function ShowreelAdminPanel({
       patchSlot(key, {
         imageKey: uploaded.key,
         imageUrl: preview || `/api/settings/showreel/${key}`,
+        focus: 'center center',
       })
-      onMessage('Image uploaded — click Save banners to publish.')
+      onMessage('Image cropped & uploaded — click Save banners to publish.')
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -187,7 +174,7 @@ export default function ShowreelAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Showreel banners</h2>
           <p className="mt-1 text-sm text-white/40">
-            Customise the page hero and the banner above each tab independently.
+            Crop each banner to the correct size, then save.
           </p>
         </div>
         <button type="submit" disabled={busy} className={btnPrimary}>
@@ -209,63 +196,15 @@ export default function ShowreelAdminPanel({
             (value.imageKey ? `/api/settings/showreel/${slot.key}` : '')
           return (
             <section key={slot.key} className="admin-card space-y-3 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-white">{slot.title}</h3>
-                <p className="mt-1 text-xs text-white/35">{slot.hint}</p>
-              </div>
-
-              {preview ? (
-                <div className="overflow-hidden rounded-xl border border-white/10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={preview}
-                    alt=""
-                    className="aspect-[2.4/1] w-full object-cover"
-                    style={{ objectPosition: value.focus || 'center center' }}
-                  />
-                </div>
-              ) : (
-                <div className="flex aspect-[2.4/1] items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-white/30">
-                  No image
-                </div>
-              )}
-
-              <div>
-                <label className={labelClass}>Upload image</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="image/*"
-                  disabled={busy}
-                  onChange={(e) => void onFileChange(slot.key, e.target.files?.[0] || null)}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Crop / focus</label>
-                <select
-                  className={inputClass}
-                  value={value.focus || 'center center'}
-                  onChange={(e) => patchSlot(slot.key, { focus: e.target.value })}
-                >
-                  {FOCUS_POSITIONS.map((pos) => (
-                    <option key={pos.value} value={pos.value} className="bg-[#141420]">
-                      {pos.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {preview ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  className={btnSecondary}
-                  onClick={() => patchSlot(slot.key, emptySlot())}
-                >
-                  Remove image
-                </button>
-              ) : null}
+              <h3 className="text-sm font-semibold text-white">{slot.title}</h3>
+              <ImageCropField
+                label="Banner image"
+                preset={slot.preset}
+                currentUrl={preview}
+                disabled={busy}
+                onCropped={(file) => void onCropped(slot.key, file)}
+                onRemoveCurrent={() => patchSlot(slot.key, emptySlot())}
+              />
             </section>
           )
         })}

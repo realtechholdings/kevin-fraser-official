@@ -9,6 +9,7 @@ import {
   type Kevin11Category,
   type Kevin11OverlaySlot,
 } from '@/lib/kevin11/categories'
+import ImageCropField from '@/components/admin/ImageCropField'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -133,6 +134,7 @@ export default function Kevin11AdminPanel({
   const [form, setForm] = useState<Kevin11Form>(emptyForm)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [thumbFile, setThumbFile] = useState<File | null>(null)
+  const [thumbPreview, setThumbPreview] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [filter, setFilter] = useState<Kevin11Category | 'all'>('all')
 
@@ -156,6 +158,20 @@ export default function Kevin11AdminPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (thumbPreview.startsWith('blob:')) URL.revokeObjectURL(thumbPreview)
+    }
+  }, [thumbPreview])
+
+  function setCroppedThumb(file: File | null) {
+    setThumbPreview((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : ''
+    })
+    setThumbFile(file)
+  }
+
   const visible = useMemo(
     () => (filter === 'all' ? items : items.filter((item) => item.category === filter)),
     [items, filter],
@@ -165,7 +181,7 @@ export default function Kevin11AdminPanel({
     setEditingId(null)
     setForm(emptyForm)
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
     setShowForm(true)
   }
 
@@ -183,7 +199,7 @@ export default function Kevin11AdminPanel({
       published: item.published,
     })
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
     setShowForm(true)
   }
 
@@ -247,7 +263,7 @@ export default function Kevin11AdminPanel({
       setEditingId(null)
       setForm(emptyForm)
       setMediaFile(null)
-      setThumbFile(null)
+      setCroppedThumb(null)
       await load()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Save failed'
@@ -460,15 +476,15 @@ export default function Kevin11AdminPanel({
                   required
                 />
               </div>
-              <div>
-                <label className={labelClass}>Thumbnail (optional)</label>
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setThumbFile(e.target.files?.[0] || null)}
-                />
-              </div>
+              <ImageCropField
+                label="Thumbnail (optional)"
+                preset="kevin11Thumb"
+                pendingUrl={thumbPreview}
+                pendingFileName={thumbFile?.name}
+                disabled={busy}
+                onCropped={(file) => setCroppedThumb(file)}
+                onClearPending={() => setCroppedThumb(null)}
+              />
             </div>
           ) : null}
 

@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Mail, Send, Ticket, PenLine, FileText, ImagePlus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Mail, Send, Ticket, PenLine, FileText } from 'lucide-react'
+import ImageCropField from '@/components/admin/ImageCropField'
+import type { IMAGE_CROP_PRESETS } from '@/lib/admin/imageCrop'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -33,53 +35,39 @@ async function uploadEmailImage(file: File): Promise<string> {
   return data.publicUrl as string
 }
 
-/** Uploads an image and hands back its public URL (used to insert [image: url] tags). */
+/** Uploads an image (optionally cropped) and hands back its public URL. */
 function InsertImageButton({
   label = 'Insert image',
   disabled,
+  preset = 'emailSignature',
   onUploaded,
   onError,
   onBusy,
 }: {
   label?: string
   disabled?: boolean
+  preset?: keyof typeof IMAGE_CROP_PRESETS
   onUploaded: (url: string) => void
   onError: (msg: string) => void
   onBusy: (busy: boolean) => void
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
   return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0]
-          e.target.value = ''
-          if (!file) return
-          onBusy(true)
-          onError('')
-          try {
-            onUploaded(await uploadEmailImage(file))
-          } catch (err) {
-            onError(err instanceof Error ? err.message : 'Image upload failed')
-          } finally {
-            onBusy(false)
-          }
-        }}
-      />
-      <button
-        type="button"
-        disabled={disabled}
-        className={btnGhost}
-        onClick={() => inputRef.current?.click()}
-      >
-        <ImagePlus className="mr-1.5 inline h-4 w-4" />
-        {label}
-      </button>
-    </>
+    <ImageCropField
+      label={label}
+      preset={preset}
+      disabled={disabled}
+      onCropped={async (file) => {
+        onBusy(true)
+        onError('')
+        try {
+          onUploaded(await uploadEmailImage(file))
+        } catch (err) {
+          onError(err instanceof Error ? err.message : 'Image upload failed')
+        } finally {
+          onBusy(false)
+        }
+      }}
+    />
   )
 }
 

@@ -9,6 +9,7 @@ import {
   studioCategoryLabel,
   type StudioCategoryDef,
 } from '@/lib/studio/categories'
+import ImageCropField from '@/components/admin/ImageCropField'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -90,7 +91,10 @@ export default function StudioAdminPanel({
   })
   const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [thumbFile, setThumbFile] = useState<File | null>(null)
+  const [thumbPreview, setThumbPreview] = useState('')
+  const [removeThumbnail, setRemoveThumbnail] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingItem, setEditingItem] = useState<PublicStudioContent | null>(null)
   const [filter, setFilter] = useState<string | 'all'>('all')
 
   async function load() {
@@ -128,6 +132,21 @@ export default function StudioAdminPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (thumbPreview.startsWith('blob:')) URL.revokeObjectURL(thumbPreview)
+    }
+  }, [thumbPreview])
+
+  function setCroppedThumb(file: File | null) {
+    setThumbPreview((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : ''
+    })
+    setThumbFile(file)
+    if (file) setRemoveThumbnail(false)
+  }
+
   const visible = useMemo(
     () => (filter === 'all' ? items : items.filter((item) => item.category === filter)),
     [items, filter],
@@ -143,6 +162,7 @@ export default function StudioAdminPanel({
 
   function openCreate() {
     setEditingId(null)
+    setEditingItem(null)
     setForm({
       title: '',
       description: '',
@@ -152,12 +172,14 @@ export default function StudioAdminPanel({
       published: true,
     })
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
   function openEdit(item: PublicStudioContent) {
     setEditingId(item.id)
+    setEditingItem(item)
     setForm({
       title: item.title,
       description: item.description,
@@ -167,7 +189,8 @@ export default function StudioAdminPanel({
       published: item.published,
     })
     setMediaFile(null)
-    setThumbFile(null)
+    setCroppedThumb(null)
+    setRemoveThumbnail(false)
     setShowForm(true)
   }
 
@@ -277,17 +300,36 @@ export default function StudioAdminPanel({
     onError('')
     try {
       if (editingId) {
+        const payload: Record<string, unknown> = {
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          sortOrder: Number(form.sortOrder) || 0,
+          featured: form.featured,
+          published: form.published,
+        }
+
+        if (mediaFile) {
+          const media = await uploadFile(mediaFile)
+          payload.mediaKey = media.key
+          payload.mediaUrl = media.publicUrl || `/api/studio/${editingId}/file`
+          payload.mimeType = mediaFile.type || 'application/octet-stream'
+          payload.sizeBytes = mediaFile.size
+        }
+
+        if (thumbFile) {
+          const thumb = await uploadFile(thumbFile)
+          payload.thumbnailKey = thumb.key
+          payload.thumbnailUrl = thumb.publicUrl || `/api/studio/${editingId}/thumbnail`
+        } else if (removeThumbnail) {
+          payload.thumbnailKey = ''
+          payload.thumbnailUrl = ''
+        }
+
         const res = await fetch(`/api/admin/studio/${editingId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: form.title,
-            description: form.description,
-            category: form.category,
-            sortOrder: Number(form.sortOrder) || 0,
-            featured: form.featured,
-            published: form.published,
-          }),
+          body: JSON.stringify(payload),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Update failed')
@@ -328,8 +370,10 @@ export default function StudioAdminPanel({
 
       setShowForm(false)
       setEditingId(null)
+      setEditingItem(null)
       setMediaFile(null)
-      setThumbFile(null)
+      setCroppedThumb(null)
+      setRemoveThumbnail(false)
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Save failed')
@@ -517,6 +561,10 @@ export default function StudioAdminPanel({
                 onClick={() => {
                   setShowForm(false)
                   setEditingId(null)
+                  setEditingItem(null)
+                  setMediaFile(null)
+                  setCroppedThumb(null)
+                  setRemoveThumbnail(false)
                 }}
               >
                 Cancel
@@ -568,29 +616,45 @@ export default function StudioAdminPanel({
               />
             </div>
 
-            {!editingId ? (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className={labelClass}>Video file</label>
-                  <input
-                    className={inputClass}
-                    type="file"
-                    accept="video/*"
-                    onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Thumbnail (optional)</label>
-                  <input
-                    className={inputClass}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setThumbFile(e.target.files?.[0] || null)}
-                  />
-                </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>
+                  {editingId ? 'Replace video (optional)' : 'Video file'}
+                </label>
+                {editingId && editingItem?.mediaUrl ? (
+                  <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                    <video
+                      src={editingItem.mediaUrl}
+                      controls
+                      className="max-h-40 w-full object-contain"
+                      preload="metadata"
+                    />
+                    <p className="truncate px-3 py-2 text-[11px] text-white/40">
+                      Current video{mediaFile ? ` · replacing with ${mediaFile.name}` : ''}
+                    </p>
+                  </div>
+                ) : null}
+                <input
+                  className={inputClass}
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                  required={!editingId}
+                />
               </div>
-            ) : null}
+              <ImageCropField
+                label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
+                preset="studioThumb"
+                currentUrl={editingItem?.thumbnailUrl || ''}
+                pendingUrl={thumbPreview}
+                pendingFileName={thumbFile?.name}
+                disabled={busy}
+                onCropped={(file) => setCroppedThumb(file)}
+                onClearPending={() => setCroppedThumb(null)}
+                removeCurrentChecked={removeThumbnail}
+                onRemoveCurrentChange={setRemoveThumbnail}
+              />
+            </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-white/70">
               <label className="inline-flex items-center gap-2">
