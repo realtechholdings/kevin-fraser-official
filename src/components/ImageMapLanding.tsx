@@ -377,10 +377,9 @@ function PoweredByGroundEffect({
   large = false,
 }: {
   align?: 'center' | 'end'
-  /** Desktop sizing — doubled logo + “Powered by” text */
+  /** Desktop — doubled logo only */
   large?: boolean
 }) {
-  const textSize = large ? '20px' : '10px'
   const logoHeight = large ? 36 : 18
 
   return (
@@ -394,22 +393,22 @@ function PoweredByGroundEffect({
         alignItems: 'center',
         gap: 0,
         textDecoration: 'none',
-        color: 'rgba(242,240,235,0.55)',
+        color: 'rgba(242,240,235,0.72)',
         fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
         textTransform: 'uppercase',
-        fontSize: textSize,
-        letterSpacing: '0.12em',
+        fontSize: 'clamp(10px, 1.2vw, 12px)',
+        letterSpacing: '0.14em',
         justifyContent: align === 'center' ? 'center' : 'flex-end',
         opacity: 0.9,
         transition: 'opacity 0.15s ease, color 0.15s ease',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.opacity = '1'
-        e.currentTarget.style.color = 'rgba(242,240,235,0.85)'
+        e.currentTarget.style.color = '#C4A35A'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.opacity = '0.9'
-        e.currentTarget.style.color = 'rgba(242,240,235,0.55)'
+        e.currentTarget.style.color = 'rgba(242,240,235,0.72)'
       }}
     >
       <span style={{ marginRight: 10 }}>Powered by</span>
