@@ -6,7 +6,7 @@ import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
-import { sendEmail } from '@/lib/email/resend'
+import { fromAddress, sendEmail } from '@/lib/email/resend'
 import { generateTicketsPdf } from '@/lib/email/ticketPdf'
 import { createR2DownloadUrl, publicUrlForKey } from '@/lib/r2'
 
@@ -89,6 +89,7 @@ async function resolveArtworkBytes(
 export async function sendTicketEmail(
   order: TicketOrderLike,
   show: ShowDocument & { tour?: TourDocument | unknown },
+  opts?: { host?: string },
 ) {
   const settings = await getEmailSettings()
   if (!settings.ticketEmailEnabled) return { skipped: true as const }
@@ -125,8 +126,10 @@ export async function sendTicketEmail(
     artworkBytes,
   })
 
+  const from = fromAddress(opts?.host)
   const result = await sendEmail({
     to: [order.email],
+    from,
     subject,
     text,
     html,
@@ -138,5 +141,5 @@ export async function sendTicketEmail(
     ],
   })
 
-  return { skipped: false as const, id: result.id }
+  return { skipped: false as const, id: result.id, from }
 }

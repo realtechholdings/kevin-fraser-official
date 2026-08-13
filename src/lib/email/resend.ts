@@ -62,12 +62,17 @@ export function isProductionMailHost(host = siteHost()) {
  * From-address for buyer ticket emails.
  * - www.kevinfraserofficial.com → tickets@kevinfraserofficial.com
  * - vercel.app / local / other → kevinfraser@hivemynd.io
- * EMAIL_FROM overrides when set (per-environment on Vercel).
+ * When `host` is provided (request host), it wins over EMAIL_FROM so vercel.app
+ * tests never try to send from an unverified production domain.
+ * EMAIL_FROM is only used as a fallback when no host is known.
  */
 export function fromAddress(host?: string) {
+  if (host) {
+    return isProductionMailHost(host) ? EMAIL_FROM_PRODUCTION : EMAIL_FROM_STAGING
+  }
   const override = process.env.EMAIL_FROM?.trim()
   if (override) return override
-  return isProductionMailHost(host) ? EMAIL_FROM_PRODUCTION : EMAIL_FROM_STAGING
+  return isProductionMailHost() ? EMAIL_FROM_PRODUCTION : EMAIL_FROM_STAGING
 }
 
 /**
