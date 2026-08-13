@@ -3,6 +3,11 @@ import {
   DEFAULT_LEGAL_SETTINGS,
   type LegalSettings,
 } from '@/lib/settings/legalDefaults'
+import {
+  DEFAULT_STUDIO_CATEGORY_DEFS,
+  normalizeStudioCategories,
+  type StudioCategoryDef,
+} from '@/lib/studio/categories'
 
 export const SITE_SETTINGS_KEY = 'site'
 
@@ -22,12 +27,30 @@ export type AISettings = {
   avatarUrl: string
 }
 
+export type ShowreelImageSlot = {
+  imageKey: string
+  imageUrl: string
+  focus: string
+}
+
+export type ShowreelSettings = {
+  pageHero: ShowreelImageSlot
+  reelsBanner: ShowreelImageSlot
+  bonusBanner: ShowreelImageSlot
+}
+
+export type StudioSettings = {
+  categories: StudioCategoryDef[]
+}
+
 export type { LegalDocumentSettings, LegalSettings } from '@/lib/settings/legalDefaults'
 
 export type SiteSettingsData = {
   theme: ThemeSettings
   ai: AISettings
   legal: LegalSettings
+  showreel: ShowreelSettings
+  studio: StudioSettings
 }
 
 export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
@@ -47,12 +70,58 @@ export const DEFAULT_AI_SETTINGS: AISettings = {
   avatarUrl: '',
 }
 
+export const EMPTY_SHOWREEL_IMAGE_SLOT: ShowreelImageSlot = {
+  imageKey: '',
+  imageUrl: '',
+  focus: 'center center',
+}
+
+export const DEFAULT_SHOWREEL_SETTINGS: ShowreelSettings = {
+  pageHero: { ...EMPTY_SHOWREEL_IMAGE_SLOT },
+  reelsBanner: { ...EMPTY_SHOWREEL_IMAGE_SLOT },
+  bonusBanner: { ...EMPTY_SHOWREEL_IMAGE_SLOT },
+}
+
+export const DEFAULT_STUDIO_SETTINGS: StudioSettings = {
+  categories: DEFAULT_STUDIO_CATEGORY_DEFS.map((c) => ({ ...c })),
+}
+
 export { DEFAULT_LEGAL_SETTINGS }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   theme: DEFAULT_THEME_SETTINGS,
   ai: DEFAULT_AI_SETTINGS,
   legal: DEFAULT_LEGAL_SETTINGS,
+  showreel: DEFAULT_SHOWREEL_SETTINGS,
+  studio: DEFAULT_STUDIO_SETTINGS,
+}
+
+export function normalizeShowreelImageSlot(
+  value?: Partial<ShowreelImageSlot> | null,
+): ShowreelImageSlot {
+  return {
+    imageKey: String(value?.imageKey || '').trim(),
+    imageUrl: String(value?.imageUrl || '').trim(),
+    focus: String(value?.focus || '').trim() || 'center center',
+  }
+}
+
+export function normalizeShowreelSettings(
+  value?: Partial<ShowreelSettings> | null,
+): ShowreelSettings {
+  return {
+    pageHero: normalizeShowreelImageSlot(value?.pageHero),
+    reelsBanner: normalizeShowreelImageSlot(value?.reelsBanner),
+    bonusBanner: normalizeShowreelImageSlot(value?.bonusBanner),
+  }
+}
+
+export function normalizeStudioSettings(
+  value?: Partial<StudioSettings> | null,
+): StudioSettings {
+  return {
+    categories: normalizeStudioCategories(value?.categories),
+  }
 }
 
 export function hexToRgba(hex: string, alpha: number) {

@@ -6,11 +6,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ExternalLink, Play, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { ShowreelItem } from '@/lib/showreel/feeds'
+import {
+  DEFAULT_SHOWREEL_SETTINGS,
+  type ShowreelImageSlot,
+  type ShowreelSettings,
+} from '@/lib/settings/defaults'
 
 type Tab = 'reels' | 'bonus'
 
 type FeedPayload = {
   success: boolean
+  appearance?: ShowreelSettings
   sources: {
     reels: { profile: string; items: ShowreelItem[] }
     bonus: { items: ShowreelItem[] }
@@ -29,6 +35,13 @@ function youtubeEmbed(url: string) {
   const id = short || watch
   if (!id) return null
   return `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`
+}
+
+function resolveSlotUrl(slot: ShowreelImageSlot | undefined, fallbackPath: string) {
+  if (!slot) return ''
+  if (slot.imageUrl) return slot.imageUrl
+  if (slot.imageKey) return fallbackPath
+  return ''
 }
 
 export default function ShowreelPageClient() {
@@ -73,6 +86,19 @@ export default function ShowreelPageClient() {
     return data.sources[tab].items
   }, [data, tab])
 
+  const appearance = data?.appearance || DEFAULT_SHOWREEL_SETTINGS
+  const pageHeroUrl = resolveSlotUrl(appearance.pageHero, '/api/settings/showreel/pageHero')
+  const tabBanner =
+    tab === 'reels'
+      ? {
+          url: resolveSlotUrl(appearance.reelsBanner, '/api/settings/showreel/reelsBanner'),
+          focus: appearance.reelsBanner?.focus || 'center center',
+        }
+      : {
+          url: resolveSlotUrl(appearance.bonusBanner, '/api/settings/showreel/bonusBanner'),
+          focus: appearance.bonusBanner?.focus || 'center center',
+        }
+
   const profile = tab === 'reels' ? data?.sources.reels.profile : undefined
 
   return (
@@ -110,24 +136,45 @@ export default function ShowreelPageClient() {
         <motion.section
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-10 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-10"
+          className="relative mb-10 overflow-hidden rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)]"
         >
-          <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#2f6fed' }}>
-            Clips · Extras
-          </p>
-          <h1
-            className="text-5xl uppercase leading-[0.92] sm:text-7xl"
-            style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-          >
-            The Showreel
-          </h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
-            Reels from Kevin&apos;s YouTube, plus exclusive bonus clips uploaded for the official
-            site.
-          </p>
+          {pageHeroUrl ? (
+            <div className="absolute inset-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pageHeroUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                style={{ objectPosition: appearance.pageHero?.focus || 'center center' }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
+            </div>
+          ) : null}
+          <div className={`relative p-7 sm:p-10 ${pageHeroUrl ? 'text-white' : ''}`}>
+            <p
+              className="mb-3 text-[11px] uppercase tracking-[0.35em]"
+              style={{ color: pageHeroUrl ? '#7eb0ff' : '#2f6fed' }}
+            >
+              Clips · Extras
+            </p>
+            <h1
+              className="text-5xl uppercase leading-[0.92] sm:text-7xl"
+              style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+            >
+              The Showreel
+            </h1>
+            <p
+              className={`mt-5 max-w-2xl text-base leading-relaxed ${
+                pageHeroUrl ? 'text-white/80' : 'text-[var(--foreground-muted)]'
+              }`}
+            >
+              Reels from Kevin&apos;s YouTube, plus exclusive bonus clips uploaded for the official
+              site.
+            </p>
+          </div>
         </motion.section>
 
-        <div className="mb-8 flex flex-wrap items-center gap-2">
+        <div className="mb-6 flex flex-wrap items-center gap-2">
           {TABS.map((t) => {
             const activeTab = tab === t.id
             return (
@@ -157,6 +204,23 @@ export default function ShowreelPageClient() {
             </a>
           ) : null}
         </div>
+
+        {tabBanner.url ? (
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 overflow-hidden rounded-[1.5rem] border border-[var(--border)]"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={tabBanner.url}
+              alt=""
+              className="aspect-[3/1] w-full object-cover sm:aspect-[3.2/1]"
+              style={{ objectPosition: tabBanner.focus }}
+            />
+          </motion.div>
+        ) : null}
 
         {error ? (
           <div

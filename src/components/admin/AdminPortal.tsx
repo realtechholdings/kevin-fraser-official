@@ -22,6 +22,7 @@ import {
 import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
+import ShowreelAdminPanel from '@/components/admin/ShowreelAdminPanel'
 import StudioAdminPanel from '@/components/admin/StudioAdminPanel'
 import ThemeAdminPanel from '@/components/admin/ThemeAdminPanel'
 import AIKevAdminPanel from '@/components/admin/AIKevAdminPanel'
@@ -727,7 +728,7 @@ export default function AdminPortal() {
               : tab === 'scanner'
               ? { title: 'Ticket Scanner', subtitle: 'Verify ticket QR codes and check guests in' }
               : tab === 'bonus'
-              ? { title: 'Bonus Content', subtitle: 'Upload exclusive Showreel clips to Cloudflare R2' }
+              ? { title: 'Showreel', subtitle: 'Page banners, tab heroes, and exclusive bonus clips' }
               : tab === 'studio'
                 ? { title: 'The Studio', subtitle: 'Behind the scenes, characters, and creative process' }
                 : tab === 'kevin11'
@@ -768,7 +769,7 @@ export default function AdminPortal() {
                 style={{ width: 'auto' }}
               >
                 {id === 'bonus'
-                  ? 'Bonus'
+                  ? 'Showreel'
                   : id === 'studio'
                     ? 'Studio'
                     : id === 'tiers'
@@ -1803,16 +1804,28 @@ export default function AdminPortal() {
           ) : null}
 
           {tab === 'bonus' ? (
-            <BonusAdminPanel
-              onMessage={(msg) => {
-                setMessage(msg)
-                setError('')
-              }}
-              onError={(msg) => {
-                setError(msg)
-                setMessage('')
-              }}
-            />
+            <div className="space-y-10">
+              <ShowreelAdminPanel
+                onMessage={(msg) => {
+                  setMessage(msg)
+                  setError('')
+                }}
+                onError={(msg) => {
+                  setError(msg)
+                  setMessage('')
+                }}
+              />
+              <BonusAdminPanel
+                onMessage={(msg) => {
+                  setMessage(msg)
+                  setError('')
+                }}
+                onError={(msg) => {
+                  setError(msg)
+                  setMessage('')
+                }}
+              />
+            </div>
           ) : null}
 
           {tab === 'studio' ? (

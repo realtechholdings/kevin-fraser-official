@@ -1,7 +1,14 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
-import { STUDIO_CATEGORIES, type StudioCategory } from '@/lib/studio/categories'
+import type { StudioCategory } from '@/lib/studio/categories'
 
-export { STUDIO_CATEGORIES, STUDIO_CATEGORY_LABELS, type StudioCategory } from '@/lib/studio/categories'
+export {
+  DEFAULT_STUDIO_CATEGORY_DEFS,
+  STUDIO_CATEGORIES,
+  STUDIO_CATEGORY_LABELS,
+  studioCategoryLabel,
+  type StudioCategory,
+  type StudioCategoryDef,
+} from '@/lib/studio/categories'
 
 const StudioContentSchema = new Schema(
   {
@@ -9,8 +16,8 @@ const StudioContentSchema = new Schema(
     description: { type: String, default: '', trim: true },
     category: {
       type: String,
-      enum: STUDIO_CATEGORIES,
       required: true,
+      trim: true,
       index: true,
     },
     mediaKey: { type: String, required: true, trim: true },

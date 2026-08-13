@@ -40,7 +40,7 @@ const nav: { id: AdminTab; name: string; icon: typeof LayoutDashboard }[] = [
   { id: 'sales', name: 'Sales', icon: BadgeDollarSign },
   { id: 'cms', name: 'CMS', icon: Mail },
   { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
-  { id: 'bonus', name: 'Bonus Content', icon: Film },
+  { id: 'bonus', name: 'Showreel', icon: Film },
   { id: 'studio', name: 'The Studio', icon: Clapperboard },
   { id: 'kevin11', name: 'Kevin11', icon: Store },
   { id: 'legal', name: 'Terms & Policies', icon: ScrollText },

@@ -1,10 +1,16 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 import {
   DEFAULT_AI_SETTINGS,
+  DEFAULT_SHOWREEL_SETTINGS,
+  DEFAULT_STUDIO_SETTINGS,
   DEFAULT_THEME_SETTINGS,
   SITE_SETTINGS_KEY,
+  normalizeShowreelSettings,
+  normalizeStudioSettings,
   type AISettings,
+  type ShowreelSettings,
   type SiteSettingsData,
+  type StudioSettings,
   type ThemeSettings,
 } from '@/lib/settings/defaults'
 import {
@@ -56,12 +62,60 @@ const LegalSchema = new Schema(
   { _id: false },
 )
 
+const ShowreelImageSlotSchema = new Schema(
+  {
+    imageKey: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
+    focus: { type: String, default: 'center center' },
+  },
+  { _id: false },
+)
+
+const ShowreelSchema = new Schema(
+  {
+    pageHero: {
+      type: ShowreelImageSlotSchema,
+      default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS.pageHero }),
+    },
+    reelsBanner: {
+      type: ShowreelImageSlotSchema,
+      default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS.reelsBanner }),
+    },
+    bonusBanner: {
+      type: ShowreelImageSlotSchema,
+      default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS.bonusBanner }),
+    },
+  },
+  { _id: false },
+)
+
+const StudioCategorySchema = new Schema(
+  {
+    id: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    sortOrder: { type: Number, default: 0 },
+  },
+  { _id: false },
+)
+
+const StudioSchema = new Schema(
+  {
+    categories: {
+      type: [StudioCategorySchema],
+      default: () => DEFAULT_STUDIO_SETTINGS.categories.map((c) => ({ ...c })),
+    },
+  },
+  { _id: false },
+)
+
 const SiteSettingsSchema = new Schema(
   {
     key: { type: String, required: true, unique: true, default: SITE_SETTINGS_KEY },
     theme: { type: ThemeSchema, default: () => ({ ...DEFAULT_THEME_SETTINGS }) },
     ai: { type: AISchema, default: () => ({ ...DEFAULT_AI_SETTINGS }) },
     legal: { type: LegalSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS }) },
+    showreel: { type: ShowreelSchema, default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS }) },
+    studio: { type: StudioSchema, default: () => ({ ...DEFAULT_STUDIO_SETTINGS }) },
   },
   { timestamps: true },
 )
@@ -71,6 +125,8 @@ export type SiteSettingsDocument = InferSchemaType<typeof SiteSettingsSchema> & 
   theme: ThemeSettings
   ai: AISettings
   legal: LegalSettings
+  showreel: ShowreelSettings
+  studio: StudioSettings
   createdAt: Date
   updatedAt: Date
 }
@@ -87,6 +143,8 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
       theme: { ...DEFAULT_THEME_SETTINGS },
       ai: { ...DEFAULT_AI_SETTINGS },
       legal: normalizeLegalSettings(DEFAULT_LEGAL_SETTINGS),
+      showreel: normalizeShowreelSettings(DEFAULT_SHOWREEL_SETTINGS),
+      studio: normalizeStudioSettings(DEFAULT_STUDIO_SETTINGS),
     }
   }
   return {
@@ -105,5 +163,7 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
       avatarUrl: doc.ai?.avatarUrl || '',
     },
     legal: normalizeLegalSettings(doc.legal as Partial<LegalSettings> | undefined),
+    showreel: normalizeShowreelSettings(doc.showreel as Partial<ShowreelSettings> | undefined),
+    studio: normalizeStudioSettings(doc.studio as Partial<StudioSettings> | undefined),
   }
 }

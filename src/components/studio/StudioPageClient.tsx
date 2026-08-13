@@ -7,24 +7,23 @@ import { ArrowLeft, Play, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { PublicStudioContent } from '@/lib/serialize'
 import {
-  STUDIO_CATEGORIES,
-  STUDIO_CATEGORY_LABELS,
-  type StudioCategory,
+  DEFAULT_STUDIO_CATEGORY_DEFS,
+  studioCategoryLabel,
+  type StudioCategoryDef,
 } from '@/lib/studio/categories'
 
 type StudioPayload = {
   success: boolean
-  byCategory: Record<StudioCategory, PublicStudioContent[]>
+  categories?: StudioCategoryDef[]
+  byCategory: Record<string, PublicStudioContent[]>
   error?: string
 }
 
-const TABS = STUDIO_CATEGORIES.map((id) => ({
-  id,
-  label: STUDIO_CATEGORY_LABELS[id],
-}))
-
 export default function StudioPageClient() {
-  const [tab, setTab] = useState<StudioCategory>('behind_the_scenes')
+  const [categories, setCategories] = useState<StudioCategoryDef[]>(
+    DEFAULT_STUDIO_CATEGORY_DEFS.map((c) => ({ ...c })),
+  )
+  const [tab, setTab] = useState(categories[0]?.id || 'behind_the_scenes')
   const [data, setData] = useState<StudioPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -37,7 +36,17 @@ export default function StudioPageClient() {
         const res = await fetch('/api/studio')
         const json = (await res.json()) as StudioPayload
         if (!res.ok || !json.success) throw new Error(json.error || 'Failed to load studio')
-        if (!cancelled) setData(json)
+        if (!cancelled) {
+          const nextCategories =
+            json.categories && json.categories.length > 0
+              ? json.categories
+              : DEFAULT_STUDIO_CATEGORY_DEFS.map((c) => ({ ...c }))
+          setCategories(nextCategories)
+          setData(json)
+          setTab((prev) =>
+            nextCategories.some((c) => c.id === prev) ? prev : nextCategories[0].id,
+          )
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load studio')
@@ -61,6 +70,7 @@ export default function StudioPageClient() {
   }, [active])
 
   const items = useMemo(() => data?.byCategory?.[tab] || [], [data, tab])
+  const eyebrow = categories.map((c) => c.label).join(' · ')
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
@@ -100,7 +110,7 @@ export default function StudioPageClient() {
           className="mb-10 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-7 sm:p-10"
         >
           <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#FF0080' }}>
-            Behind the scenes · Characters · Process
+            {eyebrow || 'Behind the scenes · Characters · Process'}
           </p>
           <h1
             className="text-5xl uppercase leading-[0.92] sm:text-7xl"
@@ -115,7 +125,7 @@ export default function StudioPageClient() {
         </motion.section>
 
         <div className="mb-8 flex flex-wrap items-center gap-2">
-          {TABS.map((t) => {
+          {categories.map((t) => {
             const activeTab = tab === t.id
             return (
               <button
@@ -155,7 +165,7 @@ export default function StudioPageClient() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
-            No {STUDIO_CATEGORY_LABELS[tab].toLowerCase()} videos yet — check back soon.
+            No {studioCategoryLabel(tab, categories).toLowerCase()} videos yet — check back soon.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -178,11 +188,11 @@ export default function StudioPageClient() {
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#2a0018] to-[#080010] text-sm text-white/60">
+                    <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#2a0014] to-[#0a0005] text-sm text-white/60">
                       Studio
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
                     <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
                       <Play className="h-5 w-5 fill-current" />
@@ -191,7 +201,7 @@ export default function StudioPageClient() {
                   <div className="absolute bottom-0 left-0 right-0 p-3">
                     <p className="line-clamp-2 text-sm font-medium text-white">{item.title}</p>
                     <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/70">
-                      {STUDIO_CATEGORY_LABELS[item.category]}
+                      {studioCategoryLabel(item.category, categories)}
                     </p>
                   </div>
                 </div>
@@ -246,7 +256,7 @@ export default function StudioPageClient() {
                 )}
                 <div className="border-t border-white/10 px-5 py-4 text-white">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                    {STUDIO_CATEGORY_LABELS[active.category]}
+                    {studioCategoryLabel(active.category, categories)}
                   </p>
                   <p className="mt-1 font-medium">{active.title}</p>
                   {active.description ? (

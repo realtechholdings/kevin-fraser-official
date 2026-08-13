@@ -6,13 +6,18 @@ import { isR2Configured } from '@/lib/r2'
 import {
   DEFAULT_AI_SETTINGS,
   DEFAULT_LEGAL_SETTINGS,
+  DEFAULT_SHOWREEL_SETTINGS,
+  DEFAULT_STUDIO_SETTINGS,
   DEFAULT_THEME_SETTINGS,
   SITE_SETTINGS_KEY,
   normalizeHex,
+  normalizeShowreelSettings,
+  normalizeStudioSettings,
 } from '@/lib/settings/defaults'
 import { normalizeLegalSettings } from '@/lib/settings/legalDefaults'
 import { getSiteSettings, invalidateSiteSettingsCache } from '@/lib/settings/getSiteSettings'
 import { toSiteSettingsData } from '@/lib/models/SiteSettings'
+import StudioContent from '@/lib/models/StudioContent'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -34,6 +39,8 @@ export async function GET() {
           systemPrompt: DEFAULT_AI_SETTINGS.systemPrompt,
         },
         legal: DEFAULT_LEGAL_SETTINGS,
+        showreel: DEFAULT_SHOWREEL_SETTINGS,
+        studio: DEFAULT_STUDIO_SETTINGS,
       },
     })
   } catch (error) {
@@ -59,6 +66,8 @@ export async function PUT(req: NextRequest) {
         theme: DEFAULT_THEME_SETTINGS,
         ai: DEFAULT_AI_SETTINGS,
         legal: DEFAULT_LEGAL_SETTINGS,
+        showreel: DEFAULT_SHOWREEL_SETTINGS,
+        studio: DEFAULT_STUDIO_SETTINGS,
       })
     }
 
@@ -114,9 +123,70 @@ export async function PUT(req: NextRequest) {
       doc.markModified('legal')
     }
 
+    if (body.showreel) {
+      const current = toSiteSettingsData(doc).showreel
+      const next = normalizeShowreelSettings({
+        pageHero: body.showreel.pageHero
+          ? { ...current.pageHero, ...body.showreel.pageHero }
+          : current.pageHero,
+        reelsBanner: body.showreel.reelsBanner
+          ? { ...current.reelsBanner, ...body.showreel.reelsBanner }
+          : current.reelsBanner,
+        bonusBanner: body.showreel.bonusBanner
+          ? { ...current.bonusBanner, ...body.showreel.bonusBanner }
+          : current.bonusBanner,
+      })
+
+      for (const slot of ['pageHero', 'reelsBanner', 'bonusBanner'] as const) {
+        if (next[slot].imageKey && !next[slot].imageUrl) {
+          next[slot].imageUrl = `/api/settings/showreel/${slot}`
+        }
+      }
+
+      doc.showreel = next
+      doc.markModified('showreel')
+    }
+
+    if (body.studio) {
+      const previous = toSiteSettingsData(doc).studio.categories
+      const next = normalizeStudioSettings({
+        categories: Array.isArray(body.studio.categories)
+          ? body.studio.categories
+          : previous,
+      })
+
+      if (next.categories.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'At least one studio category is required.' },
+          { status: 400 },
+        )
+      }
+
+      // Optional renames: [{ from, to }] so clips move with a slug change.
+      const renames = Array.isArray(body.studio.renames)
+        ? (body.studio.renames as Array<{ from?: string; to?: string }>)
+            .map((r) => ({
+              from: String(r.from || '').trim(),
+              to: String(r.to || '').trim(),
+            }))
+            .filter((r) => r.from && r.to && r.from !== r.to)
+        : []
+
+      for (const rename of renames) {
+        if (!next.categories.some((c) => c.id === rename.to)) continue
+        await StudioContent.updateMany(
+          { category: rename.from },
+          { $set: { category: rename.to } },
+        )
+      }
+
+      doc.set('studio', next)
+      doc.markModified('studio')
+    }
+
     await doc.save()
     invalidateSiteSettingsCache()
-    const settings = toSiteSettingsData(doc)
+    const settings = await getSiteSettings({ bypassCache: true })
 
     return NextResponse.json({ success: true, settings })
   } catch (error) {

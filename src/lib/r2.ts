@@ -79,6 +79,10 @@ export function kevin11MediaKey(filename: string) {
   return r2ObjectKey('kevin11', filename)
 }
 
+export function showreelMediaKey(filename: string) {
+  return r2ObjectKey('showreel', filename)
+}
+
 export function settingsMediaKey(filename: string) {
   return r2ObjectKey('settings', filename)
 }

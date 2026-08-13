@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import StudioContent, { STUDIO_CATEGORIES } from '@/lib/models/StudioContent'
+import StudioContent from '@/lib/models/StudioContent'
 import { requireAdmin } from '@/lib/admin'
 import { serializeStudioContent } from '@/lib/serialize'
 import { isR2Configured } from '@/lib/r2'
+import { getSiteSettings } from '@/lib/settings/getSiteSettings'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -12,12 +13,13 @@ export async function GET() {
   }
 
   try {
+    const settings = await getSiteSettings({ bypassCache: true })
     await dbConnect()
     const items = await StudioContent.find().sort({ category: 1, sortOrder: 1, createdAt: -1 })
     return NextResponse.json({
       success: true,
       r2Configured: isR2Configured(),
-      categories: STUDIO_CATEGORIES,
+      categories: settings.studio.categories,
       items: items.map(serializeStudioContent),
     })
   } catch (error) {
@@ -53,20 +55,20 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!STUDIO_CATEGORIES.includes(category as (typeof STUDIO_CATEGORIES)[number])) {
+    const settings = await getSiteSettings({ bypassCache: true })
+    const validIds = new Set(settings.studio.categories.map((c) => c.id))
+    if (!validIds.has(category)) {
       return NextResponse.json(
-        { success: false, error: 'category must be behind_the_scenes, characters, or creative_process.' },
+        { success: false, error: 'Choose a valid studio category.' },
         { status: 400 },
       )
     }
-
-    const studioCategory = category as (typeof STUDIO_CATEGORIES)[number]
 
     await dbConnect()
     const item = await StudioContent.create({
       title,
       description: String(body.description || '').trim(),
-      category: studioCategory,
+      category,
       mediaKey,
       mediaUrl: String(body.mediaUrl || '').trim() || `r2://${mediaKey}`,
       thumbnailKey: String(body.thumbnailKey || '').trim(),

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import StudioContent, { STUDIO_CATEGORIES } from '@/lib/models/StudioContent'
+import StudioContent from '@/lib/models/StudioContent'
 import { requireAdmin } from '@/lib/admin'
 import { serializeStudioContent } from '@/lib/serialize'
 import { deleteR2Object, isR2Configured } from '@/lib/r2'
+import { getSiteSettings } from '@/lib/settings/getSiteSettings'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -26,10 +27,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (body.description !== undefined) item.description = String(body.description || '').trim()
     if (body.category !== undefined) {
       const category = String(body.category || '').trim()
-      if (!STUDIO_CATEGORIES.includes(category as (typeof STUDIO_CATEGORIES)[number])) {
+      const settings = await getSiteSettings({ bypassCache: true })
+      const validIds = new Set(settings.studio.categories.map((c) => c.id))
+      if (!validIds.has(category)) {
         return NextResponse.json({ success: false, error: 'Invalid category.' }, { status: 400 })
       }
-      item.category = category as (typeof STUDIO_CATEGORIES)[number]
+      item.category = category
     }
     if (body.sortOrder !== undefined) item.sortOrder = Number(body.sortOrder) || 0
     if (body.featured !== undefined) item.featured = Boolean(body.featured)

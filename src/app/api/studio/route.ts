@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import StudioContent, {
-  STUDIO_CATEGORIES,
-  type StudioCategory,
-} from '@/lib/models/StudioContent'
+import StudioContent from '@/lib/models/StudioContent'
 import { serializeStudioContent } from '@/lib/serialize'
 import { publicUrlForKey, studioFilePath } from '@/lib/r2'
+import { getSiteSettings } from '@/lib/settings/getSiteSettings'
+import type { StudioCategoryDef } from '@/lib/studio/categories'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    const [settings] = await Promise.all([getSiteSettings()])
+    const categories: StudioCategoryDef[] = settings.studio.categories
+
     await dbConnect()
     const docs = await StudioContent.find({ published: true }).sort({
       category: 1,
@@ -31,17 +33,17 @@ export async function GET() {
       }
     })
 
-    const byCategory = STUDIO_CATEGORIES.reduce(
+    const byCategory = categories.reduce(
       (acc, category) => {
-        acc[category] = items.filter((item) => item.category === category)
+        acc[category.id] = items.filter((item) => item.category === category.id)
         return acc
       },
-      {} as Record<StudioCategory, typeof items>,
+      {} as Record<string, typeof items>,
     )
 
     return NextResponse.json({
       success: true,
-      categories: STUDIO_CATEGORIES,
+      categories,
       items,
       byCategory,
     })

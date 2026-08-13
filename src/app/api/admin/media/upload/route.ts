@@ -5,13 +5,14 @@ import {
   isR2Configured,
   putR2Object,
   showMediaKey,
+  showreelMediaKey,
   tourMediaKey,
 } from '@/lib/r2'
 
 export const runtime = 'nodejs'
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB images
-const FOLDERS = ['tours', 'shows', 'email'] as const
+const FOLDERS = ['tours', 'shows', 'email', 'showreel'] as const
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin()
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
     if (!FOLDERS.includes(folder as (typeof FOLDERS)[number])) {
       return NextResponse.json(
-        { success: false, error: 'folder must be tours, shows, or email.' },
+        { success: false, error: 'folder must be tours, shows, email, or showreel.' },
         { status: 400 },
       )
     }
@@ -58,7 +59,9 @@ export async function POST(req: NextRequest) {
         ? tourMediaKey(file.name || 'image.jpg')
         : folder === 'email'
           ? emailMediaKey(file.name || 'image.jpg')
-          : showMediaKey(file.name || 'image.jpg')
+          : folder === 'showreel'
+            ? showreelMediaKey(file.name || 'image.jpg')
+            : showMediaKey(file.name || 'image.jpg')
 
     const uploaded = await putR2Object({
       key,
