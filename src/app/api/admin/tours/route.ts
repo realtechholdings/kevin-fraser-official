@@ -61,6 +61,9 @@ export async function POST(req: NextRequest) {
         ? body.bannerPosition
         : 'background',
       bannerFocus: String(body.bannerFocus || 'center center').trim() || 'center center',
+      ticketAccent: String(body.ticketAccent || '#FF6600').trim() || '#FF6600',
+      ticketArtwork: String(body.ticketArtwork || ''),
+      ticketArtworkKey: String(body.ticketArtworkKey || ''),
       featured: Boolean(body.featured),
       published: body.published !== false,
       startDate: body.startDate ? parseWallDate(body.startDate) || undefined : undefined,
@@ -74,6 +77,10 @@ export async function POST(req: NextRequest) {
     }
     if (tour.bannerImageKey && !tour.bannerImage) {
       tour.bannerImage = `/api/tours/${tour._id}/banner`
+      dirty = true
+    }
+    if (tour.ticketArtworkKey && !tour.ticketArtwork) {
+      tour.ticketArtwork = `/api/tours/${tour._id}/ticket-artwork`
       dirty = true
     }
     if (dirty) await tour.save()

@@ -46,6 +46,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.bannerFocus !== undefined) {
       tour.bannerFocus = String(body.bannerFocus || 'center center').trim() || 'center center'
     }
+    if (body.ticketAccent !== undefined) {
+      const accent = String(body.ticketAccent || '').trim()
+      tour.ticketAccent = accent || '#FF6600'
+    }
+    if (body.ticketArtwork !== undefined) tour.ticketArtwork = String(body.ticketArtwork)
+    if (body.ticketArtworkKey !== undefined) {
+      tour.ticketArtworkKey = String(body.ticketArtworkKey)
+      if (tour.ticketArtworkKey && !tour.ticketArtwork) {
+        tour.ticketArtwork = `/api/tours/${tour._id}/ticket-artwork`
+      }
+    }
     if (body.published !== undefined) tour.published = Boolean(body.published)
     if (body.startDate !== undefined) {
       tour.startDate = body.startDate ? parseWallDate(body.startDate) || undefined : undefined

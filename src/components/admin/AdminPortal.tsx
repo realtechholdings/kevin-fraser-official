@@ -48,6 +48,9 @@ type TourForm = {
   bannerImageKey: string
   bannerPosition: 'background' | 'above'
   bannerFocus: string
+  ticketAccent: string
+  ticketArtwork: string
+  ticketArtworkKey: string
   featured: boolean
   published: boolean
   startDate: string
@@ -106,6 +109,9 @@ const emptyTour: TourForm = {
   bannerImageKey: '',
   bannerPosition: 'background',
   bannerFocus: 'center center',
+  ticketAccent: '#FF6600',
+  ticketArtwork: '',
+  ticketArtworkKey: '',
   featured: false,
   published: true,
   startDate: '',
@@ -407,6 +413,7 @@ export default function AdminPortal() {
         ...tourForm,
         coverImage: tourForm.coverImage.startsWith('blob:') ? '' : tourForm.coverImage,
         bannerImage: tourForm.bannerImage.startsWith('blob:') ? '' : tourForm.bannerImage,
+        ticketArtwork: tourForm.ticketArtwork.startsWith('blob:') ? '' : tourForm.ticketArtwork,
         startDate: tourForm.startDate ? toWallInput(tourForm.startDate) : null,
         endDate: tourForm.endDate ? toWallInput(tourForm.endDate) : null,
       }
@@ -492,6 +499,9 @@ export default function AdminPortal() {
       bannerImageKey: tour.bannerImageKey || '',
       bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
       bannerFocus: tour.bannerFocus || 'center center',
+      ticketAccent: tour.ticketAccent || '#FF6600',
+      ticketArtwork: tour.ticketArtwork || '',
+      ticketArtworkKey: tour.ticketArtworkKey || '',
       featured: tour.featured,
       published: tour.published,
       startDate: toWallInput(tour.startDate),
@@ -534,7 +544,7 @@ export default function AdminPortal() {
     setShowFormPanel(true)
   }
 
-  async function onTourImageChange(kind: 'cover' | 'banner', file: File | null) {
+  async function onTourImageChange(kind: 'cover' | 'banner' | 'ticket', file: File | null) {
     if (!file) return
     setBusy(true)
     setError('')
@@ -547,14 +557,21 @@ export default function AdminPortal() {
           coverImageKey: uploaded.key,
           coverImage: preview,
         }))
-      } else {
+      } else if (kind === 'banner') {
         setTourForm((prev) => ({
           ...prev,
           bannerImageKey: uploaded.key,
           bannerImage: preview,
         }))
+      } else {
+        setTourForm((prev) => ({
+          ...prev,
+          ticketArtworkKey: uploaded.key,
+          ticketArtwork: preview,
+        }))
       }
-      setMessage(`${kind === 'cover' ? 'Card' : 'Banner'} image uploaded. Save the tour to keep it.`)
+      const label = kind === 'cover' ? 'Card' : kind === 'banner' ? 'Banner' : 'Ticket'
+      setMessage(`${label} image uploaded. Save the tour to keep it.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Image upload failed')
     } finally {
@@ -1030,6 +1047,66 @@ export default function AdminPortal() {
                         <p className="mt-1.5 text-xs text-white/35">
                           Which part of the image stays visible when cropped.
                         </p>
+                      </div>
+                      <div className="md:col-span-2 rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">
+                          Ticket branding
+                        </p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className={labelClass}>Ticket accent colour</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="color"
+                                className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+                                value={
+                                  /^#[0-9a-fA-F]{6}$/.test(tourForm.ticketAccent)
+                                    ? tourForm.ticketAccent
+                                    : '#FF6600'
+                                }
+                                onChange={(e) =>
+                                  setTourForm({ ...tourForm, ticketAccent: e.target.value.toUpperCase() })
+                                }
+                                disabled={busy}
+                              />
+                              <input
+                                className={inputClass}
+                                value={tourForm.ticketAccent}
+                                onChange={(e) =>
+                                  setTourForm({ ...tourForm, ticketAccent: e.target.value })
+                                }
+                                placeholder="#FF6600"
+                              />
+                            </div>
+                            <p className="mt-1.5 text-xs text-white/35">
+                              Used for the ticket header and tier badge (Aus vs SA can differ per tour).
+                            </p>
+                          </div>
+                          <div>
+                            <ImageCropField
+                              label="Ticket artwork (optional)"
+                              preset="ticketArt"
+                              currentUrl={
+                                tourForm.ticketArtwork ||
+                                (tourForm.ticketArtworkKey && editingTourId
+                                  ? `/api/tours/${editingTourId}/ticket-artwork`
+                                  : '')
+                              }
+                              disabled={busy}
+                              onCropped={(file) => void onTourImageChange('ticket', file)}
+                              onRemoveCurrent={() =>
+                                setTourForm((f) => ({
+                                  ...f,
+                                  ticketArtwork: '',
+                                  ticketArtworkKey: '',
+                                }))
+                              }
+                            />
+                            <p className="mt-1.5 text-xs text-white/35">
+                              Side panel on the PDF. If empty, show event artwork is used when available.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       <div>
                         <label className={labelClass}>Start</label>

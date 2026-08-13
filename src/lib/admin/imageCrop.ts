@@ -88,6 +88,13 @@ export const IMAGE_CROP_PRESETS = {
     outputWidth: 900,
     hint: 'Email signature image',
   },
+  ticketArt: {
+    id: 'ticketArt',
+    label: '3:4 ticket art',
+    aspect: 3 / 4,
+    outputWidth: 480,
+    hint: 'Ticket PDF side artwork',
+  },
 } as const satisfies Record<string, ImageCropPreset>
 
 function loadImage(src: string): Promise<HTMLImageElement> {

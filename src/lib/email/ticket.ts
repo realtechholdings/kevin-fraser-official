@@ -8,11 +8,17 @@ import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
 import { sendEmail } from '@/lib/email/resend'
 import { generateTicketsPdf } from '@/lib/email/ticketPdf'
+import { createR2DownloadUrl, publicUrlForKey } from '@/lib/r2'
+
+function tourOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
+  const tour = show.tour
+  if (!tour || typeof tour !== 'object' || !('title' in tour)) return null
+  return tour as unknown as TourDocument
+}
 
 function tourTitleOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
-  return show.tour && typeof show.tour === 'object' && 'title' in show.tour
-    ? String((show.tour as { title: unknown }).title)
-    : ''
+  const tour = tourOf(show)
+  return tour?.title ? String(tour.title) : ''
 }
 
 export type TicketOrderLike = Pick<
@@ -44,6 +50,41 @@ export function ticketTemplateVars(
   }
 }
 
+async function resolveArtworkBytes(
+  show: ShowDocument & { tour?: TourDocument | unknown },
+): Promise<Uint8Array | undefined> {
+  const tour = tourOf(show)
+  const key = tour?.ticketArtworkKey || show.artworkImageKey || ''
+  const urlHint = tour?.ticketArtwork || show.artworkImage || ''
+
+  const candidates: string[] = []
+  if (key) {
+    const pub = publicUrlForKey(key)
+    if (pub) candidates.push(pub)
+    try {
+      candidates.push(await createR2DownloadUrl(key))
+    } catch {
+      // R2 may be unavailable — fall through to absolute site URLs
+    }
+  }
+  if (urlHint) {
+    if (/^https?:\/\//i.test(urlHint)) candidates.push(urlHint)
+    else candidates.push(`${appUrl()}${urlHint.startsWith('/') ? '' : '/'}${urlHint}`)
+  }
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) continue
+      const buf = new Uint8Array(await res.arrayBuffer())
+      if (buf.length) return buf
+    } catch {
+      // try next candidate
+    }
+  }
+  return undefined
+}
+
 /** Build + send the ticket confirmation email with the PDF tickets attached. */
 export async function sendTicketEmail(
   order: TicketOrderLike,
@@ -66,6 +107,8 @@ export async function sendTicketEmail(
     appUrl: appUrl(),
   })
 
+  const tour = tourOf(show)
+  const artworkBytes = await resolveArtworkBytes(show)
   const pdf = await generateTicketsPdf({
     orderId: String(order._id),
     buyerEmail: order.email,
@@ -78,6 +121,8 @@ export async function sendTicketEmail(
     timeLabel: vars.time,
     tierName: vars.tier,
     quantity: order.quantity,
+    accentHex: tour?.ticketAccent || '#FF6600',
+    artworkBytes,
   })
 
   const result = await sendEmail({

@@ -23,6 +23,11 @@ const TourSchema = new Schema(
     },
     /** CSS object-position for banner crop focus (e.g. "center top") */
     bannerFocus: { type: String, default: 'center center' },
+    /** Ticket PDF accent colour (hex), e.g. #FF6600 */
+    ticketAccent: { type: String, default: '#FF6600', trim: true },
+    /** Optional side artwork shown on ticket PDFs for this tour */
+    ticketArtwork: { type: String, default: '' },
+    ticketArtworkKey: { type: String, default: '' },
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: true },
     startDate: { type: Date },

@@ -21,6 +21,9 @@ export type PublicTour = {
   bannerImageKey: string
   bannerPosition: 'background' | 'above'
   bannerFocus: string
+  ticketAccent: string
+  ticketArtwork: string
+  ticketArtworkKey: string
   featured: boolean
   published: boolean
   startDate: string | null
@@ -136,6 +139,8 @@ export function serializeTour(tour: TourDocument): PublicTour {
   const id = String(tour._id)
   const coverKey = tour.coverImageKey || ''
   const bannerKey = tour.bannerImageKey || ''
+  const ticketArtKey = tour.ticketArtworkKey || ''
+  const ticketAccent = String(tour.ticketAccent || '#FF6600').trim() || '#FF6600'
   return {
     id,
     title: tour.title,
@@ -152,6 +157,11 @@ export function serializeTour(tour: TourDocument): PublicTour {
       (bannerKey ? `/api/tours/${id}/banner` : ''),
     bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
     bannerFocus: tour.bannerFocus || 'center center',
+    ticketAccent,
+    ticketArtworkKey: ticketArtKey,
+    ticketArtwork:
+      tour.ticketArtwork ||
+      (ticketArtKey ? `/api/tours/${id}/ticket-artwork` : ''),
     featured: Boolean(tour.featured),
     published: Boolean(tour.published),
     startDate: tour.startDate ? toWallIso(tour.startDate) : null,
