@@ -374,9 +374,15 @@ function HotspotLayer({
 
 function PoweredByGroundEffect({
   align = 'end',
+  large = false,
 }: {
   align?: 'center' | 'end'
+  /** Desktop sizing — doubled logo + “Powered by” text */
+  large?: boolean
 }) {
+  const textSize = large ? '20px' : '10px'
+  const logoHeight = large ? 36 : 18
+
   return (
     <a
       href="https://www.groundeffect.ai/"
@@ -386,12 +392,12 @@ function PoweredByGroundEffect({
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '0.4rem',
+        gap: 0,
         textDecoration: 'none',
         color: 'rgba(242,240,235,0.55)',
         fontFamily: "'Franklin Gothic Extra Condensed', sans-serif",
         textTransform: 'uppercase',
-        fontSize: '10px',
+        fontSize: textSize,
         letterSpacing: '0.12em',
         justifyContent: align === 'center' ? 'center' : 'flex-end',
         opacity: 0.9,
@@ -406,16 +412,16 @@ function PoweredByGroundEffect({
         e.currentTarget.style.color = 'rgba(242,240,235,0.55)'
       }}
     >
-      <span>Powered by</span>
+      <span style={{ marginRight: 10 }}>Powered by</span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/ground-effect-logo.jpg"
+        src="/ground-effect-logo.png"
         alt="Ground Effect"
-        width={96}
-        height={54}
+        width={666}
+        height={375}
         style={{
           display: 'block',
-          height: '18px',
+          height: logoHeight,
           width: 'auto',
           objectFit: 'contain',
         }}
@@ -514,7 +520,7 @@ function LegalNav({ sticky }: { sticky?: boolean }) {
               }
         }
       >
-        <PoweredByGroundEffect align={sticky ? 'center' : 'end'} />
+        <PoweredByGroundEffect align={sticky ? 'center' : 'end'} large={!sticky} />
       </div>
     </div>
   )
