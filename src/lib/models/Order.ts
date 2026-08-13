@@ -19,6 +19,8 @@ const OrderSchema = new Schema(
     },
     /** Set once the ticket confirmation email (with PDF) has been sent */
     confirmationEmailSentAt: { type: Date, default: null },
+    /** Set once accounts@ has been notified of this paid order */
+    salesNotifyEmailSentAt: { type: Date, default: null },
     /** Door check-ins: one entry per scanned ticket number (1-based) */
     checkedIn: {
       type: [

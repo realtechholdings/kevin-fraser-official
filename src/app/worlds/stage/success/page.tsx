@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import { CheckCircle2 } from 'lucide-react'
 import MetaPurchasePixel from '@/components/analytics/MetaPurchasePixel'
 
@@ -11,18 +12,19 @@ type Props = {
   searchParams: Promise<{ session_id?: string }>
 }
 
-async function verify(sessionId?: string) {
+async function requestHost() {
+  const h = await headers()
+  return (h.get('x-forwarded-host') || h.get('host') || '').split(',')[0].trim()
+}
+
+async function verify(sessionId?: string, host?: string) {
   if (!sessionId) return null
   try {
     const { getStripe, stripeRequestOptions } = await import('@/lib/stripe')
     const dbConnect = (await import('@/lib/db')).default
     const Order = (await import('@/lib/models/Order')).default
-    const Show = (await import('@/lib/models/Show')).default
-    // Registers Tour for populate('tour')
-    await import('@/lib/models/Tour')
     const { fulfillPaidOrder } = await import('@/lib/tickets/fulfillPaidOrder')
-    const { emailConfigured } = await import('@/lib/email/resend')
-    const { sendTicketEmail } = await import('@/lib/email/ticket')
+    const { notifyPaidOrderEmails } = await import('@/lib/tickets/notifyPaidOrder')
 
     const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(
@@ -35,27 +37,7 @@ async function verify(sessionId?: string) {
 
     if (session.payment_status === 'paid' && order) {
       await fulfillPaidOrder(order, session)
-    }
-
-    // Send ticket PDF once after payment (success page is the live return path)
-    if (
-      session.payment_status === 'paid' &&
-      order &&
-      !order.confirmationEmailSentAt &&
-      emailConfigured()
-    ) {
-      try {
-        const show = await Show.findById(order.show).populate('tour')
-        if (show) {
-          const sent = await sendTicketEmail(order, show)
-          if (!sent.skipped) {
-            order.confirmationEmailSentAt = new Date()
-            await order.save()
-          }
-        }
-      } catch (emailError) {
-        console.error('Ticket email failed on success page:', emailError)
-      }
+      await notifyPaidOrderEmails(order, { host })
     }
 
     const showId =
@@ -79,7 +61,8 @@ async function verify(sessionId?: string) {
 export default async function StageSuccessPage({ searchParams }: Props) {
   const params = await searchParams
   const sessionId = params.session_id || ''
-  const result = await verify(sessionId || undefined)
+  const host = await requestHost()
+  const result = await verify(sessionId || undefined, host)
 
   return (
     <div

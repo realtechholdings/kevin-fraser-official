@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import Order from '@/lib/models/Order'
-import Show from '@/lib/models/Show'
-// Registers the Tour schema for .populate('tour')
-import '@/lib/models/Tour'
 import { getStripe, stripeRequestOptions } from '@/lib/stripe'
-import { emailConfigured } from '@/lib/email/resend'
-import { sendTicketEmail } from '@/lib/email/ticket'
 import { fulfillPaidOrder } from '@/lib/tickets/fulfillPaidOrder'
+import { notifyPaidOrderEmails } from '@/lib/tickets/notifyPaidOrder'
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,27 +24,11 @@ export async function GET(req: NextRequest) {
 
     if (session.payment_status === 'paid' && order) {
       await fulfillPaidOrder(order, session)
-    }
-
-    // Send the ticket PDF email once, after payment is confirmed
-    if (
-      session.payment_status === 'paid' &&
-      order &&
-      !order.confirmationEmailSentAt &&
-      emailConfigured()
-    ) {
-      try {
-        const show = await Show.findById(order.show).populate('tour')
-        if (show) {
-          const sent = await sendTicketEmail(order, show)
-          if (!sent.skipped) {
-            order.confirmationEmailSentAt = new Date()
-            await order.save()
-          }
-        }
-      } catch (emailError) {
-        console.error('Ticket email failed:', emailError)
-      }
+      const host =
+        req.headers.get('x-forwarded-host') ||
+        req.headers.get('host') ||
+        new URL(req.url).host
+      await notifyPaidOrderEmails(order, { host })
     }
 
     return NextResponse.json({
@@ -60,6 +40,8 @@ export async function GET(req: NextRequest) {
       currency: session.currency,
       showId: session.metadata?.showId || (order ? String(order.show) : null),
       tierName: order?.tierName || session.metadata?.tierName || null,
+      emailSent: Boolean(order?.confirmationEmailSentAt),
+      salesNotified: Boolean(order?.salesNotifyEmailSentAt),
     })
   } catch (error) {
     console.error('Verify checkout error:', error)

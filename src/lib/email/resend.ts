@@ -6,6 +6,16 @@ export const EMAIL_FROM_PRODUCTION = 'Kevin Fraser <tickets@kevinfraserofficial.
 /** Preview / Vercel staging — Resend sends via the hivemynd.io domain. */
 export const EMAIL_FROM_STAGING = 'Kevin Fraser <kevinfraser@hivemynd.io>'
 
+/** Internal sales alerts on the live site. */
+export const EMAIL_SALES_FROM_PRODUCTION = 'Kevin Fraser Sales <sales@kevinfraserofficial.com>'
+
+/** Internal sales alerts on vercel.app / staging (hivemynd Resend domain). */
+export const EMAIL_SALES_FROM_STAGING = 'Kevin Fraser Sales <sales@hivemynd.io>'
+
+/** Where new-order alerts are delivered. */
+export const SALES_NOTIFY_TO =
+  process.env.SALES_NOTIFY_TO?.trim() || 'accounts@kevinfraserofficial.com'
+
 export type EmailAttachment = {
   filename: string
   /** Base64-encoded file content */
@@ -19,38 +29,57 @@ export type SendEmailInput = {
   html: string
   attachments?: EmailAttachment[]
   replyTo?: string
+  /** Override default from-address (ticket vs sales). */
+  from?: string
 }
 
 export function emailConfigured() {
   return Boolean(process.env.RESEND_API_KEY)
 }
 
-function siteHost(): string {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || '').trim()
-  if (!raw) return ''
+export function normalizeMailHost(raw: string) {
+  const value = raw.trim().toLowerCase()
+  if (!value) return ''
   try {
-    const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+    const withProto = /^https?:\/\//i.test(value) ? value : `https://${value}`
     return new URL(withProto).hostname.toLowerCase()
   } catch {
-    return raw.toLowerCase()
+    return value.split('/')[0].split(':')[0]
   }
 }
 
-/** True when this deployment is the live kevinfraserofficial.com site. */
+function siteHost(): string {
+  return normalizeMailHost(process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || '')
+}
+
+/** True when this host is the live kevinfraserofficial.com site. */
 export function isProductionMailHost(host = siteHost()) {
-  return host === 'kevinfraserofficial.com' || host === 'www.kevinfraserofficial.com'
+  const h = normalizeMailHost(host)
+  return h === 'kevinfraserofficial.com' || h === 'www.kevinfraserofficial.com'
 }
 
 /**
- * From-address for Resend.
+ * From-address for buyer ticket emails.
  * - www.kevinfraserofficial.com → tickets@kevinfraserofficial.com
  * - vercel.app / local / other → kevinfraser@hivemynd.io
  * EMAIL_FROM overrides when set (per-environment on Vercel).
  */
-export function fromAddress() {
+export function fromAddress(host?: string) {
   const override = process.env.EMAIL_FROM?.trim()
   if (override) return override
-  return isProductionMailHost() ? EMAIL_FROM_PRODUCTION : EMAIL_FROM_STAGING
+  return isProductionMailHost(host) ? EMAIL_FROM_PRODUCTION : EMAIL_FROM_STAGING
+}
+
+/**
+ * From-address for internal sales / accounts notifications.
+ * - kevinfraserofficial.com → sales@kevinfraserofficial.com
+ * - vercel.app / other → sales@hivemynd.io
+ * EMAIL_SALES_FROM overrides when set.
+ */
+export function salesFromAddress(host?: string) {
+  const override = process.env.EMAIL_SALES_FROM?.trim()
+  if (override) return override
+  return isProductionMailHost(host) ? EMAIL_SALES_FROM_PRODUCTION : EMAIL_SALES_FROM_STAGING
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<{ id: string }> {
@@ -67,7 +96,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id: string }> 
     },
     cache: 'no-store',
     body: JSON.stringify({
-      from: fromAddress(),
+      from: input.from || fromAddress(),
       to: input.to,
       subject: input.subject,
       text: input.text,
