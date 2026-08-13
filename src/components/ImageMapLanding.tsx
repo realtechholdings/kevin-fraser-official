@@ -380,7 +380,7 @@ function PoweredByGroundEffect({
   /** Desktop — doubled logo only */
   large?: boolean
 }) {
-  const logoHeight = large ? 36 : 18
+  const logoHeight = large ? 72 : 36
 
   return (
     <a
