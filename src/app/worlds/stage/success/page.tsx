@@ -17,7 +17,12 @@ async function verify(sessionId?: string) {
     const { getStripe, stripeRequestOptions } = await import('@/lib/stripe')
     const dbConnect = (await import('@/lib/db')).default
     const Order = (await import('@/lib/models/Order')).default
+    const Show = (await import('@/lib/models/Show')).default
+    // Registers Tour for populate('tour')
+    await import('@/lib/models/Tour')
     const { fulfillPaidOrder } = await import('@/lib/tickets/fulfillPaidOrder')
+    const { emailConfigured } = await import('@/lib/email/resend')
+    const { sendTicketEmail } = await import('@/lib/email/ticket')
 
     const stripe = getStripe()
     const session = await stripe.checkout.sessions.retrieve(
@@ -32,6 +37,27 @@ async function verify(sessionId?: string) {
       await fulfillPaidOrder(order, session)
     }
 
+    // Send ticket PDF once after payment (success page is the live return path)
+    if (
+      session.payment_status === 'paid' &&
+      order &&
+      !order.confirmationEmailSentAt &&
+      emailConfigured()
+    ) {
+      try {
+        const show = await Show.findById(order.show).populate('tour')
+        if (show) {
+          const sent = await sendTicketEmail(order, show)
+          if (!sent.skipped) {
+            order.confirmationEmailSentAt = new Date()
+            await order.save()
+          }
+        }
+      } catch (emailError) {
+        console.error('Ticket email failed on success page:', emailError)
+      }
+    }
+
     const showId =
       session.metadata?.showId || (order?.show ? String(order.show) : null)
 
@@ -43,6 +69,7 @@ async function verify(sessionId?: string) {
       currency: session.currency || order?.currency || null,
       showId,
       contentName: order?.tierName || session.metadata?.tierName || null,
+      emailSent: Boolean(order?.confirmationEmailSentAt),
     }
   } catch {
     return null
@@ -79,7 +106,9 @@ export default async function StageSuccessPage({ searchParams }: Props) {
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-[var(--foreground-muted)]">
           {result?.email
-            ? `Confirmation heading to ${result.email}.`
+            ? result.emailSent
+              ? `Your tickets were emailed to ${result.email}.`
+              : `Confirmation heading to ${result.email}.`
             : 'Your Stripe checkout completed. Check your email for the receipt.'}
           {result?.quantity
             ? ` ${result.quantity} ticket${result.quantity > 1 ? 's' : ''} secured.`
