@@ -68,6 +68,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.artworkPosition !== undefined) {
       show.artworkPosition = String(body.artworkPosition || 'center center').trim() || 'center center'
     }
+    if (body.listImage !== undefined) show.listImage = String(body.listImage)
+    if (body.listImageKey !== undefined) {
+      show.listImageKey = String(body.listImageKey)
+      if (show.listImageKey && !show.listImage) {
+        show.listImage = `/api/shows/${show._id}/list`
+      }
+    }
     if (body.venueImage !== undefined) show.venueImage = String(body.venueImage)
     if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)
     if (body.description !== undefined) show.description = String(body.description || '').trim()

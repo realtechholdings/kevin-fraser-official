@@ -73,6 +73,8 @@ export type PublicShow = {
   artworkImage: string
   artworkImageKey: string
   artworkPosition: string
+  listImage: string
+  listImageKey: string
   venueImage: string
   venueImageKey: string
   description: string
@@ -215,6 +217,10 @@ export function serializeShow(
       show.artworkImage ||
       (show.artworkImageKey ? `/api/shows/${String(show._id)}/artwork` : ''),
     artworkPosition: show.artworkPosition || 'center center',
+    listImageKey: show.listImageKey || '',
+    listImage:
+      show.listImage ||
+      (show.listImageKey ? `/api/shows/${String(show._id)}/list` : ''),
     venueImageKey: show.venueImageKey || '',
     venueImage:
       show.venueImage ||

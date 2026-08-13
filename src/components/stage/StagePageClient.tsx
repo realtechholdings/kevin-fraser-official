@@ -247,13 +247,17 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                             </div>
                           </div>
 
-                          {show.artworkImage ? (
+                          {show.listImage || show.artworkImage ? (
                             <div className="hidden h-[88px] w-[88px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-muted)] sm:block">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
-                                src={show.artworkImage}
+                                src={show.listImage || show.artworkImage}
                                 alt={`${show.city} artwork`}
-                                className="h-full w-full object-contain"
+                                className={
+                                  show.listImage
+                                    ? 'h-full w-full object-cover'
+                                    : 'h-full w-full object-contain'
+                                }
                               />
                             </div>
                           ) : (

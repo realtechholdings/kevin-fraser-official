@@ -92,6 +92,8 @@ type ShowForm = {
   artworkImage: string
   artworkImageKey: string
   artworkPosition: string
+  listImage: string
+  listImageKey: string
   venueImage: string
   venueImageKey: string
   description: string
@@ -140,6 +142,8 @@ const emptyShow = (tourId = ''): ShowForm => ({
   artworkImage: '',
   artworkImageKey: '',
   artworkPosition: 'center center',
+  listImage: '',
+  listImageKey: '',
   venueImage: '',
   venueImageKey: '',
   description: '',
@@ -452,6 +456,7 @@ export default function AdminPortal() {
           ? `${showForm.ticketsOnSaleAt}T00:00`
           : null,
         artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
+        listImage: showForm.listImage.startsWith('blob:') ? '' : showForm.listImage,
         venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
         priceCents: Number(showForm.priceCents) || 0,
         capacity: Number(showForm.capacity) || 0,
@@ -535,6 +540,8 @@ export default function AdminPortal() {
       artworkImage: show.artworkImage || '',
       artworkImageKey: show.artworkImageKey || '',
       artworkPosition: show.artworkPosition || 'center center',
+      listImage: show.listImage || '',
+      listImageKey: show.listImageKey || '',
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
@@ -591,6 +598,25 @@ export default function AdminPortal() {
         artworkImage: uploaded.publicUrl || URL.createObjectURL(file),
       }))
       setMessage('Show artwork uploaded. Save the show to keep it.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Image upload failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onShowListImageChange(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadAdminImage(file, 'shows')
+      setShowForm((prev) => ({
+        ...prev,
+        listImageKey: uploaded.key,
+        listImage: uploaded.publicUrl || URL.createObjectURL(file),
+      }))
+      setMessage('List thumbnail uploaded. Save the show to keep it.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Image upload failed')
     } finally {
@@ -1477,43 +1503,65 @@ export default function AdminPortal() {
                           placeholder="Leave blank to use Stripe Checkout"
                         />
                       </div>
-                      <div className="md:col-span-2">
-                        <ImageCropField
-                          label="Show artwork (event banner)"
-                          preset="showArtwork"
-                          currentUrl={
-                            showForm.artworkImage ||
-                            (showForm.artworkImageKey && editingShowId
-                              ? `/api/shows/${editingShowId}/artwork`
-                              : '')
-                          }
-                          disabled={busy}
-                          onCropped={(file) => void onShowArtworkChange(file)}
-                          onRemoveCurrent={() =>
-                            setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
-                          }
-                        />
-                        <p className="mt-1.5 text-xs text-white/35">
-                          Cropped for the show page hero. On the Stage list it shows square and fitted (not cropped again).
-                        </p>
-                        {(showForm.artworkImage || showForm.artworkImageKey) ? (
-                          <div className="mt-3 max-w-sm">
-                            <label className={labelClass}>Fine-tune focus (optional)</label>
-                            <select
-                              className={inputClass}
-                              value={showForm.artworkPosition || 'center center'}
-                              onChange={(e) =>
-                                setShowForm({ ...showForm, artworkPosition: e.target.value })
-                              }
-                            >
-                              {IMAGE_FOCUS_POSITIONS.map((pos) => (
-                                <option key={pos.value} value={pos.value} className="bg-[#141420]">
-                                  {pos.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : null}
+                      <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <ImageCropField
+                            label="Show artwork (event banner)"
+                            preset="showArtwork"
+                            currentUrl={
+                              showForm.artworkImage ||
+                              (showForm.artworkImageKey && editingShowId
+                                ? `/api/shows/${editingShowId}/artwork`
+                                : '')
+                            }
+                            disabled={busy}
+                            onCropped={(file) => void onShowArtworkChange(file)}
+                            onRemoveCurrent={() =>
+                              setShowForm((f) => ({ ...f, artworkImage: '', artworkImageKey: '' }))
+                            }
+                          />
+                          <p className="mt-1.5 text-xs text-white/35">
+                            Wide crop for the show page hero.
+                          </p>
+                          {(showForm.artworkImage || showForm.artworkImageKey) ? (
+                            <div className="mt-3 max-w-sm">
+                              <label className={labelClass}>Banner focus (optional)</label>
+                              <select
+                                className={inputClass}
+                                value={showForm.artworkPosition || 'center center'}
+                                onChange={(e) =>
+                                  setShowForm({ ...showForm, artworkPosition: e.target.value })
+                                }
+                              >
+                                {IMAGE_FOCUS_POSITIONS.map((pos) => (
+                                  <option key={pos.value} value={pos.value} className="bg-[#141420]">
+                                    {pos.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div>
+                          <ImageCropField
+                            label="List thumbnail (square)"
+                            preset="showList"
+                            currentUrl={
+                              showForm.listImage ||
+                              (showForm.listImageKey && editingShowId
+                                ? `/api/shows/${editingShowId}/list`
+                                : '')
+                            }
+                            disabled={busy}
+                            onCropped={(file) => void onShowListImageChange(file)}
+                            onRemoveCurrent={() =>
+                              setShowForm((f) => ({ ...f, listImage: '', listImageKey: '' }))
+                            }
+                          />
+                          <p className="mt-1.5 text-xs text-white/35">
+                            Square crop for the Stage shows list. Falls back to banner if empty.
+                          </p>
+                        </div>
                       </div>
                       <div className="md:col-span-2">
                         <label className={labelClass}>Show description (optional)</label>

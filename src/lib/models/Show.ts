@@ -42,6 +42,9 @@ const ShowSchema = new Schema(
     artworkImageKey: { type: String, default: '' },
     /** CSS object-position for artwork crop (e.g. "center top") */
     artworkPosition: { type: String, default: 'center center' },
+    /** Square thumbnail for Stage show list */
+    listImage: { type: String, default: '' },
+    listImageKey: { type: String, default: '' },
     /** Optional venue photo for the show detail page */
     venueImage: { type: String, default: '' },
     venueImageKey: { type: String, default: '' },

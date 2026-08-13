@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
       artworkImage: String(body.artworkImage || ''),
       artworkImageKey: String(body.artworkImageKey || ''),
       artworkPosition: String(body.artworkPosition || 'center center').trim() || 'center center',
+      listImage: String(body.listImage || ''),
+      listImageKey: String(body.listImageKey || ''),
       venueImage: String(body.venueImage || ''),
       venueImageKey: String(body.venueImageKey || ''),
       description: String(body.description || '').trim(),
@@ -89,6 +91,10 @@ export async function POST(req: NextRequest) {
     let dirty = false
     if (show.artworkImageKey && !show.artworkImage) {
       show.artworkImage = `/api/shows/${show._id}/artwork`
+      dirty = true
+    }
+    if (show.listImageKey && !show.listImage) {
+      show.listImage = `/api/shows/${show._id}/list`
       dirty = true
     }
     if (show.venueImageKey && !show.venueImage) {
