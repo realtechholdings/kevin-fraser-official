@@ -29,6 +29,11 @@ const ShowSchema = new Schema(
       enum: SHOW_STATUSES,
       default: 'on_sale',
     },
+    /**
+     * Optional tickets-on-sale date for coming_soon shows.
+     * Displayed as e.g. "Tickets on sale 1 September 2026".
+     */
+    ticketsOnSaleAt: { type: Date },
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: true },
     externalTicketUrl: { type: String, default: '' },

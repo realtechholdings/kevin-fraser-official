@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       )
         ? body.bannerPosition
         : 'background',
+      bannerFocus: String(body.bannerFocus || 'center center').trim() || 'center center',
       featured: Boolean(body.featured),
       published: body.published !== false,
       startDate: body.startDate ? parseWallDate(body.startDate) || undefined : undefined,

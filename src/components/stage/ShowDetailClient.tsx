@@ -6,15 +6,17 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, CalendarDays } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
 import ThemeToggle from '@/components/theme/ThemeToggle'
-import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
+import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
 import { isShowEffectivelySoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 
-function statusLabel(status: string, effectivelySoldOut: boolean) {
-  if (effectivelySoldOut || status === 'sold_out') return 'Sold Out'
-  if (status === 'cancelled') return 'Cancelled'
-  if (status === 'coming_soon') return 'Coming Soon'
+function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
+  if (effectivelySoldOut || show.status === 'sold_out') return 'Sold Out'
+  if (show.status === 'cancelled') return 'Cancelled'
+  if (show.status === 'coming_soon') {
+    return formatTicketsOnSaleLabel(show.ticketsOnSaleAt) || 'Coming Soon'
+  }
   return null
 }
 
@@ -23,7 +25,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
   const soldOut = isShowEffectivelySoldOut(show)
   const unavailable =
     soldOut || show.status === 'cancelled' || show.status === 'coming_soon'
-  const badge = statusLabel(show.status, soldOut)
+  const badge = statusLabel(show, soldOut)
   const heroImage = show.artworkImage || show.venueImage
   const blurb =
     show.description ||
@@ -133,7 +135,11 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                 ) : null}
                 {badge ? (
                   <span
-                    className="rounded-full px-2.5 py-0.5 text-[9px] uppercase tracking-[0.2em]"
+                    className={`rounded-full px-2.5 py-0.5 text-[9px] tracking-[0.2em] ${
+                      show.status === 'coming_soon' && show.ticketsOnSaleAt
+                        ? 'normal-case tracking-[0.06em]'
+                        : 'uppercase'
+                    }`}
                     style={{
                       background: soldOut ? 'var(--danger-soft)' : 'var(--surface-muted)',
                       color: soldOut ? 'var(--danger)' : 'var(--foreground-muted)',

@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
       priceCents: Math.max(0, Number(body.priceCents) || 0),
       capacity: Math.max(0, Number(body.capacity) || 0),
       status,
+      ticketsOnSaleAt: body.ticketsOnSaleAt
+        ? parseWallDate(body.ticketsOnSaleAt) || undefined
+        : undefined,
       featured: Boolean(body.featured),
       published: body.published !== false,
       externalTicketUrl: String(body.externalTicketUrl || ''),

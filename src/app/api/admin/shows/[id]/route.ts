@@ -51,6 +51,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     ) {
       show.status = body.status
     }
+    if (body.ticketsOnSaleAt !== undefined) {
+      show.ticketsOnSaleAt = body.ticketsOnSaleAt
+        ? parseWallDate(body.ticketsOnSaleAt) || null
+        : null
+    }
     if (body.featured !== undefined) show.featured = Boolean(body.featured)
     if (body.published !== undefined) show.published = Boolean(body.published)
     if (body.externalTicketUrl !== undefined) {

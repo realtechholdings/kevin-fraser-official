@@ -362,6 +362,20 @@ export default function Kevin11PageClient() {
         </span>
       </Link>
 
+      <div
+        className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2"
+        style={{
+          top: 'max(4.75rem, calc(env(safe-area-inset-top) + 3.75rem))',
+        }}
+      >
+        <p
+          className="rounded-sm border border-white/25 bg-black/55 px-4 py-1.5 text-center text-[11px] uppercase tracking-[0.28em] text-white backdrop-blur-sm sm:text-xs"
+          style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+        >
+          Open Eventually.
+        </p>
+      </div>
+
       {isMobile ? (
         <MobileCardRail items={[...leftItems, ...rightItems]} onOpen={setActive} />
       ) : (

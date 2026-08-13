@@ -45,6 +45,7 @@ type TourForm = {
   bannerImage: string
   bannerImageKey: string
   bannerPosition: 'background' | 'above'
+  bannerFocus: string
   featured: boolean
   published: boolean
   startDate: string
@@ -79,6 +80,7 @@ type ShowForm = {
   priceCents: string
   capacity: string
   status: string
+  ticketsOnSaleAt: string
   featured: boolean
   published: boolean
   externalTicketUrl: string
@@ -101,6 +103,7 @@ const emptyTour: TourForm = {
   bannerImage: '',
   bannerImageKey: '',
   bannerPosition: 'background',
+  bannerFocus: 'center center',
   featured: false,
   published: true,
   startDate: '',
@@ -122,6 +125,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   priceCents: '7500',
   capacity: '400',
   status: 'on_sale',
+  ticketsOnSaleAt: '',
   featured: false,
   published: true,
   externalTicketUrl: '',
@@ -134,7 +138,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   tierConfigs: [],
 })
 
-const ARTWORK_POSITIONS = [
+const IMAGE_FOCUS_POSITIONS = [
   { value: 'center center', label: 'Centre' },
   { value: 'center top', label: 'Top' },
   { value: 'center bottom', label: 'Bottom' },
@@ -435,6 +439,9 @@ export default function AdminPortal() {
       const payload = {
         ...showForm,
         date: toWallInput(showForm.date),
+        ticketsOnSaleAt: showForm.ticketsOnSaleAt
+          ? `${showForm.ticketsOnSaleAt}T00:00`
+          : null,
         artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
         venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
         priceCents: Number(showForm.priceCents) || 0,
@@ -482,6 +489,7 @@ export default function AdminPortal() {
       bannerImage: tour.bannerImage || '',
       bannerImageKey: tour.bannerImageKey || '',
       bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
+      bannerFocus: tour.bannerFocus || 'center center',
       featured: tour.featured,
       published: tour.published,
       startDate: toWallInput(tour.startDate),
@@ -508,6 +516,7 @@ export default function AdminPortal() {
       priceCents: String(show.priceCents),
       capacity: String(show.capacity),
       status: show.status,
+      ticketsOnSaleAt: show.ticketsOnSaleAt ? toWallInput(show.ticketsOnSaleAt).slice(0, 10) : '',
       featured: show.featured,
       published: show.published,
       externalTicketUrl: show.externalTicketUrl,
@@ -989,6 +998,7 @@ export default function AdminPortal() {
                               src={tourForm.bannerImage || `/api/tours/${editingTourId}/banner`}
                               alt=""
                               className="h-28 w-full object-cover"
+                              style={{ objectPosition: tourForm.bannerFocus || 'center center' }}
                             />
                           </div>
                         ) : null}
@@ -1002,8 +1012,8 @@ export default function AdminPortal() {
                           </button>
                         ) : null}
                       </div>
-                      <div className="md:col-span-2">
-                        <label className={labelClass}>Banner position</label>
+                      <div>
+                        <label className={labelClass}>Banner layout</label>
                         <select
                           className={inputClass}
                           value={tourForm.bannerPosition}
@@ -1022,7 +1032,26 @@ export default function AdminPortal() {
                           </option>
                         </select>
                         <p className="mt-1.5 text-xs text-white/35">
-                          Controls how the banner appears on The Stage for this tour.
+                          Ideal size ~2800×1000 (2.8:1). Mobile crops to 21:9.
+                        </p>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Banner crop / focus</label>
+                        <select
+                          className={inputClass}
+                          value={tourForm.bannerFocus || 'center center'}
+                          onChange={(e) =>
+                            setTourForm({ ...tourForm, bannerFocus: e.target.value })
+                          }
+                        >
+                          {IMAGE_FOCUS_POSITIONS.map((pos) => (
+                            <option key={pos.value} value={pos.value} className="bg-[#141420]">
+                              {pos.label}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Which part of the image stays visible when cropped.
                         </p>
                       </div>
                       <div>
@@ -1131,6 +1160,9 @@ export default function AdminPortal() {
                           onChange={(e) => setShowForm({ ...showForm, showEndTime: e.target.value })}
                           placeholder="10:00 PM"
                         />
+                        <p className="mt-1.5 text-xs text-white/35">
+                          Required for tickets to show the full event window (e.g. 7:30 PM – 10:00 PM).
+                        </p>
                       </div>
                       <div>
                         <label className={labelClass}>Doors time</label>
@@ -1344,6 +1376,21 @@ export default function AdminPortal() {
                           sold out when every tier hits 0 remaining.
                         </p>
                       </div>
+                      <div>
+                        <label className={labelClass}>Tickets on sale date</label>
+                        <input
+                          type="date"
+                          className={inputClass}
+                          value={showForm.ticketsOnSaleAt}
+                          onChange={(e) =>
+                            setShowForm({ ...showForm, ticketsOnSaleAt: e.target.value })
+                          }
+                        />
+                        <p className="mt-1.5 text-xs text-white/35">
+                          When status is Coming soon, displays e.g. “Tickets on sale 1 September 2026”.
+                          Leave blank for plain “Coming Soon”.
+                        </p>
+                      </div>
                       <div className="md:col-span-2">
                         <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/80">
                           <input
@@ -1405,14 +1452,15 @@ export default function AdminPortal() {
                                   setShowForm({ ...showForm, artworkPosition: e.target.value })
                                 }
                               >
-                                {ARTWORK_POSITIONS.map((pos) => (
+                                {IMAGE_FOCUS_POSITIONS.map((pos) => (
                                   <option key={pos.value} value={pos.value} className="bg-[#141420]">
                                     {pos.label}
                                   </option>
                                 ))}
                               </select>
                               <p className="mt-2 text-xs text-white/35">
-                                Controls which part of the image stays visible on the event page hero.
+                                Ideal size ~2400×1000 (2.4:1). Mobile crops to 16:9. Pick the focus
+                                point that should stay visible.
                               </p>
                               <button
                                 type="button"

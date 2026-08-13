@@ -20,6 +20,7 @@ export type PublicTour = {
   bannerImage: string
   bannerImageKey: string
   bannerPosition: 'background' | 'above'
+  bannerFocus: string
   featured: boolean
   published: boolean
   startDate: string | null
@@ -62,6 +63,7 @@ export type PublicShow = {
   capacity: number
   ticketsSold: number
   status: string
+  ticketsOnSaleAt: string | null
   featured: boolean
   published: boolean
   externalTicketUrl: string
@@ -149,6 +151,7 @@ export function serializeTour(tour: TourDocument): PublicTour {
       tour.bannerImage ||
       (bannerKey ? `/api/tours/${id}/banner` : ''),
     bannerPosition: tour.bannerPosition === 'above' ? 'above' : 'background',
+    bannerFocus: tour.bannerFocus || 'center center',
     featured: Boolean(tour.featured),
     published: Boolean(tour.published),
     startDate: tour.startDate ? toWallIso(tour.startDate) : null,
@@ -193,6 +196,7 @@ export function serializeShow(
     capacity: show.capacity || 0,
     ticketsSold: show.ticketsSold || 0,
     status: show.status,
+    ticketsOnSaleAt: show.ticketsOnSaleAt ? toWallIso(show.ticketsOnSaleAt) : null,
     featured: Boolean(show.featured),
     published: Boolean(show.published),
     externalTicketUrl: show.externalTicketUrl || '',

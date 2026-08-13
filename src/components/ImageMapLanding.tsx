@@ -106,7 +106,9 @@ function GymTonikModal({ onClose }: { onClose: () => void }) {
             color: 'rgba(242,240,235,0.85)',
           }}
         >
-          The movement, wellness and energy app — launching later this year.
+          The movement app that Entertrains you.
+          <br />
+          Coming soon.
         </p>
       </div>
     </div>

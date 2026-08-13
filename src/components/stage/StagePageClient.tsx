@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
-import { formatPrice, formatShowDate, formatShowTimeRange } from '@/lib/format'
+import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
 import { isShowEffectivelySoldOut } from '@/lib/tickets/soldOut'
 
@@ -17,10 +17,12 @@ type Props = {
   tourSlug?: string | null
 }
 
-function statusLabel(status: string, effectivelySoldOut: boolean) {
-  if (effectivelySoldOut || status === 'sold_out') return 'Sold Out'
-  if (status === 'cancelled') return 'Cancelled'
-  if (status === 'coming_soon') return 'Coming Soon'
+function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
+  if (effectivelySoldOut || show.status === 'sold_out') return 'Sold Out'
+  if (show.status === 'cancelled') return 'Cancelled'
+  if (show.status === 'coming_soon') {
+    return formatTicketsOnSaleLabel(show.ticketsOnSaleAt) || 'Coming Soon'
+  }
   return null
 }
 
@@ -118,6 +120,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                     src={featuredTour.bannerImage}
                     alt=""
                     className="aspect-[21/9] w-full object-cover sm:aspect-[2.8/1]"
+                    style={{ objectPosition: featuredTour.bannerFocus || 'center center' }}
                   />
                 </div>
               ) : null}
@@ -134,6 +137,9 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                       src={heroImage}
                       alt=""
                       className="h-full w-full object-cover"
+                      style={{
+                        objectPosition: featuredTour?.bannerFocus || 'center center',
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/25" />
                   </div>
@@ -214,7 +220,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                       const soldOut = isShowEffectivelySoldOut(show)
                       const unavailable =
                         soldOut || show.status === 'cancelled' || show.status === 'coming_soon'
-                      const badge = statusLabel(show.status, soldOut)
+                      const badge = statusLabel(show, soldOut)
 
                       return (
                         <li
@@ -273,7 +279,11 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                               ) : null}
                               {badge ? (
                                 <span
-                                  className="rounded-full px-2.5 py-0.5 text-[9px] uppercase tracking-[0.2em]"
+                                  className={`rounded-full px-2.5 py-0.5 text-[9px] tracking-[0.2em] ${
+                                    show.status === 'coming_soon' && show.ticketsOnSaleAt
+                                      ? 'normal-case tracking-[0.06em]'
+                                      : 'uppercase'
+                                  }`}
                                   style={{
                                     background: soldOut
                                       ? 'var(--danger-soft)'
@@ -313,7 +323,11 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                             </span>
                             {unavailable && !soldOut ? (
                               <span
-                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] opacity-40"
+                                className={`inline-flex min-w-[8.5rem] max-w-[14rem] items-center justify-center rounded-full px-4 py-2.5 text-center text-[10px] font-semibold tracking-[0.08em] opacity-70 ${
+                                  show.status === 'coming_soon' && show.ticketsOnSaleAt
+                                    ? 'normal-case'
+                                    : 'uppercase tracking-[0.14em]'
+                                }`}
                                 style={{
                                   background: 'var(--surface-muted)',
                                   color: 'var(--foreground-subtle)',
@@ -379,6 +393,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                           src={tour.bannerImage}
                           alt=""
                           className="aspect-[21/9] w-full object-cover"
+                          style={{ objectPosition: tour.bannerFocus || 'center center' }}
                         />
                       </div>
                     ) : null}
@@ -397,6 +412,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                             src={cardBgImage}
                             alt={tour.title}
                             className="h-full w-full object-cover"
+                            style={{ objectPosition: tour.bannerFocus || 'center center' }}
                           />
                         </div>
                       ) : null}

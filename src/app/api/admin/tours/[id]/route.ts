@@ -43,6 +43,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       }
       tour.bannerPosition = position as (typeof TOUR_BANNER_POSITIONS)[number]
     }
+    if (body.bannerFocus !== undefined) {
+      tour.bannerFocus = String(body.bannerFocus || 'center center').trim() || 'center center'
+    }
     if (body.published !== undefined) tour.published = Boolean(body.published)
     if (body.startDate !== undefined) {
       tour.startDate = body.startDate ? parseWallDate(body.startDate) || undefined : undefined

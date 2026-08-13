@@ -21,6 +21,8 @@ const TourSchema = new Schema(
       enum: TOUR_BANNER_POSITIONS,
       default: 'background',
     },
+    /** CSS object-position for banner crop focus (e.g. "center top") */
+    bannerFocus: { type: String, default: 'center center' },
     featured: { type: Boolean, default: false },
     published: { type: Boolean, default: true },
     startDate: { type: Date },

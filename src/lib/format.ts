@@ -47,6 +47,20 @@ export function formatShowTimeRange(start?: string | null, end?: string | null) 
   return s || e
 }
 
+/** Human on-sale label from a wall-clock date (day precision). */
+export function formatTicketsOnSaleLabel(iso?: string | null) {
+  const parts = parseWallParts(iso)
+  if (!parts) return null
+  const d = new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0))
+  const dateLabel = d.toLocaleDateString('en-AU', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  return `Tickets on sale ${dateLabel}`
+}
+
 export function slugify(value: string) {
   return value
     .toLowerCase()
