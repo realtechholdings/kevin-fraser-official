@@ -275,11 +275,14 @@ export default function CmsAdminPanel({
 
       {settings && !settings.emailConfigured ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-          Email sending is not configured yet — set <code>RESEND_API_KEY</code> (and optionally{' '}
-          <code>EMAIL_FROM</code>) in the environment. You can still edit templates and settings.
+          Email sending is not configured yet — set <code>RESEND_API_KEY</code> in the environment.
+          You can still edit templates and settings.
         </div>
       ) : settings ? (
-        <p className="text-xs text-white/35">Sending as {settings.fromAddress}</p>
+        <p className="text-xs text-white/35">
+          Sending as {settings.fromAddress}. Staging (vercel.app) uses kevinfraser@hivemynd.io;
+          production (kevinfraserofficial.com) uses tickets@kevinfraserofficial.com.
+        </p>
       ) : null}
 
       <div className="flex flex-wrap gap-2">
