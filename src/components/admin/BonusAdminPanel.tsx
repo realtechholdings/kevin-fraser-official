@@ -1,9 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Film, Plus, Star, Trash2 } from 'lucide-react'
 import type { PublicBonusContent } from '@/lib/serialize'
+import {
+  DEFAULT_STUDIO_CATEGORY_DEFS,
+  type StudioCategoryDef,
+} from '@/lib/studio/categories'
 import ImageCropField from '@/components/admin/ImageCropField'
+import FileDropZone from '@/components/admin/FileDropZone'
+import VideoFramePicker from '@/components/admin/VideoFramePicker'
+import SortableAdminList from '@/components/admin/SortableAdminList'
+import ContentMoveControl from '@/components/admin/ContentMoveControl'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -53,6 +61,16 @@ async function uploadFile(file: File) {
   }
 }
 
+function isVideoFile(file: File | null, mimeFallback = '') {
+  const mime = file?.type || mimeFallback
+  return mime.startsWith('video/')
+}
+
+function isImageFile(file: File | null, mimeFallback = '') {
+  const mime = file?.type || mimeFallback
+  return mime.startsWith('image/')
+}
+
 export default function BonusAdminPanel({
   onMessage,
   onError,
@@ -61,14 +79,19 @@ export default function BonusAdminPanel({
   onError: (msg: string) => void
 }) {
   const [items, setItems] = useState<PublicBonusContent[]>([])
+  const [studioCategories, setStudioCategories] = useState<StudioCategoryDef[]>(
+    DEFAULT_STUDIO_CATEGORY_DEFS.map((c) => ({ ...c })),
+  )
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [r2Configured, setR2Configured] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<BonusForm>(emptyForm)
   const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState('')
   const [thumbFile, setThumbFile] = useState<File | null>(null)
   const [thumbPreview, setThumbPreview] = useState('')
+  const [thumbSeed, setThumbSeed] = useState<File | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<PublicBonusContent | null>(null)
   const [removeThumbnail, setRemoveThumbnail] = useState(false)
@@ -76,11 +99,21 @@ export default function BonusAdminPanel({
   async function load() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/bonus')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load bonus content')
+      const [bonusRes, studioRes] = await Promise.all([
+        fetch('/api/admin/bonus'),
+        fetch('/api/admin/studio'),
+      ])
+      const data = await bonusRes.json()
+      if (!bonusRes.ok) throw new Error(data.error || 'Failed to load bonus content')
       setItems(data.items || [])
       setR2Configured(Boolean(data.r2Configured))
+
+      if (studioRes.ok) {
+        const studioData = await studioRes.json()
+        if (studioData.categories?.length > 0) {
+          setStudioCategories(studioData.categories)
+        }
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load bonus content')
     } finally {
@@ -96,8 +129,9 @@ export default function BonusAdminPanel({
   useEffect(() => {
     return () => {
       if (thumbPreview.startsWith('blob:')) URL.revokeObjectURL(thumbPreview)
+      if (mediaPreviewUrl.startsWith('blob:')) URL.revokeObjectURL(mediaPreviewUrl)
     }
-  }, [thumbPreview])
+  }, [thumbPreview, mediaPreviewUrl])
 
   function setCroppedThumb(file: File | null) {
     setThumbPreview((prev) => {
@@ -105,14 +139,36 @@ export default function BonusAdminPanel({
       return file ? URL.createObjectURL(file) : ''
     })
     setThumbFile(file)
+    if (file) setRemoveThumbnail(false)
   }
+
+  function setMedia(file: File | null) {
+    setMediaPreviewUrl((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : ''
+    })
+    setMediaFile(file)
+    if (file && !form.title.trim()) {
+      const base = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim()
+      if (base) setForm((f) => ({ ...f, title: base }))
+    }
+    if (file && isImageFile(file) && !thumbFile) {
+      setThumbSeed(file)
+    }
+  }
+
+  const sorted = useMemo(
+    () => [...items].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title)),
+    [items],
+  )
 
   function openCreate() {
     setEditingId(null)
     setEditingItem(null)
-    setForm(emptyForm)
-    setMediaFile(null)
+    setForm({ ...emptyForm, sortOrder: String(items.length) })
+    setMedia(null)
     setCroppedThumb(null)
+    setThumbSeed(null)
     setRemoveThumbnail(false)
     setShowForm(true)
   }
@@ -127,8 +183,9 @@ export default function BonusAdminPanel({
       featured: item.featured,
       published: item.published,
     })
-    setMediaFile(null)
+    setMedia(null)
     setCroppedThumb(null)
+    setThumbSeed(null)
     setRemoveThumbnail(false)
     setShowForm(true)
   }
@@ -182,6 +239,9 @@ export default function BonusAdminPanel({
           const thumb = await uploadFile(thumbFile)
           thumbnailKey = thumb.key
           thumbnailUrl = thumb.publicUrl
+        } else if (isImageFile(mediaFile)) {
+          thumbnailKey = media.key
+          thumbnailUrl = media.publicUrl
         }
 
         const res = await fetch('/api/admin/bonus', {
@@ -210,8 +270,9 @@ export default function BonusAdminPanel({
       setEditingId(null)
       setEditingItem(null)
       setForm(emptyForm)
-      setMediaFile(null)
+      setMedia(null)
       setCroppedThumb(null)
+      setThumbSeed(null)
       setRemoveThumbnail(false)
       await load()
     } catch (err) {
@@ -256,13 +317,43 @@ export default function BonusAdminPanel({
     }
   }
 
+  async function reorderVisible(orderedIds: string[]) {
+    onError('')
+    setItems((prev) =>
+      prev.map((item) => {
+        const index = orderedIds.indexOf(item.id)
+        return index >= 0 ? { ...item, sortOrder: index } : item
+      }),
+    )
+
+    const res = await fetch('/api/admin/bonus/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      onError(data.error || 'Reorder failed')
+      await load()
+      return
+    }
+    onMessage('Order saved.')
+  }
+
+  const frameVideoSrc =
+    mediaPreviewUrl && isVideoFile(mediaFile)
+      ? mediaPreviewUrl
+      : editingItem && isVideoFile(null, editingItem.mimeType)
+        ? editingItem.mediaUrl
+        : ''
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Bonus Content</h2>
           <p className="mt-1 text-sm text-white/40">
-            Upload exclusive clips to Cloudflare R2 for the Showreel Bonus tab.
+            Drop uploads, drag to reorder, and move items between folders or containers.
           </p>
         </div>
         <button type="button" disabled={busy || !r2Configured} onClick={openCreate} className={btnPrimary}>
@@ -295,8 +386,9 @@ export default function BonusAdminPanel({
                 setShowForm(false)
                 setEditingId(null)
                 setEditingItem(null)
-                setMediaFile(null)
+                setMedia(null)
                 setCroppedThumb(null)
+                setThumbSeed(null)
                 setRemoveThumbnail(false)
               }}
             >
@@ -304,25 +396,14 @@ export default function BonusAdminPanel({
             </button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className={labelClass}>Title</label>
-              <input
-                className={inputClass}
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Sort order</label>
-              <input
-                className={inputClass}
-                type="number"
-                value={form.sortOrder}
-                onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
-              />
-            </div>
+          <div>
+            <label className={labelClass}>Title</label>
+            <input
+              className={inputClass}
+              value={form.title}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              required
+            />
           </div>
 
           <div>
@@ -336,54 +417,79 @@ export default function BonusAdminPanel({
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className={labelClass}>
-                {editingId ? 'Replace media (optional)' : 'Media file'}
-              </label>
-              {editingId && editingItem?.mediaUrl ? (
-                <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                  {editingItem.mimeType.startsWith('video/') ? (
-                    <video
-                      src={editingItem.mediaUrl}
-                      controls
-                      className="max-h-40 w-full object-contain"
-                      preload="metadata"
-                    />
-                  ) : editingItem.mimeType.startsWith('image/') ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={editingItem.mediaUrl}
-                      alt=""
-                      className="max-h-40 w-full object-contain"
-                    />
-                  ) : (
-                    <p className="px-3 py-4 text-xs text-white/50">Current media on file</p>
-                  )}
-                  <p className="truncate px-3 py-2 text-[11px] text-white/40">
-                    Current media{mediaFile ? ` · replacing with ${mediaFile.name}` : ''}
-                  </p>
-                </div>
-              ) : null}
-              <input
-                className={inputClass}
-                type="file"
-                accept="video/*,image/*,audio/*"
-                onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                required={!editingId}
-              />
-            </div>
-            <ImageCropField
-              label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
-              preset="bonusThumb"
-              currentUrl={editingItem?.thumbnailUrl || ''}
-              pendingUrl={thumbPreview}
-              pendingFileName={thumbFile?.name}
+            <FileDropZone
+              label={editingId ? 'Replace media (optional)' : 'Media file'}
+              accept="video/*,image/*,audio/*"
               disabled={busy}
-              onCropped={(file) => setCroppedThumb(file)}
-              onClearPending={() => setCroppedThumb(null)}
-              removeCurrentChecked={removeThumbnail}
-              onRemoveCurrentChange={setRemoveThumbnail}
+              required={!editingId}
+              fileName={mediaFile?.name}
+              hint="Drag & drop, or browse. Video, image, or audio."
+              onFile={setMedia}
+              preview={
+                editingId && editingItem?.mediaUrl && !mediaFile ? (
+                  <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                    {editingItem.mimeType.startsWith('video/') ? (
+                      <video
+                        src={editingItem.mediaUrl}
+                        controls
+                        className="max-h-40 w-full object-contain"
+                        preload="metadata"
+                      />
+                    ) : editingItem.mimeType.startsWith('image/') ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={editingItem.mediaUrl}
+                        alt=""
+                        className="max-h-40 w-full object-contain"
+                      />
+                    ) : (
+                      <p className="px-3 py-4 text-xs text-white/50">Current media on file</p>
+                    )}
+                    <p className="truncate px-3 py-2 text-[11px] text-white/40">Current media</p>
+                  </div>
+                ) : mediaPreviewUrl ? (
+                  <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                    {isImageFile(mediaFile) ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={mediaPreviewUrl} alt="" className="max-h-40 w-full object-contain" />
+                    ) : isVideoFile(mediaFile) ? (
+                      <video
+                        src={mediaPreviewUrl}
+                        controls
+                        className="max-h-40 w-full object-contain"
+                        preload="metadata"
+                      />
+                    ) : (
+                      <p className="truncate px-3 py-2 text-[11px] text-white/40">{mediaFile?.name}</p>
+                    )}
+                  </div>
+                ) : null
+              }
             />
+
+            <div className="space-y-3">
+              <ImageCropField
+                label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
+                preset="bonusThumb"
+                currentUrl={editingItem?.thumbnailUrl || ''}
+                pendingUrl={thumbPreview}
+                pendingFileName={thumbFile?.name}
+                seedFile={thumbSeed}
+                onSeedConsumed={() => setThumbSeed(null)}
+                disabled={busy}
+                onCropped={(file) => setCroppedThumb(file)}
+                onClearPending={() => setCroppedThumb(null)}
+                removeCurrentChecked={removeThumbnail}
+                onRemoveCurrentChange={setRemoveThumbnail}
+              />
+              {frameVideoSrc ? (
+                <VideoFramePicker
+                  videoSrc={frameVideoSrc}
+                  disabled={busy}
+                  onCapture={(file) => setThumbSeed(file)}
+                />
+              ) : null}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-4 text-sm text-white/70">
@@ -405,6 +511,23 @@ export default function BonusAdminPanel({
             </label>
           </div>
 
+          {editingId ? (
+            <ContentMoveControl
+              from="bonus"
+              itemId={editingId}
+              studioCategories={studioCategories}
+              disabled={busy}
+              onMessage={onMessage}
+              onError={onError}
+              onMoved={async () => {
+                setShowForm(false)
+                setEditingId(null)
+                setEditingItem(null)
+                await load()
+              }}
+            />
+          ) : null}
+
           <button type="submit" disabled={busy} className={btnPrimary}>
             {busy ? 'Saving…' : editingId ? 'Save changes' : 'Upload to R2'}
           </button>
@@ -413,8 +536,11 @@ export default function BonusAdminPanel({
 
       <section className="admin-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
-          <h3 className="text-sm font-semibold text-white">Library</h3>
-          <span className="text-xs text-white/40">{items.length} items</span>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Library</h3>
+            <p className="mt-0.5 text-xs text-white/35">Drag the grip handle to reorder</p>
+          </div>
+          <span className="text-xs text-white/40">{sorted.length} items</span>
         </div>
 
         {loading ? (
@@ -423,19 +549,31 @@ export default function BonusAdminPanel({
               <div key={i} className="h-4 animate-pulse rounded bg-white/5" />
             ))}
           </div>
-        ) : items.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-white/40">
-            <Film className="mx-auto mb-3 h-8 w-8 opacity-40" />
-            No bonus clips yet. Upload the first one.
-          </div>
         ) : (
-          <div className="divide-y divide-white/5">
-            {items.map((item) => (
-              <div key={item.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
+          <SortableAdminList
+            items={sorted}
+            disabled={busy}
+            onReorder={reorderVisible}
+            empty={
+              <div className="px-5 py-12 text-center text-sm text-white/40">
+                <Film className="mx-auto mb-3 h-8 w-8 opacity-40" />
+                No bonus clips yet. Drop a file to upload the first one.
+              </div>
+            }
+            renderItem={(item) => (
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-white/5">
-                  {item.thumbnailUrl ? (
+                  {item.thumbnailUrl ||
+                  (item.mimeType?.startsWith('image/') ? item.mediaUrl : '') ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={
+                        item.thumbnailUrl ||
+                        (item.mimeType?.startsWith('image/') ? item.mediaUrl : '')
+                      }
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-full items-center justify-center text-white/30">
                       <Film className="h-4 w-4" />
@@ -445,7 +583,7 @@ export default function BonusAdminPanel({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-white">{item.title}</p>
                   <p className="mt-0.5 text-xs text-white/40">
-                    {item.mimeType} · {item.published ? 'Published' : 'Draft'} · order {item.sortOrder}
+                    {item.mimeType} · {item.published ? 'Published' : 'Draft'}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -466,8 +604,8 @@ export default function BonusAdminPanel({
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </section>
     </div>

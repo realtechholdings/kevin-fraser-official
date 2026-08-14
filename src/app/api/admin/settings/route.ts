@@ -5,11 +5,13 @@ import { requireAdmin } from '@/lib/admin'
 import { isR2Configured } from '@/lib/r2'
 import {
   DEFAULT_AI_SETTINGS,
+  DEFAULT_CONNECT_SETTINGS,
   DEFAULT_LEGAL_SETTINGS,
   DEFAULT_SHOWREEL_SETTINGS,
   DEFAULT_STUDIO_SETTINGS,
   DEFAULT_THEME_SETTINGS,
   SITE_SETTINGS_KEY,
+  normalizeConnectSettings,
   normalizeHex,
   normalizeShowreelSettings,
   normalizeStudioSettings,
@@ -41,6 +43,7 @@ export async function GET() {
         legal: DEFAULT_LEGAL_SETTINGS,
         showreel: DEFAULT_SHOWREEL_SETTINGS,
         studio: DEFAULT_STUDIO_SETTINGS,
+        connect: DEFAULT_CONNECT_SETTINGS,
       },
     })
   } catch (error) {
@@ -68,6 +71,7 @@ export async function PUT(req: NextRequest) {
         legal: DEFAULT_LEGAL_SETTINGS,
         showreel: DEFAULT_SHOWREEL_SETTINGS,
         studio: DEFAULT_STUDIO_SETTINGS,
+        connect: DEFAULT_CONNECT_SETTINGS,
       })
     }
 
@@ -182,6 +186,11 @@ export async function PUT(req: NextRequest) {
 
       doc.set('studio', next)
       doc.markModified('studio')
+    }
+
+    if (body.connect) {
+      doc.set('connect', normalizeConnectSettings(body.connect))
+      doc.markModified('connect')
     }
 
     await doc.save()

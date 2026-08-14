@@ -24,6 +24,9 @@ type Props = {
   /** Pending cropped file preview URL (blob:) */
   pendingUrl?: string
   pendingFileName?: string
+  /** When set, opens the cropper with this image (e.g. a frame from a video). */
+  seedFile?: File | null
+  onSeedConsumed?: () => void
   disabled?: boolean
   required?: boolean
   onCropped: (file: File) => void
@@ -47,6 +50,8 @@ export default function ImageCropField({
   currentUrl,
   pendingUrl,
   pendingFileName,
+  seedFile,
+  onSeedConsumed,
   disabled,
   required,
   onCropped,
@@ -66,6 +71,7 @@ export default function ImageCropField({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -106,6 +112,13 @@ export default function ImageCropField({
     if (onRemoveCurrentChange) onRemoveCurrentChange(false)
   }
 
+  useEffect(() => {
+    if (!seedFile) return
+    onPickFile(seedFile)
+    onSeedConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedFile])
+
   async function applyCrop() {
     if (!sourceUrl || !croppedAreaPixels) return
     setBusy(true)
@@ -137,29 +150,56 @@ export default function ImageCropField({
         {crop.hint} · crop to {crop.label} (~{crop.outputWidth}px wide)
       </p>
 
-      {previewUrl ? (
-        <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/30">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={previewUrl}
-            alt=""
-            className="w-full object-cover"
-            style={{ aspectRatio: String(previewAspect) }}
-          />
-          <p className="truncate px-3 py-2 text-[11px] text-white/40">
-            {pendingUrl
-              ? `Ready to upload${pendingFileName ? `: ${pendingFileName}` : ''}`
-              : 'Current image'}
-          </p>
-        </div>
-      ) : (
-        <div
-          className="mb-2 flex items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-white/30"
-          style={{ aspectRatio: String(Math.min(previewAspect, 2.4)), minHeight: 96 }}
-        >
-          No image
-        </div>
-      )}
+      <div
+        onDragEnter={(e) => {
+          e.preventDefault()
+          if (!disabled) setDragging(true)
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          if (!disabled) setDragging(true)
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault()
+          setDragging(false)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragging(false)
+          if (disabled) return
+          const file = e.dataTransfer.files?.[0] || null
+          if (file) onPickFile(file)
+        }}
+        className={`mb-2 rounded-xl border border-dashed transition-colors ${
+          dragging
+            ? 'border-[var(--admin-accent,#ff6b35)] bg-[var(--admin-accent,#ff6b35)]/10'
+            : 'border-transparent'
+        }`}
+      >
+        {previewUrl ? (
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt=""
+              className="w-full object-cover"
+              style={{ aspectRatio: String(previewAspect) }}
+            />
+            <p className="truncate px-3 py-2 text-[11px] text-white/40">
+              {pendingUrl
+                ? `Ready to upload${pendingFileName ? `: ${pendingFileName}` : ''}`
+                : 'Current image · drop a new image to replace'}
+            </p>
+          </div>
+        ) : (
+          <div
+            className="flex items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-white/30"
+            style={{ aspectRatio: String(Math.min(previewAspect, 2.4)), minHeight: 96 }}
+          >
+            Drop an image here, or upload below
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <label className={`${btnSecondary} cursor-pointer ${disabled ? 'pointer-events-none opacity-50' : ''}`}>

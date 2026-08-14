@@ -1,13 +1,16 @@
 import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 import {
   DEFAULT_AI_SETTINGS,
+  DEFAULT_CONNECT_SETTINGS,
   DEFAULT_SHOWREEL_SETTINGS,
   DEFAULT_STUDIO_SETTINGS,
   DEFAULT_THEME_SETTINGS,
   SITE_SETTINGS_KEY,
+  normalizeConnectSettings,
   normalizeShowreelSettings,
   normalizeStudioSettings,
   type AISettings,
+  type ConnectSettings,
   type ShowreelSettings,
   type SiteSettingsData,
   type StudioSettings,
@@ -108,6 +111,40 @@ const StudioSchema = new Schema(
   { _id: false },
 )
 
+const ConnectSocialSchema = new Schema(
+  {
+    id: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    handle: { type: String, default: '' },
+    href: { type: String, default: '' },
+    blurb: { type: String, default: '' },
+  },
+  { _id: false },
+)
+
+const ConnectSchema = new Schema(
+  {
+    eyebrow: { type: String, default: DEFAULT_CONNECT_SETTINGS.eyebrow },
+    headline: { type: String, default: DEFAULT_CONNECT_SETTINGS.headline },
+    intro: { type: String, default: DEFAULT_CONNECT_SETTINGS.intro },
+    socialsHeading: { type: String, default: DEFAULT_CONNECT_SETTINGS.socialsHeading },
+    socialsIntro: { type: String, default: DEFAULT_CONNECT_SETTINGS.socialsIntro },
+    formHeading: { type: String, default: DEFAULT_CONNECT_SETTINGS.formHeading },
+    formIntro: { type: String, default: DEFAULT_CONNECT_SETTINGS.formIntro },
+    successHeading: { type: String, default: DEFAULT_CONNECT_SETTINGS.successHeading },
+    successBody: { type: String, default: DEFAULT_CONNECT_SETTINGS.successBody },
+    inquiryTypes: {
+      type: [String],
+      default: () => [...DEFAULT_CONNECT_SETTINGS.inquiryTypes],
+    },
+    socials: {
+      type: [ConnectSocialSchema],
+      default: () => DEFAULT_CONNECT_SETTINGS.socials.map((s) => ({ ...s })),
+    },
+  },
+  { _id: false },
+)
+
 const SiteSettingsSchema = new Schema(
   {
     key: { type: String, required: true, unique: true, default: SITE_SETTINGS_KEY },
@@ -116,6 +153,10 @@ const SiteSettingsSchema = new Schema(
     legal: { type: LegalSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS }) },
     showreel: { type: ShowreelSchema, default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS }) },
     studio: { type: StudioSchema, default: () => ({ ...DEFAULT_STUDIO_SETTINGS }) },
+    connect: {
+      type: ConnectSchema,
+      default: () => normalizeConnectSettings(DEFAULT_CONNECT_SETTINGS),
+    },
   },
   { timestamps: true },
 )
@@ -127,6 +168,7 @@ export type SiteSettingsDocument = InferSchemaType<typeof SiteSettingsSchema> & 
   legal: LegalSettings
   showreel: ShowreelSettings
   studio: StudioSettings
+  connect: ConnectSettings
   createdAt: Date
   updatedAt: Date
 }
@@ -145,6 +187,7 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
       legal: normalizeLegalSettings(DEFAULT_LEGAL_SETTINGS),
       showreel: normalizeShowreelSettings(DEFAULT_SHOWREEL_SETTINGS),
       studio: normalizeStudioSettings(DEFAULT_STUDIO_SETTINGS),
+      connect: normalizeConnectSettings(DEFAULT_CONNECT_SETTINGS),
     }
   }
   return {
@@ -165,5 +208,6 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
     legal: normalizeLegalSettings(doc.legal as Partial<LegalSettings> | undefined),
     showreel: normalizeShowreelSettings(doc.showreel as Partial<ShowreelSettings> | undefined),
     studio: normalizeStudioSettings(doc.studio as Partial<StudioSettings> | undefined),
+    connect: normalizeConnectSettings(doc.connect as Partial<ConnectSettings> | undefined),
   }
 }

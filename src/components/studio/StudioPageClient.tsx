@@ -165,7 +165,7 @@ export default function StudioPageClient() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] px-6 py-16 text-center text-[var(--foreground-muted)]">
-            No {studioCategoryLabel(tab, categories).toLowerCase()} videos yet — check back soon.
+            No {studioCategoryLabel(tab, categories).toLowerCase()} content yet — check back soon.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -180,10 +180,14 @@ export default function StudioPageClient() {
                 className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] text-left"
               >
                 <div className="relative aspect-[9/14] overflow-hidden bg-[var(--surface-muted)]">
-                  {item.thumbnailUrl ? (
+                  {item.thumbnailUrl ||
+                  (item.mimeType?.startsWith('image/') ? item.mediaUrl : '') ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={item.thumbnailUrl}
+                      src={
+                        item.thumbnailUrl ||
+                        (item.mimeType?.startsWith('image/') ? item.mediaUrl : '')
+                      }
                       alt={item.title}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -193,11 +197,13 @@ export default function StudioPageClient() {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-transparent" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
-                      <Play className="h-5 w-5 fill-current" />
-                    </span>
-                  </div>
+                  {!item.mimeType?.startsWith('image/') ? (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
+                        <Play className="h-5 w-5 fill-current" />
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="absolute bottom-0 left-0 right-0 p-3">
                     <p className="line-clamp-2 text-sm font-medium text-white">{item.title}</p>
                     <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/70">

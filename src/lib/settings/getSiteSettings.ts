@@ -4,6 +4,7 @@ import {
   DEFAULT_SITE_SETTINGS,
   DEFAULT_SHOWREEL_SETTINGS,
   SITE_SETTINGS_KEY,
+  normalizeConnectSettings,
   normalizeShowreelSettings,
   type ShowreelImageSlot,
   type ShowreelSettings,
@@ -55,6 +56,7 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
         legal: DEFAULT_SITE_SETTINGS.legal,
         showreel: DEFAULT_SITE_SETTINGS.showreel,
         studio: DEFAULT_SITE_SETTINGS.studio,
+        connect: DEFAULT_SITE_SETTINGS.connect,
       })
     }
     const data = toSiteSettingsData(doc)
@@ -77,6 +79,7 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
       legal: { ...DEFAULT_SITE_SETTINGS.legal },
       showreel: normalizeShowreelSettings(DEFAULT_SHOWREEL_SETTINGS),
       studio: { ...DEFAULT_SITE_SETTINGS.studio, categories: [...DEFAULT_SITE_SETTINGS.studio.categories] },
+      connect: normalizeConnectSettings(DEFAULT_SITE_SETTINGS.connect),
     }
   }
 }

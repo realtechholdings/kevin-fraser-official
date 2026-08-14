@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ExternalLink, Send, X } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Link2, Send, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import {
+  DEFAULT_CONNECT_SETTINGS,
+  type ConnectSettings,
+} from '@/lib/settings/defaults'
 
 /**
  * Full-screen intro that plays the (black-background) contact video as an
@@ -76,46 +80,7 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
   )
 }
 
-const SOCIALS = [
-  {
-    id: 'facebook',
-    label: 'Facebook',
-    handle: '@kevinfraserofficial',
-    href: 'https://www.facebook.com/kevinfraserofficial',
-    blurb: 'Shows, updates, and live moments',
-  },
-  {
-    id: 'instagram',
-    label: 'Instagram',
-    handle: '@KevinFraserofficial',
-    href: 'https://www.instagram.com/KevinFraserofficial',
-    blurb: 'Reels, tour life, and day-to-day',
-  },
-  {
-    id: 'tiktok',
-    label: 'TikTok',
-    handle: '@kevinfraserofficial',
-    href: 'https://www.tiktok.com/@kevinfraserofficial',
-    blurb: 'Short-form comedy and clips',
-  },
-  {
-    id: 'youtube',
-    label: 'YouTube',
-    handle: 'Kevin Fraser',
-    href: 'https://www.youtube.com/c/kevinfraserspindoctor',
-    blurb: 'Full sets, shorts, and stand-up',
-  },
-] as const
-
-const INQUIRY_TYPES = [
-  'Booking',
-  'Collaboration',
-  'Press',
-  'Fan message',
-  'Other',
-] as const
-
-function SocialIcon({ id }: { id: (typeof SOCIALS)[number]['id'] }) {
+function SocialIcon({ id }: { id: string }) {
   const common = {
     viewBox: '0 0 24 24',
     fill: 'currentColor',
@@ -144,24 +109,53 @@ function SocialIcon({ id }: { id: (typeof SOCIALS)[number]['id'] }) {
       </svg>
     )
   }
-  return (
-    <svg {...common}>
-      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.8 15.6V8.4L15.8 12l-6 3.6Z" />
-    </svg>
-  )
+  if (id === 'youtube') {
+    return (
+      <svg {...common}>
+        <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.5 31.5 0 0 0 0 12a31.5 31.5 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.5 31.5 0 0 0 24 12a31.5 31.5 0 0 0-.5-5.8ZM9.8 15.6V8.4L15.8 12l-6 3.6Z" />
+      </svg>
+    )
+  }
+  return <Link2 className="h-5 w-5" aria-hidden />
 }
 
 export default function ConnectPage() {
+  const [settings, setSettings] = useState<ConnectSettings>(DEFAULT_CONNECT_SETTINGS)
   const [form, setForm] = useState({
     name: '',
     email: '',
-    inquiryType: 'Booking',
+    inquiryType: DEFAULT_CONNECT_SETTINGS.inquiryTypes[0] || 'Booking',
     message: '',
   })
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [introDone, setIntroDone] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/connect/settings')
+        const data = await res.json()
+        if (!res.ok || !data.connect || cancelled) return
+        const next = data.connect as ConnectSettings
+        setSettings(next)
+        setForm((f) => ({
+          ...f,
+          inquiryType:
+            next.inquiryTypes.includes(f.inquiryType)
+              ? f.inquiryType
+              : next.inquiryTypes[0] || f.inquiryType,
+        }))
+      } catch {
+        // Keep defaults on failure
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -189,6 +183,8 @@ export default function ConnectPage() {
 
   const fieldClass =
     'w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-subtle)] focus:border-[var(--accent)]'
+
+  const defaultInquiry = settings.inquiryTypes[0] || 'Booking'
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
@@ -229,17 +225,16 @@ export default function ConnectPage() {
           className="mb-12"
         >
           <p className="mb-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: '#0f766e' }}>
-            Socials · Enquiries
+            {settings.eyebrow}
           </p>
           <h1
             className="text-5xl uppercase leading-[0.92] sm:text-7xl"
             style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
           >
-            Connect
+            {settings.headline}
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
-            Follow Kevin across his channels, or send a message for bookings, press, and
-            collaborations.
+            {settings.intro}
           </p>
         </motion.section>
 
@@ -253,16 +248,16 @@ export default function ConnectPage() {
               className="mb-2 text-2xl uppercase tracking-wide"
               style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
             >
-              Socials
+              {settings.socialsHeading}
             </h2>
             <p className="mb-6 text-sm text-[var(--foreground-muted)]">
-              Stay close to the work — clips, shows, and everything in between.
+              {settings.socialsIntro}
             </p>
 
             <ul className="space-y-3">
-              {SOCIALS.map((social, index) => (
+              {settings.socials.map((social, index) => (
                 <motion.li
-                  key={social.id}
+                  key={`${social.id}-${index}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.12 + index * 0.05 }}
@@ -314,16 +309,16 @@ export default function ConnectPage() {
                   className="mb-3 text-3xl uppercase"
                   style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
                 >
-                  Message received
+                  {settings.successHeading}
                 </h2>
                 <p className="mx-auto max-w-sm text-sm leading-relaxed text-[var(--foreground-muted)]">
-                  Kevin&apos;s team will be in touch soon. Thanks for reaching out.
+                  {settings.successBody}
                 </p>
                 <button
                   type="button"
                   onClick={() => {
                     setSuccess(false)
-                    setForm({ name: '', email: '', inquiryType: 'Booking', message: '' })
+                    setForm({ name: '', email: '', inquiryType: defaultInquiry, message: '' })
                   }}
                   className="mt-8 rounded-full border border-[var(--border)] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--foreground-muted)] transition-colors hover:text-[var(--foreground)]"
                 >
@@ -337,10 +332,10 @@ export default function ConnectPage() {
                     className="text-3xl uppercase"
                     style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
                   >
-                    Get in touch
+                    {settings.formHeading}
                   </h2>
                   <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                    Bookings, press, collabs, or just saying hello.
+                    {settings.formIntro}
                   </p>
                 </div>
 
@@ -381,7 +376,7 @@ export default function ConnectPage() {
                     onChange={(e) => setForm((f) => ({ ...f, inquiryType: e.target.value }))}
                     className={fieldClass}
                   >
-                    {INQUIRY_TYPES.map((type) => (
+                    {settings.inquiryTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>

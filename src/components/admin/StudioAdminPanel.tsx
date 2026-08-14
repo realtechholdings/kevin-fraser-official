@@ -10,6 +10,10 @@ import {
   type StudioCategoryDef,
 } from '@/lib/studio/categories'
 import ImageCropField from '@/components/admin/ImageCropField'
+import FileDropZone from '@/components/admin/FileDropZone'
+import VideoFramePicker from '@/components/admin/VideoFramePicker'
+import SortableAdminList from '@/components/admin/SortableAdminList'
+import ContentMoveControl from '@/components/admin/ContentMoveControl'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -63,6 +67,16 @@ function toDrafts(categories: StudioCategoryDef[]): CategoryDraft[] {
   }))
 }
 
+function isVideoFile(file: File | null, mimeFallback = '') {
+  const mime = file?.type || mimeFallback
+  return mime.startsWith('video/')
+}
+
+function isImageFile(file: File | null, mimeFallback = '') {
+  const mime = file?.type || mimeFallback
+  return mime.startsWith('image/')
+}
+
 export default function StudioAdminPanel({
   onMessage,
   onError,
@@ -90,8 +104,10 @@ export default function StudioAdminPanel({
     published: true,
   })
   const [mediaFile, setMediaFile] = useState<File | null>(null)
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState('')
   const [thumbFile, setThumbFile] = useState<File | null>(null)
   const [thumbPreview, setThumbPreview] = useState('')
+  const [thumbSeed, setThumbSeed] = useState<File | null>(null)
   const [removeThumbnail, setRemoveThumbnail] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingItem, setEditingItem] = useState<PublicStudioContent | null>(null)
@@ -135,8 +151,9 @@ export default function StudioAdminPanel({
   useEffect(() => {
     return () => {
       if (thumbPreview.startsWith('blob:')) URL.revokeObjectURL(thumbPreview)
+      if (mediaPreviewUrl.startsWith('blob:')) URL.revokeObjectURL(mediaPreviewUrl)
     }
-  }, [thumbPreview])
+  }, [thumbPreview, mediaPreviewUrl])
 
   function setCroppedThumb(file: File | null) {
     setThumbPreview((prev) => {
@@ -147,10 +164,26 @@ export default function StudioAdminPanel({
     if (file) setRemoveThumbnail(false)
   }
 
-  const visible = useMemo(
-    () => (filter === 'all' ? items : items.filter((item) => item.category === filter)),
-    [items, filter],
-  )
+  function setMedia(file: File | null) {
+    setMediaPreviewUrl((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return file ? URL.createObjectURL(file) : ''
+    })
+    setMediaFile(file)
+    if (file && !form.title.trim()) {
+      const base = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim()
+      if (base) setForm((f) => ({ ...f, title: base }))
+    }
+    // Image uploads can stand in as their own thumbnail until a crop is set.
+    if (file && isImageFile(file) && !thumbFile) {
+      setThumbSeed(file)
+    }
+  }
+
+  const visible = useMemo(() => {
+    const list = filter === 'all' ? items : items.filter((item) => item.category === filter)
+    return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title))
+  }, [items, filter])
 
   const counts = useMemo(() => {
     const map = new Map<string, number>()
@@ -166,13 +199,14 @@ export default function StudioAdminPanel({
     setForm({
       title: '',
       description: '',
-      category: categories[0]?.id || '',
-      sortOrder: '0',
+      category: filter !== 'all' ? filter : categories[0]?.id || '',
+      sortOrder: String(items.length),
       featured: false,
       published: true,
     })
-    setMediaFile(null)
+    setMedia(null)
     setCroppedThumb(null)
+    setThumbSeed(null)
     setRemoveThumbnail(false)
     setShowForm(true)
   }
@@ -188,8 +222,9 @@ export default function StudioAdminPanel({
       featured: item.featured,
       published: item.published,
     })
-    setMediaFile(null)
+    setMedia(null)
     setCroppedThumb(null)
+    setThumbSeed(null)
     setRemoveThumbnail(false)
     setShowForm(true)
   }
@@ -221,7 +256,6 @@ export default function StudioAdminPanel({
         if (c.localKey !== localKey) return c
         const next = { ...c, ...patch }
         if (patch.label !== undefined && !c.originalId) {
-          // Brand-new categories keep slug in sync with label until first save.
           next.id = slugify(patch.label) || c.id
         }
         return next
@@ -335,7 +369,10 @@ export default function StudioAdminPanel({
         if (!res.ok) throw new Error(data.error || 'Update failed')
         onMessage('Studio content updated.')
       } else {
-        if (!mediaFile) throw new Error('Choose a video to upload.')
+        if (!mediaFile) throw new Error('Choose a video or image to upload.')
+        if (!isVideoFile(mediaFile) && !isImageFile(mediaFile)) {
+          throw new Error('Studio media must be a video or image.')
+        }
         const media = await uploadFile(mediaFile)
         let thumbnailKey = ''
         let thumbnailUrl = ''
@@ -343,6 +380,9 @@ export default function StudioAdminPanel({
           const thumb = await uploadFile(thumbFile)
           thumbnailKey = thumb.key
           thumbnailUrl = thumb.publicUrl
+        } else if (isImageFile(mediaFile)) {
+          thumbnailKey = media.key
+          thumbnailUrl = media.publicUrl
         }
 
         const res = await fetch('/api/admin/studio', {
@@ -365,14 +405,15 @@ export default function StudioAdminPanel({
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Create failed')
-        onMessage('Studio video uploaded.')
+        onMessage(isImageFile(mediaFile) ? 'Studio image uploaded.' : 'Studio video uploaded.')
       }
 
       setShowForm(false)
       setEditingId(null)
       setEditingItem(null)
-      setMediaFile(null)
+      setMedia(null)
       setCroppedThumb(null)
+      setThumbSeed(null)
       setRemoveThumbnail(false)
       await load()
     } catch (err) {
@@ -417,6 +458,33 @@ export default function StudioAdminPanel({
     }
   }
 
+  async function reorderVisible(orderedIds: string[]) {
+    onError('')
+    setItems((prev) =>
+      prev.map((item) => {
+        const index = orderedIds.indexOf(item.id)
+        return index >= 0 ? { ...item, sortOrder: index } : item
+      }),
+    )
+
+    const res = await fetch('/api/admin/studio/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedIds }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      onError(data.error || 'Reorder failed')
+      await load()
+      return
+    }
+    onMessage('Order saved.')
+  }
+
+  const frameVideoSrc =
+    mediaPreviewUrl ||
+    (editingItem && isVideoFile(null, editingItem.mimeType) ? editingItem.mediaUrl : '')
+
   return (
     <div className="space-y-10">
       <section className="space-y-4">
@@ -459,7 +527,7 @@ export default function StudioAdminPanel({
                   placeholder="behind_the_scenes"
                 />
                 <p className="mt-1 text-[11px] text-white/30">
-                  {counts.get(draft.id) || 0} clip{(counts.get(draft.id) || 0) === 1 ? '' : 's'}
+                  {counts.get(draft.id) || 0} item{(counts.get(draft.id) || 0) === 1 ? '' : 's'}
                 </p>
               </div>
               <div className="flex items-end gap-2">
@@ -514,7 +582,7 @@ export default function StudioAdminPanel({
           <div>
             <h2 className="text-2xl font-bold text-white">The Studio</h2>
             <p className="mt-1 text-sm text-white/40">
-              Upload videos into your categories.
+              Upload videos or images, drag to reorder, and move items between folders or containers.
             </p>
           </div>
           <button type="button" disabled={busy || !r2Configured} onClick={openCreate} className={btnPrimary}>
@@ -553,7 +621,7 @@ export default function StudioAdminPanel({
           <form onSubmit={save} className="admin-card space-y-4 p-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-white">
-                {editingId ? 'Edit studio item' : 'Upload studio video'}
+                {editingId ? 'Edit studio item' : 'Upload studio content'}
               </h3>
               <button
                 type="button"
@@ -562,8 +630,9 @@ export default function StudioAdminPanel({
                   setShowForm(false)
                   setEditingId(null)
                   setEditingItem(null)
-                  setMediaFile(null)
+                  setMedia(null)
                   setCroppedThumb(null)
+                  setThumbSeed(null)
                   setRemoveThumbnail(false)
                 }}
               >
@@ -582,7 +651,7 @@ export default function StudioAdminPanel({
                 />
               </div>
               <div>
-                <label className={labelClass}>Category</label>
+                <label className={labelClass}>Category / folder</label>
                 <select
                   className={inputClass}
                   value={form.category}
@@ -595,15 +664,6 @@ export default function StudioAdminPanel({
                   ))}
                 </select>
               </div>
-              <div>
-                <label className={labelClass}>Sort order</label>
-                <input
-                  className={inputClass}
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
-                />
-              </div>
             </div>
 
             <div>
@@ -613,47 +673,80 @@ export default function StudioAdminPanel({
                 rows={3}
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="Shown with the image or video on the Studio page"
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>
-                  {editingId ? 'Replace video (optional)' : 'Video file'}
-                </label>
-                {editingId && editingItem?.mediaUrl ? (
-                  <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                    <video
-                      src={editingItem.mediaUrl}
-                      controls
-                      className="max-h-40 w-full object-contain"
-                      preload="metadata"
-                    />
-                    <p className="truncate px-3 py-2 text-[11px] text-white/40">
-                      Current video{mediaFile ? ` · replacing with ${mediaFile.name}` : ''}
-                    </p>
-                  </div>
-                ) : null}
-                <input
-                  className={inputClass}
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
-                  required={!editingId}
-                />
-              </div>
-              <ImageCropField
-                label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
-                preset="studioThumb"
-                currentUrl={editingItem?.thumbnailUrl || ''}
-                pendingUrl={thumbPreview}
-                pendingFileName={thumbFile?.name}
+              <FileDropZone
+                label={editingId ? 'Replace media (optional)' : 'Video or image'}
+                accept="video/*,image/*"
                 disabled={busy}
-                onCropped={(file) => setCroppedThumb(file)}
-                onClearPending={() => setCroppedThumb(null)}
-                removeCurrentChecked={removeThumbnail}
-                onRemoveCurrentChange={setRemoveThumbnail}
+                required={!editingId}
+                fileName={mediaFile?.name}
+                hint="Drag & drop, or browse. Images and videos both supported."
+                onFile={setMedia}
+                preview={
+                  editingId && editingItem?.mediaUrl && !mediaFile ? (
+                    <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                      {editingItem.mimeType?.startsWith('image/') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={editingItem.mediaUrl}
+                          alt=""
+                          className="max-h-40 w-full object-contain"
+                        />
+                      ) : (
+                        <video
+                          src={editingItem.mediaUrl}
+                          controls
+                          className="max-h-40 w-full object-contain"
+                          preload="metadata"
+                        />
+                      )}
+                      <p className="truncate px-3 py-2 text-[11px] text-white/40">Current media</p>
+                    </div>
+                  ) : mediaPreviewUrl ? (
+                    <div className="mb-2 overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                      {isImageFile(mediaFile) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={mediaPreviewUrl} alt="" className="max-h-40 w-full object-contain" />
+                      ) : (
+                        <video
+                          src={mediaPreviewUrl}
+                          controls
+                          className="max-h-40 w-full object-contain"
+                          preload="metadata"
+                        />
+                      )}
+                    </div>
+                  ) : null
+                }
               />
+
+              <div className="space-y-3">
+                <ImageCropField
+                  label={editingId ? 'Thumbnail' : 'Thumbnail (optional)'}
+                  preset="studioThumb"
+                  currentUrl={editingItem?.thumbnailUrl || ''}
+                  pendingUrl={thumbPreview}
+                  pendingFileName={thumbFile?.name}
+                  seedFile={thumbSeed}
+                  onSeedConsumed={() => setThumbSeed(null)}
+                  disabled={busy}
+                  onCropped={(file) => setCroppedThumb(file)}
+                  onClearPending={() => setCroppedThumb(null)}
+                  removeCurrentChecked={removeThumbnail}
+                  onRemoveCurrentChange={setRemoveThumbnail}
+                />
+                {frameVideoSrc ? (
+                  <VideoFramePicker
+                    videoSrc={frameVideoSrc}
+                    disabled={busy}
+                    onCapture={(file) => setThumbSeed(file)}
+                  />
+                ) : null}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-white/70">
@@ -675,6 +768,23 @@ export default function StudioAdminPanel({
               </label>
             </div>
 
+            {editingId ? (
+              <ContentMoveControl
+                from="studio"
+                itemId={editingId}
+                studioCategories={categories}
+                disabled={busy}
+                onMessage={onMessage}
+                onError={onError}
+                onMoved={async () => {
+                  setShowForm(false)
+                  setEditingId(null)
+                  setEditingItem(null)
+                  await load()
+                }}
+              />
+            ) : null}
+
             <button type="submit" disabled={busy} className={btnPrimary}>
               {busy ? 'Saving…' : editingId ? 'Save changes' : 'Upload to R2'}
             </button>
@@ -683,7 +793,10 @@ export default function StudioAdminPanel({
 
         <section className="admin-card overflow-hidden">
           <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
-            <h3 className="text-sm font-semibold text-white">Library</h3>
+            <div>
+              <h3 className="text-sm font-semibold text-white">Library</h3>
+              <p className="mt-0.5 text-xs text-white/35">Drag the grip handle to reorder</p>
+            </div>
             <span className="text-xs text-white/40">{visible.length} items</span>
           </div>
 
@@ -693,19 +806,31 @@ export default function StudioAdminPanel({
                 <div key={i} className="h-4 animate-pulse rounded bg-white/5" />
               ))}
             </div>
-          ) : visible.length === 0 ? (
-            <div className="px-5 py-12 text-center text-sm text-white/40">
-              <Clapperboard className="mx-auto mb-3 h-8 w-8 opacity-40" />
-              No studio videos yet. Upload the first one.
-            </div>
           ) : (
-            <div className="divide-y divide-white/5">
-              {visible.map((item) => (
-                <div key={item.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
+            <SortableAdminList
+              items={visible}
+              disabled={busy}
+              onReorder={reorderVisible}
+              empty={
+                <div className="px-5 py-12 text-center text-sm text-white/40">
+                  <Clapperboard className="mx-auto mb-3 h-8 w-8 opacity-40" />
+                  No studio content yet. Upload a video or image.
+                </div>
+              }
+              renderItem={(item) => (
+                <div className="flex flex-wrap items-center gap-4">
                   <div className="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-white/5">
-                    {item.thumbnailUrl ? (
+                    {item.thumbnailUrl ||
+                    (item.mimeType?.startsWith('image/') ? item.mediaUrl : '') ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={
+                          item.thumbnailUrl ||
+                          (item.mimeType?.startsWith('image/') ? item.mediaUrl : '')
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center text-white/30">
                         <Clapperboard className="h-4 w-4" />
@@ -716,8 +841,12 @@ export default function StudioAdminPanel({
                     <p className="truncate text-sm font-medium text-white">{item.title}</p>
                     <p className="mt-0.5 text-xs text-white/40">
                       {studioCategoryLabel(item.category, categories)} ·{' '}
-                      {item.published ? 'Published' : 'Draft'} · order {item.sortOrder}
+                      {item.mimeType?.startsWith('image/') ? 'Image' : 'Video'} ·{' '}
+                      {item.published ? 'Published' : 'Draft'}
                     </p>
+                    {item.description ? (
+                      <p className="mt-1 line-clamp-1 text-xs text-white/30">{item.description}</p>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -737,8 +866,8 @@ export default function StudioAdminPanel({
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            />
           )}
         </section>
       </div>

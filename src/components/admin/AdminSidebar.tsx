@@ -9,6 +9,7 @@ import {
   Layers,
   LayoutDashboard,
   Mail,
+  MessageCircle,
   Palette,
   ScanLine,
   ScrollText,
@@ -28,6 +29,7 @@ export type AdminTab =
   | 'bonus'
   | 'studio'
   | 'kevin11'
+  | 'connect'
   | 'legal'
   | 'theme'
   | 'ai'
@@ -60,6 +62,7 @@ const nav: NavEntry[] = [
         { id: 'bonus', name: 'Showreel', icon: Film },
         { id: 'studio', name: 'The Studio', icon: Clapperboard },
         { id: 'kevin11', name: 'Kevin11', icon: Store },
+        { id: 'connect', name: 'Connect', icon: MessageCircle },
         { id: 'legal', name: 'Terms & Policies', icon: ScrollText },
         { id: 'theme', name: 'Theme', icon: Palette },
         { id: 'ai', name: 'AI Kev', icon: Bot },
