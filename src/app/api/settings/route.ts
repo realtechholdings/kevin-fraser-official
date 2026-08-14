@@ -10,6 +10,7 @@ export async function GET() {
     theme: settings.theme,
     ai: {
       displayName: settings.ai.displayName,
+      launcherLabel: settings.ai.launcherLabel,
       greeting: settings.ai.greeting,
       avatarUrl: settings.ai.avatarUrl || (settings.ai.avatarKey ? '/api/settings/avatar' : ''),
     },

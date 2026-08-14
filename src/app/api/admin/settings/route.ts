@@ -97,6 +97,9 @@ export async function PUT(req: NextRequest) {
       doc.ai = {
         displayName: String(a.displayName ?? doc.ai.displayName ?? DEFAULT_AI_SETTINGS.displayName).trim() ||
           DEFAULT_AI_SETTINGS.displayName,
+        launcherLabel: String(
+          a.launcherLabel ?? (doc.ai as { launcherLabel?: string }).launcherLabel ?? '',
+        ).trim(),
         greeting:
           String(a.greeting ?? doc.ai.greeting ?? DEFAULT_AI_SETTINGS.greeting).trim() ||
           DEFAULT_AI_SETTINGS.greeting,

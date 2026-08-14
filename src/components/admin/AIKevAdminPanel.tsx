@@ -132,6 +132,7 @@ export default function AIKevAdminPanel({
     setAi((prev) => ({
       ...prev,
       displayName: DEFAULT_AI_SETTINGS.displayName,
+      launcherLabel: DEFAULT_AI_SETTINGS.launcherLabel,
       greeting: DEFAULT_AI_SETTINGS.greeting,
       systemPrompt: DEFAULT_AI_SETTINGS.systemPrompt,
     }))
@@ -218,6 +219,19 @@ export default function AIKevAdminPanel({
             onChange={(e) => setAi((a) => ({ ...a, displayName: e.target.value }))}
             required
           />
+          <p className="mt-1 text-xs text-white/35">Shown in the open chat header.</p>
+        </div>
+        <div>
+          <label className={labelClass}>Avatar button label</label>
+          <input
+            className={inputClass}
+            value={ai.launcherLabel}
+            onChange={(e) => setAi((a) => ({ ...a, launcherLabel: e.target.value }))}
+            placeholder="Chat with Kev"
+          />
+          <p className="mt-1 text-xs text-white/35">
+            Text shown next to the floating avatar so people know they can talk to the AI. Leave blank to hide.
+          </p>
         </div>
         <div>
           <label className={labelClass}>Greeting (first chat message)</label>

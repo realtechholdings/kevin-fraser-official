@@ -13,6 +13,7 @@ interface Message {
 
 type PublicAI = {
   displayName: string
+  launcherLabel: string
   greeting: string
   avatarUrl: string
 }
@@ -22,6 +23,7 @@ export default function AIGuide() {
   const [open, setOpen] = useState(false)
   const [ai, setAi] = useState<PublicAI>({
     displayName: DEFAULT_AI_SETTINGS.displayName,
+    launcherLabel: DEFAULT_AI_SETTINGS.launcherLabel,
     greeting: DEFAULT_AI_SETTINGS.greeting,
     avatarUrl: '',
   })
@@ -43,6 +45,7 @@ export default function AIGuide() {
         if (!res.ok || !data.success || cancelled) return
         const next: PublicAI = {
           displayName: data.ai?.displayName || DEFAULT_AI_SETTINGS.displayName,
+          launcherLabel: String(data.ai?.launcherLabel ?? DEFAULT_AI_SETTINGS.launcherLabel).trim(),
           greeting: data.ai?.greeting || DEFAULT_AI_SETTINGS.greeting,
           avatarUrl: data.ai?.avatarUrl || '',
         }
@@ -241,24 +244,32 @@ export default function AIGuide() {
       <motion.button
         type="button"
         onClick={() => setOpen(!open)}
-        className="fixed bottom-4 left-4 z-50 flex h-12 w-12 items-center justify-center overflow-hidden rounded-full"
+        className="fixed bottom-4 left-4 z-50 flex items-center gap-2 overflow-hidden rounded-full pr-1"
         style={{
           background: accent,
           color: accentContrast,
           boxShadow: '0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent)',
+          paddingLeft: open || !ai.launcherLabel.trim() ? 0 : '0.75rem',
         }}
-        whileHover={{ scale: 1.1 }}
+        whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        aria-label="Open AI Guide"
+        aria-label={ai.launcherLabel.trim() || 'Open AI Guide'}
       >
-        {open ? (
-          <X size={18} />
-        ) : ai.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={ai.avatarUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <MessageCircle size={18} />
-        )}
+        {!open && ai.launcherLabel.trim() ? (
+          <span className="max-w-[9.5rem] truncate pl-1 text-left text-[11px] font-semibold leading-tight tracking-wide">
+            {ai.launcherLabel.trim()}
+          </span>
+        ) : null}
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full">
+          {open ? (
+            <X size={18} />
+          ) : ai.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ai.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <MessageCircle size={18} />
+          )}
+        </span>
       </motion.button>
     </>
   )

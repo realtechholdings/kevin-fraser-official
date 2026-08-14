@@ -35,6 +35,7 @@ const ThemeSchema = new Schema(
 const AISchema = new Schema(
   {
     displayName: { type: String, default: DEFAULT_AI_SETTINGS.displayName },
+    launcherLabel: { type: String, default: DEFAULT_AI_SETTINGS.launcherLabel },
     greeting: { type: String, default: DEFAULT_AI_SETTINGS.greeting },
     systemPrompt: { type: String, default: DEFAULT_AI_SETTINGS.systemPrompt },
     vocabularyNotes: { type: String, default: DEFAULT_AI_SETTINGS.vocabularyNotes },
@@ -199,6 +200,11 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
     },
     ai: {
       displayName: doc.ai?.displayName || DEFAULT_AI_SETTINGS.displayName,
+      launcherLabel: (() => {
+        const raw = (doc.ai as { launcherLabel?: string } | undefined)?.launcherLabel
+        if (raw === undefined || raw === null) return DEFAULT_AI_SETTINGS.launcherLabel
+        return String(raw).trim()
+      })(),
       greeting: doc.ai?.greeting || DEFAULT_AI_SETTINGS.greeting,
       systemPrompt: doc.ai?.systemPrompt || DEFAULT_AI_SETTINGS.systemPrompt,
       vocabularyNotes: doc.ai?.vocabularyNotes || '',

@@ -20,6 +20,8 @@ export type ThemeSettings = {
 
 export type AISettings = {
   displayName: string
+  /** Short prompt shown next to the floating avatar button */
+  launcherLabel: string
   greeting: string
   systemPrompt: string
   vocabularyNotes: string
@@ -85,6 +87,7 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
   displayName: 'Ask Kevin Anything',
+  launcherLabel: 'Chat with Kev',
   greeting:
     "G'day! I'm Kevin's AI Guide. Ask me anything about Kevin's worlds, upcoming events, or how to get in touch! 👋",
   systemPrompt: KEVIN_PERSONA,
