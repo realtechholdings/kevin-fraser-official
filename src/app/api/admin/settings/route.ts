@@ -100,6 +100,13 @@ export async function PUT(req: NextRequest) {
         launcherLabel: String(
           a.launcherLabel ?? (doc.ai as { launcherLabel?: string }).launcherLabel ?? '',
         ).trim(),
+        launcherColor: (() => {
+          const raw = String(
+            a.launcherColor ?? (doc.ai as { launcherColor?: string }).launcherColor ?? '',
+          ).trim()
+          if (!raw) return ''
+          return normalizeHex(raw, '')
+        })(),
         greeting:
           String(a.greeting ?? doc.ai.greeting ?? DEFAULT_AI_SETTINGS.greeting).trim() ||
           DEFAULT_AI_SETTINGS.greeting,

@@ -22,6 +22,8 @@ export type AISettings = {
   displayName: string
   /** Short prompt shown next to the floating avatar button */
   launcherLabel: string
+  /** Floating button background; empty = site accent */
+  launcherColor: string
   greeting: string
   systemPrompt: string
   vocabularyNotes: string
@@ -88,6 +90,7 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
 export const DEFAULT_AI_SETTINGS: AISettings = {
   displayName: 'Ask Kevin Anything',
   launcherLabel: 'Chat with Kev',
+  launcherColor: '',
   greeting:
     "G'day! I'm Kevin's AI Guide. Ask me anything about Kevin's worlds, upcoming events, or how to get in touch! 👋",
   systemPrompt: KEVIN_PERSONA,
@@ -280,6 +283,19 @@ export function normalizeHex(value: string, fallback: string) {
     return `#${a}${a}${b}${b}${c}${c}`.toLowerCase()
   }
   return fallback
+}
+
+/** Pick black or white ink for readable text on a hex background. */
+export function contrastInkForHex(hex: string, light = '#ffffff', dark = '#0b0b0f') {
+  const normalized = normalizeHex(hex, '')
+  if (!normalized) return light
+  const n = Number.parseInt(normalized.slice(1), 16)
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  // Relative luminance (sRGB)
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  return lum > 0.55 ? dark : light
 }
 
 export function buildGuideSystemPrompt(ai: AISettings) {

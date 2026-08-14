@@ -11,6 +11,7 @@ export async function GET() {
     ai: {
       displayName: settings.ai.displayName,
       launcherLabel: settings.ai.launcherLabel,
+      launcherColor: settings.ai.launcherColor || '',
       greeting: settings.ai.greeting,
       avatarUrl: settings.ai.avatarUrl || (settings.ai.avatarKey ? '/api/settings/avatar' : ''),
     },

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, MessageCircle } from 'lucide-react'
-import { DEFAULT_AI_SETTINGS } from '@/lib/settings/defaults'
+import { DEFAULT_AI_SETTINGS, contrastInkForHex } from '@/lib/settings/defaults'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -14,6 +14,7 @@ interface Message {
 type PublicAI = {
   displayName: string
   launcherLabel: string
+  launcherColor: string
   greeting: string
   avatarUrl: string
 }
@@ -24,6 +25,7 @@ export default function AIGuide() {
   const [ai, setAi] = useState<PublicAI>({
     displayName: DEFAULT_AI_SETTINGS.displayName,
     launcherLabel: DEFAULT_AI_SETTINGS.launcherLabel,
+    launcherColor: DEFAULT_AI_SETTINGS.launcherColor,
     greeting: DEFAULT_AI_SETTINGS.greeting,
     avatarUrl: '',
   })
@@ -46,6 +48,7 @@ export default function AIGuide() {
         const next: PublicAI = {
           displayName: data.ai?.displayName || DEFAULT_AI_SETTINGS.displayName,
           launcherLabel: String(data.ai?.launcherLabel ?? DEFAULT_AI_SETTINGS.launcherLabel).trim(),
+          launcherColor: String(data.ai?.launcherColor || '').trim(),
           greeting: data.ai?.greeting || DEFAULT_AI_SETTINGS.greeting,
           avatarUrl: data.ai?.avatarUrl || '',
         }
@@ -143,8 +146,14 @@ export default function AIGuide() {
 
   if (pathname?.startsWith('/admin')) return null
 
-  const accent = 'var(--accent)'
-  const accentContrast = 'var(--accent-contrast)'
+  const customLauncher = /^#[0-9a-fA-F]{6}$/i.test(ai.launcherColor)
+  const accent = customLauncher ? ai.launcherColor : 'var(--accent)'
+  const accentContrast = customLauncher
+    ? contrastInkForHex(ai.launcherColor)
+    : 'var(--accent-contrast)'
+  const buttonShadow = customLauncher
+    ? `0 8px 24px ${ai.launcherColor}59`
+    : '0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent)'
 
   return (
     <>
@@ -248,7 +257,7 @@ export default function AIGuide() {
         style={{
           background: accent,
           color: accentContrast,
-          boxShadow: '0 8px 24px color-mix(in srgb, var(--accent) 35%, transparent)',
+          boxShadow: buttonShadow,
           paddingLeft: open || !ai.launcherLabel.trim() ? 0 : '0.75rem',
         }}
         whileHover={{ scale: 1.05 }}

@@ -133,6 +133,7 @@ export default function AIKevAdminPanel({
       ...prev,
       displayName: DEFAULT_AI_SETTINGS.displayName,
       launcherLabel: DEFAULT_AI_SETTINGS.launcherLabel,
+      launcherColor: DEFAULT_AI_SETTINGS.launcherColor,
       greeting: DEFAULT_AI_SETTINGS.greeting,
       systemPrompt: DEFAULT_AI_SETTINGS.systemPrompt,
     }))
@@ -232,6 +233,39 @@ export default function AIKevAdminPanel({
           <p className="mt-1 text-xs text-white/35">
             Text shown next to the floating avatar so people know they can talk to the AI. Leave blank to hide.
           </p>
+        </div>
+        <div>
+          <label className={labelClass}>Avatar button colour</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="color"
+              className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+              value={/^#[0-9a-fA-F]{6}$/.test(ai.launcherColor) ? ai.launcherColor : '#ff6b35'}
+              onChange={(e) =>
+                setAi((a) => ({ ...a, launcherColor: e.target.value.toLowerCase() }))
+              }
+              disabled={busy}
+            />
+            <input
+              className={inputClass}
+              value={ai.launcherColor}
+              onChange={(e) => setAi((a) => ({ ...a, launcherColor: e.target.value }))}
+              placeholder="#ff6b35 or blank = site accent"
+            />
+          </div>
+          {ai.launcherColor ? (
+            <button
+              type="button"
+              className={`${btnGhost} mt-2`}
+              onClick={() => setAi((a) => ({ ...a, launcherColor: '' }))}
+            >
+              Clear (use site accent)
+            </button>
+          ) : (
+            <p className="mt-1 text-xs text-white/35">
+              Leave blank to use the site theme accent colour.
+            </p>
+          )}
         </div>
         <div>
           <label className={labelClass}>Greeting (first chat message)</label>
