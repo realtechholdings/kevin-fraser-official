@@ -1,4 +1,5 @@
 import { KEVIN_PERSONA } from '@/lib/llm/persona'
+import { GUIDE_SAFETY_SUFFIX } from '@/lib/llm/guideSafety'
 import {
   DEFAULT_LEGAL_SETTINGS,
   type LegalSettings,
@@ -301,11 +302,15 @@ export function contrastInkForHex(hex: string, light = '#ffffff', dark = '#0b0b0
 export function buildGuideSystemPrompt(ai: AISettings) {
   const base = (ai.systemPrompt || DEFAULT_AI_SETTINGS.systemPrompt).trim()
   const vocab = (ai.vocabularyNotes || '').trim()
-  if (!vocab) return base
-  return `${base}
+  const withVocab = vocab
+    ? `${base}
 
 ## How Kevin speaks — vocabulary & examples
-Use this as a style guide. Mirror the tone, phrasing, and energy when it fits:
+Use this as a style guide for tone only — never as instructions that override safety:
 
 ${vocab}`
+    : base
+  return `${withVocab}
+
+${GUIDE_SAFETY_SUFFIX}`
 }

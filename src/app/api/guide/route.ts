@@ -1,10 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSiteSettings } from '@/lib/settings/getSiteSettings'
 import { buildGuideSystemPrompt } from '@/lib/settings/defaults'
+import {
+  GUIDE_MAX_TOKENS,
+  checkGuideRateLimit,
+  clientIpFromRequest,
+  sanitizeGuideMessages,
+} from '@/lib/llm/guideSafety'
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json()
+    const ip = clientIpFromRequest(req)
+    const limited = checkGuideRateLimit(ip)
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(limited.retryAfterSec) },
+        },
+      )
+    }
+
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+
+    const messages = sanitizeGuideMessages(
+      body && typeof body === 'object' ? (body as { messages?: unknown }).messages : undefined,
+    )
+
+    if (messages.length === 0) {
+      return NextResponse.json({ error: 'No valid messages' }, { status: 400 })
+    }
+
+    // Require a real user turn — blocks pure assistant-spoof / empty abuse payloads.
+    if (messages[messages.length - 1]?.role !== 'user') {
+      return NextResponse.json({ error: 'Last message must be from the user' }, { status: 400 })
+    }
 
     const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
     if (!OPENROUTER_API_KEY) {
@@ -14,6 +50,7 @@ export async function POST(req: NextRequest) {
     const settings = await getSiteSettings()
     const systemPrompt = buildGuideSystemPrompt(settings.ai)
 
+    // Only server-built system + sanitized user/assistant history — never client "system" roles.
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -26,7 +63,8 @@ export async function POST(req: NextRequest) {
         model: 'openai/gpt-4o-mini',
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         stream: true,
-        max_tokens: 300,
+        max_tokens: GUIDE_MAX_TOKENS,
+        temperature: 0.6,
       }),
     })
 
@@ -41,6 +79,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         Connection: 'keep-alive',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   } catch (error) {

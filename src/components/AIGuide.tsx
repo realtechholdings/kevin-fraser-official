@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, MessageCircle } from 'lucide-react'
 import { DEFAULT_AI_SETTINGS, contrastInkForHex } from '@/lib/settings/defaults'
+import { GUIDE_MAX_MESSAGE_CHARS } from '@/lib/llm/guideSafety'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -88,17 +89,37 @@ export default function AIGuide() {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return
-    const userMsg = input.trim()
+    const userMsg = input.trim().slice(0, GUIDE_MAX_MESSAGE_CHARS)
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }])
     setLoading(true)
 
     try {
+      // Only send user/assistant turns — never trust client-side system roles.
+      const history = [...messages, { role: 'user' as const, content: userMsg }]
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({
+          role: m.role,
+          content: m.content.slice(0, GUIDE_MAX_MESSAGE_CHARS),
+        }))
+        .slice(-16)
+
       const res = await fetch('/api/guide', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, { role: 'user', content: userMsg }] }),
+        body: JSON.stringify({ messages: history }),
       })
+
+      if (res.status === 429) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: 'Easy tiger — too many messages. Give it a sec and try again.',
+          },
+        ])
+        return
+      }
 
       if (!res.ok) throw new Error('API error')
 
@@ -230,11 +251,13 @@ export default function AIGuide() {
                 ref={inputRef}
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                maxLength={GUIDE_MAX_MESSAGE_CHARS}
+                onChange={(e) => setInput(e.target.value.slice(0, GUIDE_MAX_MESSAGE_CHARS))}
                 onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                 placeholder="Ask me anything..."
                 className="flex-1 bg-transparent text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-subtle)] focus:outline-none"
                 disabled={loading}
+                autoComplete="off"
               />
               <button
                 type="button"
