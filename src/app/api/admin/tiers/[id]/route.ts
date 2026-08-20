@@ -33,7 +33,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
     if (body.description !== undefined) tier.description = String(body.description || '').trim()
     if (body.currency !== undefined) tier.currency = String(body.currency || 'AUD').toUpperCase()
-    if (body.priceCents !== undefined) tier.priceCents = Math.max(0, Number(body.priceCents) || 0)
+    if (body.priceCents !== undefined) {
+      tier.priceCents = Math.max(0, Number(body.priceCents) || 0)
+      // Editing a show-owned tier’s price means this show no longer follows the tour.
+      if (tier.ownerType === 'show') {
+        if (body.inheritPrice === undefined) tier.inheritPrice = false
+      }
+    }
+    if (body.inheritPrice !== undefined && tier.ownerType === 'show') {
+      tier.inheritPrice = Boolean(body.inheritPrice)
+    }
     if (body.capacity !== undefined) tier.capacity = Math.max(0, Number(body.capacity) || 0)
     if (body.sortOrder !== undefined) tier.sortOrder = Number(body.sortOrder) || 0
     if (body.published !== undefined) tier.published = Boolean(body.published)

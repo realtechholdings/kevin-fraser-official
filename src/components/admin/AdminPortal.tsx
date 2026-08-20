@@ -353,13 +353,37 @@ export default function AdminPortal() {
   const onSaleCount = upcomingShows.filter((s) => s.status === 'on_sale').length
   const featuredTour = tours.find((t) => t.featured)
 
-  // Mirrors resolveTiersForShow: show tiers override tour tiers, which override the show's base price
+  // Mirrors resolveTiersForShow: tour base + show overrides (honour inheritPrice).
   function tiersControllingShow(showId: string | null, tourId: string) {
+    const tourTiers = tiers
+      .filter((t) => t.ownerType === 'tour' && t.ownerId === tourId && t.published)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
     const showTiers = tiers.filter(
       (t) => t.ownerType === 'show' && t.ownerId === showId && t.published,
     )
-    if (showTiers.length) return showTiers
-    return tiers.filter((t) => t.ownerType === 'tour' && t.ownerId === tourId && t.published)
+    if (!tourTiers.length && !showTiers.length) return []
+
+    const overridesBySlug = new Map(showTiers.map((t) => [t.slug, t]))
+    const tourSlugs = new Set(tourTiers.map((t) => t.slug))
+
+    const merged = tourTiers.map((tourTier) => {
+      const override = overridesBySlug.get(tourTier.slug)
+      if (!override) return tourTier
+      if (override.inheritPrice) {
+        return {
+          ...override,
+          priceCents: tourTier.priceCents,
+          currency: tourTier.currency,
+        }
+      }
+      return override
+    })
+
+    for (const showTier of showTiers) {
+      if (!tourSlugs.has(showTier.slug)) merged.push(showTier)
+    }
+
+    return merged.sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
   }
 
   function displayPrice(show: PublicShow) {
