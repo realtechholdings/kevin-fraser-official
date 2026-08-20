@@ -148,10 +148,11 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
     id: 'kevin11',
     href: '/worlds/kevin11',
     label: 'Kevin11',
+    // Ends above Connect — previous 28% height stole Connect’s top edge.
     top: '42%',
     left: '60%',
     width: '35%',
-    height: '28%',
+    height: '25%',
   },
   {
     id: 'studio',
@@ -166,10 +167,10 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
     id: 'connect',
     href: '/worlds/connect',
     label: 'Connect',
-    top: '72%',
+    top: '68%',
     left: '60%',
     width: '35%',
-    height: '25%',
+    height: '29%',
   },
   {
     id: 'about',
@@ -186,7 +187,7 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
  * Mobile: vertically stacked panels in kevin-hero-mobile.
  * Percentages are relative to the image itself (not the viewport).
  * Panel bands (approx): Stage 4–17%, Showreel 18–33%, Studio 34–49%,
- * Gym 50–66%, Kevin11 67–82%, Connect 83–97%.
+ * Gym 50–66%, Kevin11 67–80%, Connect 81–97%.
  */
 const MOBILE_HOTSPOTS: Hotspot[] = [
   {
@@ -232,16 +233,16 @@ const MOBILE_HOTSPOTS: Hotspot[] = [
     top: '67%',
     left: '4%',
     width: '92%',
-    height: '14.5%',
+    height: '13%',
   },
   {
     id: 'connect',
     href: '/worlds/connect',
     label: 'Connect',
-    top: '83%',
+    top: '81%',
     left: '4%',
     width: '92%',
-    height: '14%',
+    height: '16%',
   },
 ]
 
