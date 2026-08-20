@@ -8,6 +8,7 @@ import { ThemeScript } from '@/components/theme/theme-script'
 import SiteThemeApplicator from '@/components/theme/SiteThemeApplicator'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import AmplitudeProvider from '@/components/analytics/AmplitudeProvider'
+import { clerkAppearance } from '@/lib/clerkAppearance'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
@@ -38,7 +39,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider appearance={clerkAppearance}>
       <html lang="en" className="dark" suppressHydrationWarning>
         <head>
           <ThemeScript />

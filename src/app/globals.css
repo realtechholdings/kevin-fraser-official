@@ -484,3 +484,26 @@ html.dark {
   background-color: #ffffff !important;
   color: #17171f;
 }
+
+/* Clerk auth cards stay light with black text even when site is dark */
+.clerk-root,
+.cl-rootBox {
+  color-scheme: light;
+  color: #0f172a;
+}
+.cl-card,
+.cl-formFieldInput,
+.cl-socialButtonsBlockButton {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+.cl-socialButtonsBlockButtonText,
+.cl-footerActionLink,
+.cl-headerTitle,
+.cl-formFieldLabel {
+  color: #0f172a !important;
+}
+.cl-formButtonPrimary {
+  background-color: #ff6b35 !important;
+  color: #0b0b0f !important;
+}
