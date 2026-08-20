@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { ThemeScript } from '@/components/theme/theme-script'
 import SiteThemeApplicator from '@/components/theme/SiteThemeApplicator'
 import MetaPixel from '@/components/analytics/MetaPixel'
+import AmplitudeProvider from '@/components/analytics/AmplitudeProvider'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
 
@@ -48,6 +49,7 @@ export default function RootLayout({
             {children}
             <AIGuide />
             <MetaPixel />
+            <AmplitudeProvider />
           </ThemeProvider>
         </body>
       </html>
