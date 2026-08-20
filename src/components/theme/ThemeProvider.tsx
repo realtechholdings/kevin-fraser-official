@@ -15,12 +15,12 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 const STORAGE_KEY = 'kf-theme'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('light')
+  const [theme, setThemeState] = useState<Theme>('dark')
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    const initial: Theme = stored === 'dark' || stored === 'light' ? stored : 'light'
+    const initial: Theme = stored === 'dark' || stored === 'light' ? stored : 'dark'
     setThemeState(initial)
     document.documentElement.classList.toggle('dark', initial === 'dark')
     document.documentElement.classList.toggle('light', initial === 'light')
@@ -41,7 +41,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme: ready ? theme : 'light', setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: ready ? theme : 'dark', setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

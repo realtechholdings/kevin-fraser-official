@@ -39,7 +39,7 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" className="light" suppressHydrationWarning>
+      <html lang="en" className="dark" suppressHydrationWarning>
         <head>
           <ThemeScript />
         </head>
