@@ -115,7 +115,7 @@ function GymTonikModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** Desktop: 2×3 grid around Kevin (viewport-relative, image object-fit contain). */
+/** Desktop: 2×3 grid around Kevin — percentages are relative to the hero image box. */
 const DESKTOP_HOTSPOTS: Hotspot[] = [
   {
     id: 'stage',
@@ -133,7 +133,7 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
     top: '42%',
     left: '5%',
     width: '35%',
-    height: '28%',
+    height: '26%',
   },
   {
     id: 'gym',
@@ -148,29 +148,29 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
     id: 'kevin11',
     href: '/worlds/kevin11',
     label: 'Kevin11',
-    // Ends above Connect — previous 28% height stole Connect’s top edge.
+    // Seam with Connect is ~68% of the hero image — keep this box above it.
     top: '42%',
     left: '60%',
     width: '35%',
-    height: '25%',
+    height: '24%',
   },
   {
     id: 'studio',
     href: '/worlds/studio',
     label: 'The Studio',
-    top: '72%',
+    top: '70%',
     left: '5%',
     width: '35%',
-    height: '25%',
+    height: '27%',
   },
   {
     id: 'connect',
     href: '/worlds/connect',
     label: 'Connect',
-    top: '68%',
+    top: '67%',
     left: '60%',
     width: '35%',
-    height: '29%',
+    height: '30%',
   },
   {
     id: 'about',
@@ -187,7 +187,7 @@ const DESKTOP_HOTSPOTS: Hotspot[] = [
  * Mobile: vertically stacked panels in kevin-hero-mobile.
  * Percentages are relative to the image itself (not the viewport).
  * Panel bands (approx): Stage 4–17%, Showreel 18–33%, Studio 34–49%,
- * Gym 50–66%, Kevin11 67–80%, Connect 81–97%.
+ * Gym 50–66%, Kevin11 67–79%, Connect 80–97%.
  */
 const MOBILE_HOTSPOTS: Hotspot[] = [
   {
@@ -233,16 +233,16 @@ const MOBILE_HOTSPOTS: Hotspot[] = [
     top: '67%',
     left: '4%',
     width: '92%',
-    height: '13%',
+    height: '12%',
   },
   {
     id: 'connect',
     href: '/worlds/connect',
     label: 'Connect',
-    top: '81%',
+    top: '80%',
     left: '4%',
     width: '92%',
-    height: '16%',
+    height: '17%',
   },
 ]
 
@@ -307,9 +307,17 @@ function HotspotLayer({
   onGymClick: () => void
   onNavigate: (href: string) => void
 }) {
+  // Paint Connect after Kevin11 and give it a higher stacking order so any
+  // residual seam overlap still opens Connect.
+  const ordered = [...spots].sort((a, b) => {
+    if (a.id === 'connect') return 1
+    if (b.id === 'connect') return -1
+    return 0
+  })
+
   return (
     <>
-      {spots.map((spot) => {
+      {ordered.map((spot) => {
         const zone = (
           <div
             className="absolute cursor-pointer"
@@ -318,6 +326,7 @@ function HotspotLayer({
               left: spot.left,
               width: spot.width,
               height: spot.height,
+              zIndex: spot.id === 'connect' ? 2 : 1,
             }}
             aria-label={spot.label}
           />
@@ -611,29 +620,50 @@ export default function ImageMapLanding() {
         <BrandLockup />
       </div>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/kevin-hero.jpeg"
-        alt="Kevin Fraser World"
+      {/*
+        Hotspots are % of the painted hero (3840×2160), not the viewport.
+        Size this box exactly like object-fit:contain so letterboxing no longer
+        misaligns Kevin11 over Connect.
+      */}
+      <div
         style={{
           position: 'absolute',
           inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          objectPosition: 'center',
-          userSelect: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           zIndex: 1,
         }}
-        draggable={false}
-      />
+      >
+        <div
+          style={{
+            position: 'relative',
+            width: 'min(100vw, calc(100vh * 16 / 9))',
+            height: 'min(100vh, calc(100vw * 9 / 16))',
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kevin-hero.jpeg"
+            alt="Kevin Fraser World"
+            style={{
+              display: 'block',
+              width: '100%',
+              height: '100%',
+              objectFit: 'fill',
+              userSelect: 'none',
+            }}
+            draggable={false}
+          />
 
-      <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
-        <HotspotLayer
-          spots={DESKTOP_HOTSPOTS}
-          onGymClick={() => setGymModalOpen(true)}
-          onNavigate={navigate}
-        />
+          <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
+            <HotspotLayer
+              spots={DESKTOP_HOTSPOTS}
+              onGymClick={() => setGymModalOpen(true)}
+              onNavigate={navigate}
+            />
+          </div>
+        </div>
       </div>
 
       <LegalNav />
