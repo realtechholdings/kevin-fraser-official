@@ -110,7 +110,7 @@ export default function TicketButton({
           type="button"
           disabled
           className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] opacity-40"
-          style={{ background: 'var(--surface-muted)', color: 'var(--foreground-subtle)' }}
+          style={{ background: 'var(--sold-out-bg)', color: 'var(--sold-out-fg)' }}
         >
           Sold Out
         </button>
@@ -166,8 +166,8 @@ export default function TicketButton({
         disabled={disabled || loading || !selected}
         className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         style={{
-          background: disabled ? 'var(--surface-muted)' : 'var(--accent)',
-          color: disabled ? 'var(--foreground-subtle)' : 'var(--accent-contrast)',
+          background: disabled ? 'var(--sold-out-bg)' : 'var(--accent)',
+          color: disabled ? 'var(--sold-out-fg)' : 'var(--accent-contrast)',
         }}
       >
         {loading

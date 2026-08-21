@@ -27,12 +27,16 @@ export default function SiteThemeApplicator() {
   --accent-soft: ${hexToRgba(t.lightAccent, 0.12)};
   --accent-contrast: ${t.lightAccentContrast};
   --neon-orange: ${t.lightAccent};
+  --sold-out-bg: ${t.soldOutBg || '#3f3f46'};
+  --sold-out-fg: ${t.soldOutFg || '#a1a1aa'};
 }
 html.dark {
   --accent: ${t.darkAccent};
   --accent-soft: ${hexToRgba(t.darkAccent, 0.15)};
   --accent-contrast: ${t.darkAccentContrast};
   --neon-orange: ${t.darkAccent};
+  --sold-out-bg: ${t.soldOutBg || '#3f3f46'};
+  --sold-out-fg: ${t.soldOutFg || '#a1a1aa'};
 }
 `
         document.head.appendChild(styleEl)

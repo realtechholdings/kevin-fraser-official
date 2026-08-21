@@ -2,6 +2,7 @@ import mongoose, { Schema, type InferSchemaType, type Model } from 'mongoose'
 import {
   DEFAULT_AI_SETTINGS,
   DEFAULT_CONNECT_SETTINGS,
+  DEFAULT_KEVIN11_SETTINGS,
   DEFAULT_SHOWREEL_SETTINGS,
   DEFAULT_STUDIO_SETTINGS,
   DEFAULT_THEME_SETTINGS,
@@ -9,8 +10,10 @@ import {
   normalizeConnectSettings,
   normalizeShowreelSettings,
   normalizeStudioSettings,
+  normalizeThemeSettings,
   type AISettings,
   type ConnectSettings,
+  type Kevin11Settings,
   type ShowreelSettings,
   type SiteSettingsData,
   type StudioSettings,
@@ -21,6 +24,7 @@ import {
   normalizeLegalSettings,
   type LegalSettings,
 } from '@/lib/settings/legalDefaults'
+import { normalizeKevin11Settings } from '@/lib/kevin11/categories'
 
 const ThemeSchema = new Schema(
   {
@@ -28,6 +32,8 @@ const ThemeSchema = new Schema(
     lightAccentContrast: { type: String, default: DEFAULT_THEME_SETTINGS.lightAccentContrast },
     darkAccent: { type: String, default: DEFAULT_THEME_SETTINGS.darkAccent },
     darkAccentContrast: { type: String, default: DEFAULT_THEME_SETTINGS.darkAccentContrast },
+    soldOutBg: { type: String, default: DEFAULT_THEME_SETTINGS.soldOutBg },
+    soldOutFg: { type: String, default: DEFAULT_THEME_SETTINGS.soldOutFg },
   },
   { _id: false },
 )
@@ -113,6 +119,26 @@ const StudioSchema = new Schema(
   { _id: false },
 )
 
+const Kevin11CategorySchema = new Schema(
+  {
+    id: { type: String, required: true, trim: true },
+    label: { type: String, required: true, trim: true },
+    sortOrder: { type: Number, default: 0 },
+  },
+  { _id: false },
+)
+
+const Kevin11Schema = new Schema(
+  {
+    hoursHeading: { type: String, default: DEFAULT_KEVIN11_SETTINGS.hoursHeading },
+    categories: {
+      type: [Kevin11CategorySchema],
+      default: () => DEFAULT_KEVIN11_SETTINGS.categories.map((c) => ({ ...c })),
+    },
+  },
+  { _id: false },
+)
+
 const ConnectSocialSchema = new Schema(
   {
     id: { type: String, required: true, trim: true },
@@ -143,6 +169,11 @@ const ConnectSchema = new Schema(
       type: [ConnectSocialSchema],
       default: () => DEFAULT_CONNECT_SETTINGS.socials.map((s) => ({ ...s })),
     },
+    introEnabled: { type: Boolean, default: true },
+    introVideoKey: { type: String, default: '' },
+    introVideoUrl: { type: String, default: '' },
+    introVideoMobileKey: { type: String, default: '' },
+    introVideoMobileUrl: { type: String, default: '' },
   },
   { _id: false },
 )
@@ -155,6 +186,10 @@ const SiteSettingsSchema = new Schema(
     legal: { type: LegalSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS }) },
     showreel: { type: ShowreelSchema, default: () => ({ ...DEFAULT_SHOWREEL_SETTINGS }) },
     studio: { type: StudioSchema, default: () => ({ ...DEFAULT_STUDIO_SETTINGS }) },
+    kevin11: {
+      type: Kevin11Schema,
+      default: () => normalizeKevin11Settings(DEFAULT_KEVIN11_SETTINGS),
+    },
     connect: {
       type: ConnectSchema,
       default: () => normalizeConnectSettings(DEFAULT_CONNECT_SETTINGS),
@@ -170,6 +205,7 @@ export type SiteSettingsDocument = InferSchemaType<typeof SiteSettingsSchema> & 
   legal: LegalSettings
   showreel: ShowreelSettings
   studio: StudioSettings
+  kevin11: Kevin11Settings
   connect: ConnectSettings
   createdAt: Date
   updatedAt: Date
@@ -189,16 +225,12 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
       legal: normalizeLegalSettings(DEFAULT_LEGAL_SETTINGS),
       showreel: normalizeShowreelSettings(DEFAULT_SHOWREEL_SETTINGS),
       studio: normalizeStudioSettings(DEFAULT_STUDIO_SETTINGS),
+      kevin11: normalizeKevin11Settings(DEFAULT_KEVIN11_SETTINGS),
       connect: normalizeConnectSettings(DEFAULT_CONNECT_SETTINGS),
     }
   }
   return {
-    theme: {
-      lightAccent: doc.theme?.lightAccent || DEFAULT_THEME_SETTINGS.lightAccent,
-      lightAccentContrast: doc.theme?.lightAccentContrast || DEFAULT_THEME_SETTINGS.lightAccentContrast,
-      darkAccent: doc.theme?.darkAccent || DEFAULT_THEME_SETTINGS.darkAccent,
-      darkAccentContrast: doc.theme?.darkAccentContrast || DEFAULT_THEME_SETTINGS.darkAccentContrast,
-    },
+    theme: normalizeThemeSettings(doc.theme as Partial<ThemeSettings> | undefined),
     ai: {
       displayName: doc.ai?.displayName || DEFAULT_AI_SETTINGS.displayName,
       launcherLabel: (() => {
@@ -218,6 +250,9 @@ export function toSiteSettingsData(doc: SiteSettingsDocument | null): SiteSettin
     legal: normalizeLegalSettings(doc.legal as Partial<LegalSettings> | undefined),
     showreel: normalizeShowreelSettings(doc.showreel as Partial<ShowreelSettings> | undefined),
     studio: normalizeStudioSettings(doc.studio as Partial<StudioSettings> | undefined),
+    kevin11: normalizeKevin11Settings(
+      (doc as { kevin11?: Partial<Kevin11Settings> }).kevin11,
+    ),
     connect: normalizeConnectSettings(doc.connect as Partial<ConnectSettings> | undefined),
   }
 }

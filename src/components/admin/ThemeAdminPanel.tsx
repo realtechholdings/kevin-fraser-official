@@ -26,7 +26,10 @@ export default function ThemeAdminPanel({
       const res = await fetch('/api/admin/settings')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load theme')
-      setTheme(data.settings?.theme || DEFAULT_THEME_SETTINGS)
+      setTheme({
+        ...DEFAULT_THEME_SETTINGS,
+        ...(data.settings?.theme || {}),
+      })
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load theme')
     } finally {
@@ -81,8 +84,7 @@ export default function ThemeAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Theme</h2>
           <p className="mt-1 text-sm text-white/40">
-            Set the accent colours for light and dark mode — used across the public site and
-            this admin console.
+            Accent colours for light/dark mode, plus Sold Out button colours on Stage.
           </p>
         </div>
         <div className="flex gap-2">
@@ -192,6 +194,56 @@ export default function ThemeAdminPanel({
           </div>
         </section>
       </div>
+
+      <section className="admin-card space-y-4 p-5">
+        <h3 className="text-sm font-semibold text-white">Sold Out buttons</h3>
+        <p className="text-xs text-white/40">
+          Colour for Sold Out CTAs on Stage and show pages (both light and dark).
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>Background</label>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                className="h-10 w-12 cursor-pointer rounded-lg border-0 bg-transparent"
+                value={theme.soldOutBg || DEFAULT_THEME_SETTINGS.soldOutBg}
+                onChange={(e) => setTheme((t) => ({ ...t, soldOutBg: e.target.value }))}
+              />
+              <input
+                className={inputClass}
+                value={theme.soldOutBg || DEFAULT_THEME_SETTINGS.soldOutBg}
+                onChange={(e) => setTheme((t) => ({ ...t, soldOutBg: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={labelClass}>Text</label>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                className="h-10 w-12 cursor-pointer rounded-lg border-0 bg-transparent"
+                value={theme.soldOutFg || DEFAULT_THEME_SETTINGS.soldOutFg}
+                onChange={(e) => setTheme((t) => ({ ...t, soldOutFg: e.target.value }))}
+              />
+              <input
+                className={inputClass}
+                value={theme.soldOutFg || DEFAULT_THEME_SETTINGS.soldOutFg}
+                onChange={(e) => setTheme((t) => ({ ...t, soldOutFg: e.target.value }))}
+              />
+            </div>
+          </div>
+        </div>
+        <div
+          className="inline-flex rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em]"
+          style={{
+            background: theme.soldOutBg || DEFAULT_THEME_SETTINGS.soldOutBg,
+            color: theme.soldOutFg || DEFAULT_THEME_SETTINGS.soldOutFg,
+          }}
+        >
+          Sold Out
+        </div>
+      </section>
     </form>
   )
 }

@@ -6,6 +6,7 @@ import { isR2Configured } from '@/lib/r2'
 import {
   DEFAULT_AI_SETTINGS,
   DEFAULT_CONNECT_SETTINGS,
+  DEFAULT_KEVIN11_SETTINGS,
   DEFAULT_LEGAL_SETTINGS,
   DEFAULT_SHOWREEL_SETTINGS,
   DEFAULT_STUDIO_SETTINGS,
@@ -15,8 +16,10 @@ import {
   normalizeHex,
   normalizeShowreelSettings,
   normalizeStudioSettings,
+  normalizeThemeSettings,
 } from '@/lib/settings/defaults'
 import { normalizeLegalSettings } from '@/lib/settings/legalDefaults'
+import { normalizeKevin11Settings } from '@/lib/kevin11/categories'
 import { getSiteSettings, invalidateSiteSettingsCache } from '@/lib/settings/getSiteSettings'
 import { toSiteSettingsData } from '@/lib/models/SiteSettings'
 import StudioContent from '@/lib/models/StudioContent'
@@ -43,6 +46,7 @@ export async function GET() {
         legal: DEFAULT_LEGAL_SETTINGS,
         showreel: DEFAULT_SHOWREEL_SETTINGS,
         studio: DEFAULT_STUDIO_SETTINGS,
+        kevin11: DEFAULT_KEVIN11_SETTINGS,
         connect: DEFAULT_CONNECT_SETTINGS,
       },
     })
@@ -71,24 +75,16 @@ export async function PUT(req: NextRequest) {
         legal: DEFAULT_LEGAL_SETTINGS,
         showreel: DEFAULT_SHOWREEL_SETTINGS,
         studio: DEFAULT_STUDIO_SETTINGS,
+        kevin11: DEFAULT_KEVIN11_SETTINGS,
         connect: DEFAULT_CONNECT_SETTINGS,
       })
     }
 
     if (body.theme) {
-      const t = body.theme
-      doc.theme = {
-        lightAccent: normalizeHex(String(t.lightAccent || ''), DEFAULT_THEME_SETTINGS.lightAccent),
-        lightAccentContrast: normalizeHex(
-          String(t.lightAccentContrast || ''),
-          DEFAULT_THEME_SETTINGS.lightAccentContrast,
-        ),
-        darkAccent: normalizeHex(String(t.darkAccent || ''), DEFAULT_THEME_SETTINGS.darkAccent),
-        darkAccentContrast: normalizeHex(
-          String(t.darkAccentContrast || ''),
-          DEFAULT_THEME_SETTINGS.darkAccentContrast,
-        ),
-      }
+      doc.theme = normalizeThemeSettings({
+        ...toSiteSettingsData(doc).theme,
+        ...body.theme,
+      })
       doc.markModified('theme')
     }
 
@@ -199,8 +195,27 @@ export async function PUT(req: NextRequest) {
     }
 
     if (body.connect) {
-      doc.set('connect', normalizeConnectSettings(body.connect))
+      const current = toSiteSettingsData(doc).connect
+      const next = normalizeConnectSettings({ ...current, ...body.connect })
+      if (next.introVideoKey && !next.introVideoUrl) {
+        next.introVideoUrl = '/api/settings/connect/intro'
+      }
+      if (next.introVideoMobileKey && !next.introVideoMobileUrl) {
+        next.introVideoMobileUrl = '/api/settings/connect/intro-mobile'
+      }
+      doc.set('connect', next)
       doc.markModified('connect')
+    }
+
+    if (body.kevin11) {
+      doc.set(
+        'kevin11',
+        normalizeKevin11Settings({
+          ...toSiteSettingsData(doc).kevin11,
+          ...body.kevin11,
+        }),
+      )
+      doc.markModified('kevin11')
     }
 
     await doc.save()

@@ -87,6 +87,10 @@ export function settingsMediaKey(filename: string) {
   return r2ObjectKey('settings', filename)
 }
 
+export function connectMediaKey(filename: string) {
+  return r2ObjectKey('connect', filename)
+}
+
 export function tourMediaKey(filename: string) {
   return r2ObjectKey('tours', filename)
 }

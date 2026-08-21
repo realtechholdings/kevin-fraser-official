@@ -7,6 +7,7 @@ import {
   type ConnectSettings,
   type ConnectSocial,
 } from '@/lib/settings/defaults'
+import FileDropZone from '@/components/admin/FileDropZone'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -16,6 +17,29 @@ const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 
 function emptySocial(): ConnectSocial {
   return { id: '', label: '', handle: '', href: '', blurb: '' }
+}
+
+async function uploadConnectVideo(file: File) {
+  const contentType = file.type || 'video/mp4'
+  const presignRes = await fetch('/api/admin/connect/presign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, contentType }),
+  })
+  const presign = await presignRes.json()
+  if (!presignRes.ok) throw new Error(presign.error || 'Failed to get upload URL')
+
+  const putRes = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: file,
+  })
+  if (!putRes.ok) throw new Error('Video upload failed')
+
+  return {
+    key: presign.key as string,
+    publicUrl: (presign.publicUrl as string) || '',
+  }
 }
 
 export default function ConnectAdminPanel({
@@ -31,6 +55,8 @@ export default function ConnectAdminPanel({
   )
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [desktopFileName, setDesktopFileName] = useState('')
+  const [mobileFileName, setMobileFileName] = useState('')
 
   async function load() {
     setLoading(true)
@@ -83,6 +109,48 @@ export default function ConnectAdminPanel({
       socials: DEFAULT_CONNECT_SETTINGS.socials.map((s) => ({ ...s })),
     })
     setInquiryText(DEFAULT_CONNECT_SETTINGS.inquiryTypes.join('\n'))
+    setDesktopFileName('')
+    setMobileFileName('')
+  }
+
+  async function onDesktopVideo(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    onError('')
+    try {
+      const uploaded = await uploadConnectVideo(file)
+      setConnect((prev) => ({
+        ...prev,
+        introVideoKey: uploaded.key,
+        introVideoUrl: uploaded.publicUrl || '/api/settings/connect/intro',
+      }))
+      setDesktopFileName(file.name)
+      onMessage('Desktop intro video uploaded. Save Connect to keep it.')
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Video upload failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onMobileVideo(file: File | null) {
+    if (!file) return
+    setBusy(true)
+    onError('')
+    try {
+      const uploaded = await uploadConnectVideo(file)
+      setConnect((prev) => ({
+        ...prev,
+        introVideoMobileKey: uploaded.key,
+        introVideoMobileUrl: uploaded.publicUrl || '/api/settings/connect/intro-mobile',
+      }))
+      setMobileFileName(file.name)
+      onMessage('Mobile intro video uploaded. Save Connect to keep it.')
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Video upload failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function save(e: React.FormEvent) {
@@ -136,7 +204,7 @@ export default function ConnectAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Connect</h2>
           <p className="mt-1 text-sm text-white/40">
-            Edit page copy, social links, and enquiry types for the public Connect page.
+            Edit intro video, page copy, social links, and enquiry types.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -158,6 +226,63 @@ export default function ConnectAdminPanel({
           </button>
         </div>
       </div>
+
+      <section className="admin-card space-y-4 p-5">
+        <h3 className="text-sm font-semibold text-white">Intro video</h3>
+        <p className="text-xs text-white/40">
+          Full-screen video before the Connect page. Leave blank to use the built-in defaults.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-white/70">
+          <input
+            type="checkbox"
+            checked={connect.introEnabled !== false}
+            onChange={(e) => updateField('introEnabled', e.target.checked)}
+            disabled={busy}
+          />
+          Play intro video
+        </label>
+        <div className="grid gap-4 md:grid-cols-2">
+          <FileDropZone
+            label="Desktop video"
+            accept="video/*"
+            disabled={busy}
+            fileName={desktopFileName || (connect.introVideoKey ? 'Uploaded' : undefined)}
+            hint={connect.introVideoUrl || 'Fallback: /connect-intro.mp4'}
+            onFile={(file) => void onDesktopVideo(file)}
+          />
+          <FileDropZone
+            label="Mobile video"
+            accept="video/*"
+            disabled={busy}
+            fileName={mobileFileName || (connect.introVideoMobileKey ? 'Uploaded' : undefined)}
+            hint={
+              connect.introVideoMobileUrl ||
+              'Optional — falls back to desktop, then /connect-intro-mobile.mp4'
+            }
+            onFile={(file) => void onMobileVideo(file)}
+          />
+        </div>
+        {connect.introVideoKey || connect.introVideoMobileKey ? (
+          <button
+            type="button"
+            className={btnGhost}
+            disabled={busy}
+            onClick={() => {
+              setConnect((prev) => ({
+                ...prev,
+                introVideoKey: '',
+                introVideoUrl: '',
+                introVideoMobileKey: '',
+                introVideoMobileUrl: '',
+              }))
+              setDesktopFileName('')
+              setMobileFileName('')
+            }}
+          >
+            Clear custom videos (use site defaults)
+          </button>
+        ) : null}
+      </section>
 
       <section className="admin-card space-y-4 p-5">
         <h3 className="text-sm font-semibold text-white">Page hero</h3>

@@ -6,6 +6,8 @@ import Kevin11Content, {
 } from '@/lib/models/Kevin11Content'
 import { serializeKevin11Content, type PublicKevin11Content } from '@/lib/serialize'
 import { kevin11FilePath, publicUrlForKey } from '@/lib/r2'
+import { getSiteSettings } from '@/lib/settings/getSiteSettings'
+import { DEFAULT_KEVIN11_SETTINGS } from '@/lib/kevin11/categories'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,10 +24,6 @@ function resolveUrls(item: PublicKevin11Content): PublicKevin11Content {
   }
 }
 
-/**
- * Left = comedy (always when available).
- * Right = merch/other when available; otherwise extra comedy.
- */
 function resolveOverlays(byCategory: Record<Kevin11Category, PublicKevin11Content[]>) {
   const comedy = [...byCategory.comedy]
   const other = [...byCategory.merch, ...byCategory.other]
@@ -49,16 +47,10 @@ function resolveOverlays(byCategory: Record<Kevin11Category, PublicKevin11Conten
 
   take(pinnedLeft, 'left')
   take(pinnedRight, 'right')
-
-  // Comedy fills left first (shows regardless).
   take(unpinnedComedy.filter((i) => i.featured), 'left')
   take(unpinnedComedy, 'left')
-
-  // Merch/other go right when present.
   take(other.filter((i) => i.featured), 'right')
   take(other, 'right')
-
-  // Extra comedy can fill the right side if nothing else is there.
   take(
     unpinnedComedy.filter((i) => !used.has(i.id)),
     'right',
@@ -70,13 +62,17 @@ function resolveOverlays(byCategory: Record<Kevin11Category, PublicKevin11Conten
 export async function GET() {
   try {
     await dbConnect()
-    const docs = await Kevin11Content.find({ published: true }).sort({
-      category: 1,
-      sortOrder: 1,
-      createdAt: -1,
-    })
+    const [docs, settings] = await Promise.all([
+      Kevin11Content.find({ published: true }).sort({
+        category: 1,
+        sortOrder: 1,
+        createdAt: -1,
+      }),
+      getSiteSettings(),
+    ])
 
     const items = docs.map((doc) => resolveUrls(serializeKevin11Content(doc)))
+    const kevin11 = settings.kevin11 || DEFAULT_KEVIN11_SETTINGS
 
     const byCategory = KEVIN11_CATEGORIES.reduce(
       (acc, category) => {
@@ -86,14 +82,13 @@ export async function GET() {
       {} as Record<Kevin11Category, PublicKevin11Content[]>,
     )
 
-    const overlays = resolveOverlays(byCategory)
-
     return NextResponse.json({
       success: true,
-      categories: KEVIN11_CATEGORIES,
+      categories: kevin11.categories,
+      hoursHeading: kevin11.hoursHeading,
       items,
       byCategory,
-      overlays,
+      overlays: resolveOverlays(byCategory),
     })
   } catch (error) {
     console.error('Kevin11 GET:', error)

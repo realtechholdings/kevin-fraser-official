@@ -9,6 +9,11 @@ import {
   normalizeStudioCategories,
   type StudioCategoryDef,
 } from '@/lib/studio/categories'
+import {
+  DEFAULT_KEVIN11_SETTINGS,
+  normalizeKevin11Settings,
+  type Kevin11Settings,
+} from '@/lib/kevin11/categories'
 
 export const SITE_SETTINGS_KEY = 'site'
 
@@ -17,6 +22,10 @@ export type ThemeSettings = {
   lightAccentContrast: string
   darkAccent: string
   darkAccentContrast: string
+  /** Sold Out button background */
+  soldOutBg: string
+  /** Sold Out button text */
+  soldOutFg: string
 }
 
 export type AISettings = {
@@ -68,9 +77,16 @@ export type ConnectSettings = {
   successBody: string
   inquiryTypes: string[]
   socials: ConnectSocial[]
+  /** Play full-screen intro video before the Connect page */
+  introEnabled: boolean
+  introVideoKey: string
+  introVideoUrl: string
+  introVideoMobileKey: string
+  introVideoMobileUrl: string
 }
 
 export type { LegalDocumentSettings, LegalSettings } from '@/lib/settings/legalDefaults'
+export type { Kevin11Settings }
 
 export type SiteSettingsData = {
   theme: ThemeSettings
@@ -79,6 +95,7 @@ export type SiteSettingsData = {
   showreel: ShowreelSettings
   studio: StudioSettings
   connect: ConnectSettings
+  kevin11: Kevin11Settings
 }
 
 export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
@@ -86,6 +103,8 @@ export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   lightAccentContrast: '#ffffff',
   darkAccent: '#ff6b35',
   darkAccentContrast: '#0b0b0f',
+  soldOutBg: '#3f3f46',
+  soldOutFg: '#a1a1aa',
 }
 
 export const DEFAULT_AI_SETTINGS: AISettings = {
@@ -158,9 +177,15 @@ export const DEFAULT_CONNECT_SETTINGS: ConnectSettings = {
       blurb: 'Full sets, shorts, and stand-up',
     },
   ],
+  introEnabled: true,
+  introVideoKey: '',
+  introVideoUrl: '',
+  introVideoMobileKey: '',
+  introVideoMobileUrl: '',
 }
 
 export { DEFAULT_LEGAL_SETTINGS }
+export { DEFAULT_KEVIN11_SETTINGS }
 
 export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   theme: DEFAULT_THEME_SETTINGS,
@@ -169,6 +194,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   showreel: DEFAULT_SHOWREEL_SETTINGS,
   studio: DEFAULT_STUDIO_SETTINGS,
   connect: DEFAULT_CONNECT_SETTINGS,
+  kevin11: DEFAULT_KEVIN11_SETTINGS,
 }
 
 export function normalizeShowreelImageSlot(
@@ -253,6 +279,23 @@ export function normalizeConnectSettings(
       String(value?.successBody ?? defaults.successBody).trim() || defaults.successBody,
     inquiryTypes: inquiryTypes.length > 0 ? inquiryTypes : [...defaults.inquiryTypes],
     socials: socials.length > 0 ? socials : defaults.socials.map((s) => ({ ...s })),
+    introEnabled: value?.introEnabled !== false,
+    introVideoKey: String(value?.introVideoKey ?? '').trim(),
+    introVideoUrl: String(value?.introVideoUrl ?? '').trim(),
+    introVideoMobileKey: String(value?.introVideoMobileKey ?? '').trim(),
+    introVideoMobileUrl: String(value?.introVideoMobileUrl ?? '').trim(),
+  }
+}
+
+export function normalizeThemeSettings(value?: Partial<ThemeSettings> | null): ThemeSettings {
+  const d = DEFAULT_THEME_SETTINGS
+  return {
+    lightAccent: normalizeHex(String(value?.lightAccent || ''), d.lightAccent),
+    lightAccentContrast: normalizeHex(String(value?.lightAccentContrast || ''), d.lightAccentContrast),
+    darkAccent: normalizeHex(String(value?.darkAccent || ''), d.darkAccent),
+    darkAccentContrast: normalizeHex(String(value?.darkAccentContrast || ''), d.darkAccentContrast),
+    soldOutBg: normalizeHex(String(value?.soldOutBg || ''), d.soldOutBg),
+    soldOutFg: normalizeHex(String(value?.soldOutFg || ''), d.soldOutFg),
   }
 }
 

@@ -6,6 +6,7 @@ import {
   SITE_SETTINGS_KEY,
   normalizeConnectSettings,
   normalizeShowreelSettings,
+  type ConnectSettings,
   type ShowreelImageSlot,
   type ShowreelSettings,
   type SiteSettingsData,
@@ -40,6 +41,25 @@ function resolveShowreelUrls(showreel: ShowreelSettings): ShowreelSettings {
   }
 }
 
+function resolveConnectVideos(connect: ConnectSettings): ConnectSettings {
+  const next = { ...connect }
+  if (next.introVideoKey) {
+    const pub = publicUrlForKey(next.introVideoKey)
+    if (pub) next.introVideoUrl = pub
+    else if (!next.introVideoUrl || next.introVideoUrl.startsWith('r2://')) {
+      next.introVideoUrl = '/api/settings/connect/intro'
+    }
+  }
+  if (next.introVideoMobileKey) {
+    const pub = publicUrlForKey(next.introVideoMobileKey)
+    if (pub) next.introVideoMobileUrl = pub
+    else if (!next.introVideoMobileUrl || next.introVideoMobileUrl.startsWith('r2://')) {
+      next.introVideoMobileUrl = '/api/settings/connect/intro-mobile'
+    }
+  }
+  return next
+}
+
 export async function getSiteSettings(options?: { bypassCache?: boolean }): Promise<SiteSettingsData> {
   if (!options?.bypassCache && cache && Date.now() - cache.at < CACHE_MS) {
     return cache.data
@@ -56,11 +76,11 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
         legal: DEFAULT_SITE_SETTINGS.legal,
         showreel: DEFAULT_SITE_SETTINGS.showreel,
         studio: DEFAULT_SITE_SETTINGS.studio,
+        kevin11: DEFAULT_SITE_SETTINGS.kevin11,
         connect: DEFAULT_SITE_SETTINGS.connect,
       })
     }
     const data = toSiteSettingsData(doc)
-    // Prefer public R2 URL when configured; otherwise keep stored proxy/path.
     if (data.ai.avatarKey) {
       const pub = publicUrlForKey(data.ai.avatarKey)
       if (pub) data.ai.avatarUrl = pub
@@ -69,6 +89,7 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
       }
     }
     data.showreel = resolveShowreelUrls(data.showreel)
+    data.connect = resolveConnectVideos(data.connect)
     cache = { at: Date.now(), data }
     return data
   } catch (error) {
@@ -78,7 +99,14 @@ export async function getSiteSettings(options?: { bypassCache?: boolean }): Prom
       ai: { ...DEFAULT_SITE_SETTINGS.ai },
       legal: { ...DEFAULT_SITE_SETTINGS.legal },
       showreel: normalizeShowreelSettings(DEFAULT_SHOWREEL_SETTINGS),
-      studio: { ...DEFAULT_SITE_SETTINGS.studio, categories: [...DEFAULT_SITE_SETTINGS.studio.categories] },
+      studio: {
+        ...DEFAULT_SITE_SETTINGS.studio,
+        categories: [...DEFAULT_SITE_SETTINGS.studio.categories],
+      },
+      kevin11: {
+        ...DEFAULT_SITE_SETTINGS.kevin11,
+        categories: [...DEFAULT_SITE_SETTINGS.kevin11.categories],
+      },
       connect: normalizeConnectSettings(DEFAULT_SITE_SETTINGS.connect),
     }
   }

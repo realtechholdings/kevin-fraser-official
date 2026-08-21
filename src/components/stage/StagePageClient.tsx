@@ -345,9 +345,9 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                 disabled={pending}
                                 className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90 disabled:cursor-wait"
                                 style={{
-                                  background: soldOut ? 'var(--surface-muted)' : 'var(--accent)',
+                                  background: soldOut ? 'var(--sold-out-bg)' : 'var(--accent)',
                                   color: soldOut
-                                    ? 'var(--foreground-subtle)'
+                                    ? 'var(--sold-out-fg)'
                                     : 'var(--accent-contrast)',
                                 }}
                               >

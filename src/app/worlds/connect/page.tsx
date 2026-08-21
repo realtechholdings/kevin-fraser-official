@@ -14,7 +14,15 @@ import {
  * Full-screen intro that plays the (black-background) contact video as an
  * overlay above the page, then fades away when it finishes.
  */
-function ConnectIntro({ onDone }: { onDone: () => void }) {
+function ConnectIntro({
+  onDone,
+  desktopSrc,
+  mobileSrc,
+}: {
+  onDone: () => void
+  desktopSrc: string
+  mobileSrc: string
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [fading, setFading] = useState(false)
   // null until measured on the client, so we never download the wrong video
@@ -43,7 +51,7 @@ function ConnectIntro({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile])
 
-  const videoSrc = isMobile ? '/connect-intro-mobile.mp4' : '/connect-intro.mp4'
+  const videoSrc = isMobile ? mobileSrc : desktopSrc
 
   return (
     <div
@@ -185,10 +193,23 @@ export default function ConnectPage() {
     'w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-subtle)] focus:border-[var(--accent)]'
 
   const defaultInquiry = settings.inquiryTypes[0] || 'Booking'
+  const showIntro = settings.introEnabled !== false
+  const desktopVideo =
+    settings.introVideoUrl?.trim() || '/connect-intro.mp4'
+  const mobileVideo =
+    settings.introVideoMobileUrl?.trim() ||
+    settings.introVideoUrl?.trim() ||
+    '/connect-intro-mobile.mp4'
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
-      {!introDone ? <ConnectIntro onDone={() => setIntroDone(true)} /> : null}
+      {showIntro && !introDone ? (
+        <ConnectIntro
+          onDone={() => setIntroDone(true)}
+          desktopSrc={desktopVideo}
+          mobileSrc={mobileVideo}
+        />
+      ) : null}
       <header
         className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"
         style={{ paddingLeft: 'var(--page-pad)', paddingRight: 'var(--page-pad)' }}

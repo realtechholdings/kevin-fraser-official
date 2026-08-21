@@ -63,6 +63,8 @@ html.light {
   --neon-white: #171717;
   --page-pad: clamp(1.25rem, 4vw, 2.5rem);
   --hero-pad: clamp(1rem, 3vw, 2rem);
+  --sold-out-bg: #3f3f46;
+  --sold-out-fg: #a1a1aa;
 }
 
 html.dark {
@@ -94,6 +96,8 @@ html.dark {
   --neon-magenta: #ff0080;
   --neon-yellow: #ffd700;
   --neon-white: #f0f0f0;
+  --sold-out-bg: #3f3f46;
+  --sold-out-fg: #a1a1aa;
 }
 
 @layer base {

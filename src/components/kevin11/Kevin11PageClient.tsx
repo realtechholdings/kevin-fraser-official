@@ -15,12 +15,15 @@ import {
 } from 'lucide-react'
 import type { PublicKevin11Content } from '@/lib/serialize'
 import {
-  KEVIN11_CATEGORY_LABELS,
-  type Kevin11Category,
+  DEFAULT_KEVIN11_HOURS_HEADING,
+  kevin11CategoryLabel,
+  type Kevin11CategoryDef,
 } from '@/lib/kevin11/categories'
 
 type Kevin11Payload = {
   success: boolean
+  hoursHeading?: string
+  categories?: Kevin11CategoryDef[]
   overlays: {
     left: PublicKevin11Content[]
     right: PublicKevin11Content[]
@@ -31,9 +34,11 @@ type Kevin11Payload = {
 function OverlayCard({
   item,
   onOpen,
+  categoryLabel,
 }: {
   item: PublicKevin11Content
   onOpen: (item: PublicKevin11Content) => void
+  categoryLabel: string
 }) {
   const thumb = item.thumbnailUrl || (item.mimeType.startsWith('image/') ? item.mediaUrl : '')
   const hasCta = Boolean(item.ctaLabel && item.ctaUrl)
@@ -67,7 +72,7 @@ function OverlayCard({
           <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-3">
             <p className="line-clamp-2 text-xs font-medium text-white sm:text-sm">{item.title}</p>
             <p className="mt-1 text-[9px] uppercase tracking-[0.18em] text-white/70 sm:text-[10px]">
-              {KEVIN11_CATEGORY_LABELS[item.category as Kevin11Category]}
+              {categoryLabel}
             </p>
           </div>
         </div>
@@ -91,9 +96,11 @@ function OverlayCard({
 function MobileCardRail({
   items,
   onOpen,
+  categories,
 }: {
   items: PublicKevin11Content[]
   onOpen: (item: PublicKevin11Content) => void
+  categories?: Kevin11CategoryDef[]
 }) {
   const railRef = useRef<HTMLDivElement>(null)
   const [canLeft, setCanLeft] = useState(false)
@@ -137,7 +144,12 @@ function MobileCardRail({
         style={{ scrollbarWidth: 'none' }}
       >
         {items.map((item) => (
-          <OverlayCard key={item.id} item={item} onOpen={onOpen} />
+          <OverlayCard
+            key={item.id}
+            item={item}
+            onOpen={onOpen}
+            categoryLabel={kevin11CategoryLabel(item.category, categories)}
+          />
         ))}
       </div>
 
@@ -169,10 +181,12 @@ function OverlayRow({
   items,
   side,
   onOpen,
+  categories,
 }: {
   items: PublicKevin11Content[]
   side: 'left' | 'right'
   onOpen: (item: PublicKevin11Content) => void
+  categories?: Kevin11CategoryDef[]
 }) {
   if (!items.length) return null
 
@@ -191,7 +205,12 @@ function OverlayRow({
       }}
     >
       {items.map((item) => (
-        <OverlayCard key={item.id} item={item} onOpen={onOpen} />
+        <OverlayCard
+          key={item.id}
+          item={item}
+          onOpen={onOpen}
+          categoryLabel={kevin11CategoryLabel(item.category, categories)}
+        />
       ))}
     </motion.div>
   )
@@ -204,6 +223,8 @@ export default function Kevin11PageClient() {
   const [leftItems, setLeftItems] = useState<PublicKevin11Content[]>([])
   const [rightItems, setRightItems] = useState<PublicKevin11Content[]>([])
   const [active, setActive] = useState<PublicKevin11Content | null>(null)
+  const [hoursHeading, setHoursHeading] = useState(DEFAULT_KEVIN11_HOURS_HEADING)
+  const [categories, setCategories] = useState<Kevin11CategoryDef[]>([])
   // null until measured on the client, so we never download the wrong video
   const [isMobile, setIsMobile] = useState<boolean | null>(null)
 
@@ -232,6 +253,8 @@ export default function Kevin11PageClient() {
         if (!cancelled) {
           setLeftItems(json.overlays?.left || [])
           setRightItems(json.overlays?.right || [])
+          if (json.hoursHeading) setHoursHeading(json.hoursHeading)
+          if (json.categories?.length) setCategories(json.categories)
         }
       } catch {
         // Video still plays if content fails to load.
@@ -372,16 +395,30 @@ export default function Kevin11PageClient() {
           className="rounded-sm border border-white/25 bg-black/55 px-4 py-1.5 text-center text-[11px] uppercase tracking-[0.28em] text-white backdrop-blur-sm sm:text-xs"
           style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
         >
-          Open Eventually.
+          {hoursHeading}
         </p>
       </div>
 
       {isMobile ? (
-        <MobileCardRail items={[...leftItems, ...rightItems]} onOpen={setActive} />
+        <MobileCardRail
+          items={[...leftItems, ...rightItems]}
+          onOpen={setActive}
+          categories={categories}
+        />
       ) : (
         <>
-          <OverlayRow items={leftItems} side="left" onOpen={setActive} />
-          <OverlayRow items={rightItems} side="right" onOpen={setActive} />
+          <OverlayRow
+            items={leftItems}
+            side="left"
+            onOpen={setActive}
+            categories={categories}
+          />
+          <OverlayRow
+            items={rightItems}
+            side="right"
+            onOpen={setActive}
+            categories={categories}
+          />
         </>
       )}
 
@@ -443,7 +480,7 @@ export default function Kevin11PageClient() {
                 )}
                 <div className="border-t border-white/10 px-5 py-4 text-white">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-white/50">
-                    {KEVIN11_CATEGORY_LABELS[active.category]}
+                    {kevin11CategoryLabel(active.category, categories)}
                   </p>
                   <p className="mt-1 font-medium">{active.title}</p>
                   {active.description ? (

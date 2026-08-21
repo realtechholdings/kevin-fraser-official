@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, Star, Store, Trash2 } from 'lucide-react'
 import type { PublicKevin11Content } from '@/lib/serialize'
 import {
+  DEFAULT_KEVIN11_SETTINGS,
   KEVIN11_CATEGORIES,
   KEVIN11_CATEGORY_LABELS,
   type Kevin11Category,
+  type Kevin11CategoryDef,
   type Kevin11OverlaySlot,
+  type Kevin11Settings,
 } from '@/lib/kevin11/categories'
 import {
   DEFAULT_STUDIO_CATEGORY_DEFS,
@@ -162,13 +165,19 @@ export default function Kevin11AdminPanel({
   const [editingItem, setEditingItem] = useState<PublicKevin11Content | null>(null)
   const [removeThumbnail, setRemoveThumbnail] = useState(false)
   const [filter, setFilter] = useState<Kevin11Category | 'all'>('all')
+  const [kevin11Settings, setKevin11Settings] = useState<Kevin11Settings>(DEFAULT_KEVIN11_SETTINGS)
+  const [categoryDrafts, setCategoryDrafts] = useState<Kevin11CategoryDef[]>(
+    DEFAULT_KEVIN11_SETTINGS.categories.map((c) => ({ ...c })),
+  )
+  const [hoursHeading, setHoursHeading] = useState(DEFAULT_KEVIN11_SETTINGS.hoursHeading)
 
   async function load() {
     setLoading(true)
     try {
-      const [kevinRes, studioRes] = await Promise.all([
+      const [kevinRes, studioRes, settingsRes] = await Promise.all([
         fetch('/api/admin/kevin11'),
         fetch('/api/admin/studio'),
+        fetch('/api/admin/settings'),
       ])
       const data = await kevinRes.json()
       if (!kevinRes.ok) throw new Error(data.error || 'Failed to load Kevin11 content')
@@ -180,6 +189,14 @@ export default function Kevin11AdminPanel({
         if (studioData.categories?.length > 0) {
           setStudioCategories(studioData.categories)
         }
+      }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        const next = settingsData.settings?.kevin11 || DEFAULT_KEVIN11_SETTINGS
+        setKevin11Settings(next)
+        setCategoryDrafts(next.categories.map((c: Kevin11CategoryDef) => ({ ...c })))
+        setHoursHeading(next.hoursHeading || DEFAULT_KEVIN11_SETTINGS.hoursHeading)
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load Kevin11 content')
@@ -425,6 +442,38 @@ export default function Kevin11AdminPanel({
     onMessage('Order saved.')
   }
 
+  async function saveHeadings() {
+    setBusy(true)
+    onMessage('')
+    onError('')
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kevin11: {
+            hoursHeading,
+            categories: categoryDrafts.map((c, index) => ({
+              ...c,
+              sortOrder: index,
+            })),
+          },
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save headings')
+      const next = data.settings.kevin11 as Kevin11Settings
+      setKevin11Settings(next)
+      setCategoryDrafts(next.categories.map((c) => ({ ...c })))
+      setHoursHeading(next.hoursHeading)
+      onMessage('Kevin11 headings saved.')
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to save headings')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const frameVideoSrc =
     mediaPreviewUrl && isVideoFile(mediaFile)
       ? mediaPreviewUrl
@@ -438,7 +487,7 @@ export default function Kevin11AdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Kevin11</h2>
           <p className="mt-1 text-sm text-white/40">
-            Drop uploads, drag to reorder, and move items — comedy overlays, merch, and CTAs.
+            Customise headings, then drop uploads for comedy overlays, merch, and CTAs.
           </p>
         </div>
         <button type="button" disabled={busy || !r2Configured} onClick={openCreate} className={btnPrimary}>
@@ -446,6 +495,85 @@ export default function Kevin11AdminPanel({
           Upload
         </button>
       </div>
+
+      <section className="admin-card space-y-4 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Headings</h3>
+            <p className="mt-1 text-xs text-white/40">
+              Overlay status line and category labels (same idea as Studio tabs).
+            </p>
+          </div>
+          <button type="button" disabled={busy} onClick={() => void saveHeadings()} className={btnPrimary}>
+            {busy ? 'Saving…' : 'Save headings'}
+          </button>
+        </div>
+        <div>
+          <label className={labelClass}>Hours / status heading</label>
+          <input
+            className={inputClass}
+            value={hoursHeading}
+            onChange={(e) => setHoursHeading(e.target.value)}
+            placeholder="Open Eventually."
+          />
+        </div>
+        <div className="space-y-3">
+          {categoryDrafts.map((draft, index) => (
+            <div
+              key={draft.id}
+              className="grid gap-3 rounded-xl border border-white/10 p-3 md:grid-cols-[1fr_auto]"
+            >
+              <div>
+                <label className={labelClass}>
+                  {draft.id === 'comedy' ? 'Comedy label' : draft.id === 'merch' ? 'Merch label' : 'Other label'}
+                </label>
+                <input
+                  className={inputClass}
+                  value={draft.label}
+                  onChange={(e) =>
+                    setCategoryDrafts((prev) =>
+                      prev.map((c) => (c.id === draft.id ? { ...c, label: e.target.value } : c)),
+                    )
+                  }
+                />
+                <p className="mt-1 text-[11px] text-white/30">Slug: {draft.id} (fixed)</p>
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  className={btnGhost}
+                  disabled={busy || index === 0}
+                  onClick={() =>
+                    setCategoryDrafts((prev) => {
+                      if (index === 0) return prev
+                      const next = prev.slice()
+                      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+                      return next
+                    })
+                  }
+                >
+                  Up
+                </button>
+                <button
+                  type="button"
+                  className={btnGhost}
+                  disabled={busy || index === categoryDrafts.length - 1}
+                  onClick={() =>
+                    setCategoryDrafts((prev) => {
+                      if (index >= prev.length - 1) return prev
+                      const next = prev.slice()
+                      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+                      return next
+                    })
+                  }
+                >
+                  Down
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {!r2Configured ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
@@ -468,7 +596,8 @@ export default function Kevin11AdminPanel({
             onClick={() => setFilter(category)}
             className={filter === category ? btnPrimary : btnGhost}
           >
-            {KEVIN11_CATEGORY_LABELS[category]}
+            {categoryDrafts.find((c) => c.id === category)?.label ||
+              KEVIN11_CATEGORY_LABELS[category]}
           </button>
         ))}
       </div>
@@ -522,7 +651,8 @@ export default function Kevin11AdminPanel({
               >
                 {KEVIN11_CATEGORIES.map((category) => (
                   <option key={category} value={category}>
-                    {KEVIN11_CATEGORY_LABELS[category]}
+                    {categoryDrafts.find((c) => c.id === category)?.label ||
+              KEVIN11_CATEGORY_LABELS[category]}
                   </option>
                 ))}
               </select>
