@@ -8,6 +8,7 @@ import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
 import { applyPaidInventory } from '@/lib/tickets/fulfillPaidOrder'
+import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { sendTicketEmail } from '@/lib/email/ticket'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
@@ -172,8 +173,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const realTierId =
-      tier.legacy || isLegacyTierId(tier.id) ? null : new mongoose.Types.ObjectId(tier.id)
+    const realTierId = await ensureShowScopedTierId(String(show._id), tier)
 
     const orderId = new mongoose.Types.ObjectId()
     const issuedBy =

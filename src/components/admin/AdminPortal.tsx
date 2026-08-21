@@ -790,7 +790,7 @@ export default function AdminPortal() {
         : tab === 'shows'
           ? { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
           : tab === 'tiers'
-            ? { title: 'Ticket Tiers', subtitle: 'Pricing tiers for tours and individual shows' }
+            ? { title: 'Ticket Tiers', subtitle: 'Define GA / VIP once per tour — override price on each show' }
             : tab === 'tickets'
               ? {
                   title: 'Issue Tickets',
@@ -1327,9 +1327,9 @@ export default function AdminPortal() {
                         <div className="md:col-span-2">
                           <label className={labelClass}>Ticket tiers — allocation & pricing</label>
                           <p className="mb-3 text-xs text-white/35">
-                            Tiers come from this show&apos;s tour. Set how many tickets each tier
-                            has for this show (0 = unlimited), mark a tier sold out, and optionally
-                            override the tour price for this show only.
+                            These classes come from the tour — you don&apos;t recreate them per show.
+                            Set allocation for this date (0 = unlimited), mark sold out, and optionally
+                            override price + currency for this show only.
                           </p>
                           <div className="space-y-3">
                             {showForm.tierConfigs.map((config) => (

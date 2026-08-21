@@ -7,6 +7,7 @@ import Order from '@/lib/models/Order'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
+import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { toWallInput } from '@/lib/wallDate'
 
 export async function POST(req: NextRequest) {
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
 
     await Order.create({
       show: show._id,
-      tier: selected.legacy ? null : selected.id,
+      tier: await ensureShowScopedTierId(String(show._id), selected),
       tierName: selected.name,
       unitAmountCents: selected.priceCents,
       stripeSessionId: session.id,
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
       amountTotal: selected.priceCents * quantity,
       currency: selected.currency,
       status: 'pending',
+      source: 'stripe',
     })
 
     return NextResponse.json({ success: true, url: session.url, sessionId: session.id })

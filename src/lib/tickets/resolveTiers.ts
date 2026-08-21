@@ -9,6 +9,7 @@ import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
  * - A show tier with the same slug overrides the tour tier: it always carries
  *   the show's own allocation (capacity/ticketsSold), and either inherits the
  *   tour price/currency (inheritPrice) or overrides them.
+ * - Name / description / branding fall back to the tour tier so show rows stay thin.
  * - Show tiers with slugs not present on the tour are appended as extras.
  */
 function mergeTiers(
@@ -20,14 +21,30 @@ function mergeTiers(
 
   const merged: PublicTicketTier[] = tourTiers.map((tourTier) => {
     const override = overridesBySlug.get(tourTier.slug)
-    if (!override) return serializeTicketTier(tourTier)
+    if (!override) {
+      const serialized = serializeTicketTier(tourTier)
+      // No per-show row yet — don't show shared tour sold counts on every date.
+      serialized.ticketsSold = 0
+      return serialized
+    }
+
     const serialized = serializeTicketTier(override)
+    // Keep identity + branding with the tour definition.
+    serialized.name = tourTier.name
+    serialized.sortOrder = tourTier.sortOrder
     if (override.inheritPrice) {
       serialized.priceCents = tourTier.priceCents
       serialized.currency = tourTier.currency
     }
     if (!serialized.description && tourTier.description) {
       serialized.description = tourTier.description
+    }
+    if (!serialized.ticketAccent && tourTier.ticketAccent) {
+      serialized.ticketAccent = tourTier.ticketAccent
+    }
+    if (!serialized.ticketArtwork && !serialized.ticketArtworkKey) {
+      serialized.ticketArtwork = tourTier.ticketArtwork || ''
+      serialized.ticketArtworkKey = tourTier.ticketArtworkKey || ''
     }
     return serialized
   })

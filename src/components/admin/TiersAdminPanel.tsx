@@ -15,7 +15,6 @@ const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 const btnDanger = 'admin-btn-danger disabled:opacity-50'
 
 type TierForm = {
-  ownerType: 'tour' | 'show'
   ownerId: string
   name: string
   slug: string
@@ -31,8 +30,7 @@ type TierForm = {
   ticketArtworkKey: string
 }
 
-const emptyForm = (ownerType: 'tour' | 'show' = 'tour', ownerId = ''): TierForm => ({
-  ownerType,
+const emptyForm = (ownerId = ''): TierForm => ({
   ownerId,
   name: 'General Admission',
   slug: '',
@@ -61,6 +59,7 @@ async function uploadTierImage(file: File) {
     publicUrl: (data.publicUrl as string) || '',
   }
 }
+
 export default function TiersAdminPanel({
   onMessage,
   onError,
@@ -76,7 +75,7 @@ export default function TiersAdminPanel({
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<TierForm>(emptyForm())
-  const [filterType, setFilterType] = useState<'all' | 'tour' | 'show'>('all')
+  const [tourFilter, setTourFilter] = useState<string>('all')
 
   async function load() {
     setLoading(true)
@@ -110,39 +109,44 @@ export default function TiersAdminPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const visible = useMemo(
-    () => (filterType === 'all' ? tiers : tiers.filter((t) => t.ownerType === filterType)),
-    [tiers, filterType],
+  /** Tour-level definitions only — show price overrides live on the Show form. */
+  const tourTiers = useMemo(
+    () => tiers.filter((t) => t.ownerType === 'tour'),
+    [tiers],
   )
 
-  function ownerCurrency(ownerType: 'tour' | 'show', ownerId: string) {
-    if (ownerType === 'show') {
-      return shows.find((s) => s.id === ownerId)?.currency || ''
-    }
-    return shows.find((s) => s.tour.id === ownerId)?.currency || ''
+  const visible = useMemo(
+    () =>
+      tourFilter === 'all'
+        ? tourTiers
+        : tourTiers.filter((t) => t.ownerId === tourFilter),
+    [tourTiers, tourFilter],
+  )
+
+  function tourCurrency(tourId: string) {
+    return shows.find((s) => s.tour.id === tourId)?.currency || ''
   }
 
   function ownerLabel(tier: PublicTicketTier) {
-    if (tier.ownerType === 'tour') {
-      const tour = tours.find((t) => t.id === tier.ownerId)
-      return tour ? `Tour · ${tour.title}` : `Tour · ${tier.ownerId}`
-    }
-    const show = shows.find((s) => s.id === tier.ownerId)
-    return show ? `Show · ${show.city} (${show.venue})` : `Show · ${tier.ownerId}`
+    const tour = tours.find((t) => t.id === tier.ownerId)
+    return tour ? tour.title : `Tour · ${tier.ownerId}`
   }
 
   function openCreate() {
     setEditingId(null)
     const ownerId = tours[0]?.id || ''
-    const base = emptyForm('tour', ownerId)
-    setForm({ ...base, currency: ownerCurrency('tour', ownerId) || base.currency })
+    const base = emptyForm(ownerId)
+    setForm({ ...base, currency: tourCurrency(ownerId) || base.currency })
     setShowForm(true)
   }
 
   function openEdit(tier: PublicTicketTier) {
+    if (tier.ownerType !== 'tour') {
+      onError('Per-show price overrides are edited on the Show form, not here.')
+      return
+    }
     setEditingId(tier.id)
     setForm({
-      ownerType: tier.ownerType,
       ownerId: tier.ownerId,
       name: tier.name,
       slug: tier.slug,
@@ -186,11 +190,20 @@ export default function TiersAdminPanel({
     onError('')
     try {
       const payload = {
-        ...form,
-        ticketArtwork: form.ticketArtwork.startsWith('blob:') ? '' : form.ticketArtwork,
+        ownerType: 'tour' as const,
+        ownerId: form.ownerId,
+        name: form.name,
+        slug: form.slug,
+        description: form.description,
+        currency: form.currency,
         priceCents: Number(form.priceCents) || 0,
         capacity: Number(form.capacity) || 0,
         sortOrder: Number(form.sortOrder) || 0,
+        published: form.published,
+        soldOut: form.soldOut,
+        ticketAccent: form.ticketAccent,
+        ticketArtwork: form.ticketArtwork.startsWith('blob:') ? '' : form.ticketArtwork,
+        ticketArtworkKey: form.ticketArtworkKey,
       }
       const res = await fetch(editingId ? `/api/admin/tiers/${editingId}` : '/api/admin/tiers', {
         method: editingId ? 'PATCH' : 'POST',
@@ -199,7 +212,7 @@ export default function TiersAdminPanel({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
-      onMessage(editingId ? 'Tier updated.' : 'Tier created.')
+      onMessage(editingId ? 'Tour tier updated.' : 'Tour tier created.')
       setShowForm(false)
       setEditingId(null)
       await load()
@@ -211,14 +224,14 @@ export default function TiersAdminPanel({
   }
 
   async function remove(tier: PublicTicketTier) {
-    if (!confirm(`Delete tier “${tier.name}”?`)) return
+    if (!confirm(`Delete tour tier “${tier.name}”? Shows will stop offering this class.`)) return
     setBusy(true)
     onError('')
     try {
       const res = await fetch(`/api/admin/tiers/${tier.id}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Delete failed')
-      onMessage('Tier deleted.')
+      onMessage('Tour tier deleted.')
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Delete failed')
@@ -227,38 +240,44 @@ export default function TiersAdminPanel({
     }
   }
 
-  const ownerOptions =
-    form.ownerType === 'tour'
-      ? tours.map((t) => ({ id: t.id, label: t.title }))
-      : shows.map((s) => ({
-          id: s.id,
-          label: `${s.city} — ${s.venue} (${s.tour.title || 'Tour'})`,
-        }))
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Ticket Tiers</h2>
-          <p className="mt-1 text-sm text-white/40">
-            Create pricing tiers for a whole tour (defaults) or a single show (overrides).
+          <p className="mt-1 max-w-xl text-sm text-white/40">
+            Define GA / VIP once per tour. On each show, optionally override price and currency
+            under Shows → Ticket tiers — allocation & pricing — you don&apos;t recreate tiers per
+            date.
           </p>
         </div>
-        <button type="button" disabled={busy} onClick={openCreate} className={btnPrimary}>
+        <button
+          type="button"
+          disabled={busy || tours.length === 0}
+          onClick={openCreate}
+          className={btnPrimary}
+        >
           <Plus className="mr-1.5 inline h-4 w-4" />
-          New tier
+          New tour tier
         </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(['all', 'tour', 'show'] as const).map((id) => (
+        <button
+          type="button"
+          onClick={() => setTourFilter('all')}
+          className={tourFilter === 'all' ? btnPrimary : btnGhost}
+        >
+          All tours
+        </button>
+        {tours.map((tour) => (
           <button
-            key={id}
+            key={tour.id}
             type="button"
-            onClick={() => setFilterType(id)}
-            className={filterType === id ? btnPrimary : btnGhost}
+            onClick={() => setTourFilter(tour.id)}
+            className={tourFilter === tour.id ? btnPrimary : btnGhost}
           >
-            {id === 'all' ? 'All' : id === 'tour' ? 'Tour tiers' : 'Show tiers'}
+            {tour.title}
           </button>
         ))}
       </div>
@@ -267,7 +286,7 @@ export default function TiersAdminPanel({
         <form onSubmit={save} className="admin-card space-y-4 p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-white">
-              {editingId ? 'Edit tier' : 'Create tier'}
+              {editingId ? 'Edit tour tier' : 'Create tour tier'}
             </h3>
             <button
               type="button"
@@ -282,58 +301,33 @@ export default function TiersAdminPanel({
           </div>
 
           {!editingId ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className={labelClass}>Assign to</label>
-                <select
-                  className={inputClass}
-                  value={form.ownerType}
-                  onChange={(e) => {
-                    const ownerType = e.target.value as 'tour' | 'show'
-                    const ownerId =
-                      ownerType === 'tour' ? tours[0]?.id || '' : shows[0]?.id || ''
-                    setForm((f) => ({
-                      ...f,
-                      ownerType,
-                      ownerId,
-                      currency: ownerCurrency(ownerType, ownerId) || f.currency,
-                    }))
-                  }}
-                >
-                  <option value="tour">Tour (applies to all shows without overrides)</option>
-                  <option value="show">Individual show (overrides tour tiers)</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelClass}>
-                  {form.ownerType === 'tour' ? 'Tour' : 'Show'}
-                </label>
-                <select
-                  className={inputClass}
-                  value={form.ownerId}
-                  onChange={(e) => {
-                    const ownerId = e.target.value
-                    setForm((f) => ({
-                      ...f,
-                      ownerId,
-                      currency: ownerCurrency(f.ownerType, ownerId) || f.currency,
-                    }))
-                  }}
-                  required
-                >
-                  {ownerOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className={labelClass}>Tour</label>
+              <select
+                className={inputClass}
+                value={form.ownerId}
+                onChange={(e) => {
+                  const ownerId = e.target.value
+                  setForm((f) => ({
+                    ...f,
+                    ownerId,
+                    currency: tourCurrency(ownerId) || f.currency,
+                  }))
+                }}
+                required
+              >
+                {tours.map((tour) => (
+                  <option key={tour.id} value={tour.id}>
+                    {tour.title}
+                  </option>
+                ))}
+              </select>
             </div>
           ) : (
             <p className="text-xs text-white/40">
               {(() => {
                 const current = tiers.find((t) => t.id === editingId)
-                return current ? ownerLabel(current) : 'Editing tier'
+                return current ? `Tour · ${ownerLabel(current)}` : 'Editing tour tier'
               })()}
             </p>
           )}
@@ -358,7 +352,7 @@ export default function TiersAdminPanel({
               />
             </div>
             <div>
-              <label className={labelClass}>Price (cents)</label>
+              <label className={labelClass}>Default price (cents)</label>
               <input
                 className={inputClass}
                 type="number"
@@ -369,7 +363,7 @@ export default function TiersAdminPanel({
               />
             </div>
             <div>
-              <label className={labelClass}>Currency</label>
+              <label className={labelClass}>Default currency</label>
               <select
                 className={inputClass}
                 value={form.currency}
@@ -383,12 +377,11 @@ export default function TiersAdminPanel({
                 ))}
               </select>
               <p className="mt-1.5 text-xs text-white/35">
-                Buyers always see this currency (e.g. a €50 show shows €50 worldwide). Stripe
-                Checkout offers their home currency automatically.
+                Shows inherit this unless you override price on the show.
               </p>
             </div>
             <div>
-              <label className={labelClass}>Capacity (0 = unlimited)</label>
+              <label className={labelClass}>Default capacity hint (0 = unlimited)</label>
               <input
                 className={inputClass}
                 type="number"
@@ -396,6 +389,9 @@ export default function TiersAdminPanel({
                 value={form.capacity}
                 onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))}
               />
+              <p className="mt-1.5 text-xs text-white/35">
+                Per-show allocation is set on each show (recommended).
+              </p>
             </div>
             <div>
               <label className={labelClass}>Sort order</label>
@@ -423,8 +419,7 @@ export default function TiersAdminPanel({
               Ticket branding (optional)
             </p>
             <p className="mb-4 text-xs text-white/35">
-              Overrides tour ticket branding for this class (e.g. VIP vs GA). Leave blank to inherit
-              the tour defaults.
+              Used on PDFs for this class across the tour (e.g. VIP vs GA).
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -445,7 +440,7 @@ export default function TiersAdminPanel({
                     className={inputClass}
                     value={form.ticketAccent}
                     onChange={(e) => setForm((f) => ({ ...f, ticketAccent: e.target.value }))}
-                    placeholder="#FF6600 or blank = tour default"
+                    placeholder="#FF6600 or blank"
                   />
                 </div>
                 {form.ticketAccent ? (
@@ -454,7 +449,7 @@ export default function TiersAdminPanel({
                     className={`${btnGhost} mt-2`}
                     onClick={() => setForm((f) => ({ ...f, ticketAccent: '' }))}
                   >
-                    Clear accent (use tour default)
+                    Clear accent
                   </button>
                 ) : null}
               </div>
@@ -493,19 +488,24 @@ export default function TiersAdminPanel({
                 checked={form.soldOut}
                 onChange={(e) => setForm((f) => ({ ...f, soldOut: e.target.checked }))}
               />
-              Sold out
+              Sold out (tour default)
             </label>
           </div>
 
           <button type="submit" disabled={busy} className={btnPrimary}>
-            {busy ? 'Saving…' : editingId ? 'Save changes' : 'Create tier'}
+            {busy ? 'Saving…' : editingId ? 'Save changes' : 'Create tour tier'}
           </button>
         </form>
       ) : null}
 
       <section className="admin-card overflow-hidden">
         <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
-          <h3 className="text-sm font-semibold text-white">Library</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-white">Tour tier library</h3>
+            <p className="text-xs text-white/35">
+              Show-level price overrides are not listed here — edit them on each show.
+            </p>
+          </div>
           <span className="text-xs text-white/40">{visible.length} tiers</span>
         </div>
 
@@ -515,10 +515,14 @@ export default function TiersAdminPanel({
               <div key={i} className="h-4 animate-pulse rounded bg-white/5" />
             ))}
           </div>
+        ) : tours.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-white/40">
+            Create a tour first, then add GA / VIP tiers here.
+          </div>
         ) : visible.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-white/40">
             <Layers className="mx-auto mb-3 h-8 w-8 opacity-40" />
-            No tiers yet. Create GA / VIP pricing for a tour or show.
+            No tour tiers yet. Create GA / VIP once — every show on the tour inherits them.
           </div>
         ) : (
           <div className="divide-y divide-white/5">
@@ -530,14 +534,23 @@ export default function TiersAdminPanel({
                     {ownerLabel(tier)} · {formatPrice(tier.priceCents, tier.currency)} ·{' '}
                     {tier.published ? 'Published' : 'Draft'}
                     {tier.soldOut ? ' · Sold out' : ''}
-                    {tier.capacity > 0 ? ` · ${tier.ticketsSold}/${tier.capacity} sold` : ''}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" disabled={busy} onClick={() => openEdit(tier)} className={btnSecondary}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => openEdit(tier)}
+                    className={btnSecondary}
+                  >
                     Edit
                   </button>
-                  <button type="button" disabled={busy} onClick={() => remove(tier)} className={btnDanger}>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => remove(tier)}
+                    className={btnDanger}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>

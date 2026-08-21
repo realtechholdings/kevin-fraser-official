@@ -1,5 +1,7 @@
 import TicketTier from '@/lib/models/TicketTier'
 import { normalizeCurrency } from '@/lib/currencies'
+import type { PublicTicketTier } from '@/lib/serialize'
+import mongoose from 'mongoose'
 
 export type ShowTierConfigInput = {
   slug: string
@@ -64,7 +66,7 @@ export async function applyShowTierConfigs(
 
     if (existing) {
       existing.name = tourTier.name
-      existing.description = existing.description || tourTier.description
+      existing.description = tourTier.description
       existing.capacity = capacity
       existing.inheritPrice = !overridePrice
       existing.priceCents = priceCents
@@ -91,4 +93,52 @@ export async function applyShowTierConfigs(
       })
     }
   }
+}
+
+/**
+ * When checkout/manual issue resolves to a tour-owned tier, create (or reuse) a
+ * thin show-owned inventory row so sold counts stay per-show, not shared.
+ * Returns the ObjectId to store on the Order (null for legacy).
+ */
+export async function ensureShowScopedTierId(
+  showId: string,
+  selected: PublicTicketTier,
+): Promise<mongoose.Types.ObjectId | null> {
+  if (selected.legacy) return null
+  if (!mongoose.isValidObjectId(selected.id)) return null
+
+  // Already a show-level row for this show.
+  if (selected.ownerType === 'show' && selected.ownerId === showId) {
+    return new mongoose.Types.ObjectId(selected.id)
+  }
+
+  const tourTier = await TicketTier.findById(selected.id)
+  if (!tourTier) return new mongoose.Types.ObjectId(selected.id)
+  if (tourTier.ownerType !== 'tour') {
+    return tourTier._id as mongoose.Types.ObjectId
+  }
+
+  const existing = await TicketTier.findOne({
+    ownerType: 'show',
+    ownerId: showId,
+    slug: tourTier.slug,
+  })
+  if (existing) return existing._id as mongoose.Types.ObjectId
+
+  const created = await TicketTier.create({
+    ownerType: 'show',
+    ownerId: showId,
+    name: tourTier.name,
+    slug: tourTier.slug,
+    description: tourTier.description,
+    currency: tourTier.currency,
+    priceCents: tourTier.priceCents,
+    inheritPrice: true,
+    capacity: 0,
+    ticketsSold: 0,
+    soldOut: false,
+    sortOrder: tourTier.sortOrder,
+    published: true,
+  })
+  return created._id as mongoose.Types.ObjectId
 }
