@@ -869,7 +869,9 @@ export default function Kevin11AdminPanel({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-white">{item.title}</p>
                   <p className="mt-0.5 text-xs text-white/40">
-                    {KEVIN11_CATEGORY_LABELS[item.category]} ·{' '}
+                    {categoryDrafts.find((c) => c.id === item.category)?.label ||
+                      KEVIN11_CATEGORY_LABELS[item.category]}{' '}
+                    ·{' '}
                     {item.mimeType?.startsWith('image/') ? 'Image' : 'Video'} ·{' '}
                     {item.published ? 'Published' : 'Draft'}
                     {item.overlaySlot !== 'none' ? ` · overlay ${item.overlaySlot}` : ''}
