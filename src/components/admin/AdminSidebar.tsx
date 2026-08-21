@@ -15,6 +15,7 @@ import {
   ScrollText,
   Store,
   Ticket,
+  TicketPlus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +24,7 @@ export type AdminTab =
   | 'tours'
   | 'shows'
   | 'tiers'
+  | 'tickets'
   | 'sales'
   | 'cms'
   | 'scanner'
@@ -50,6 +52,7 @@ const nav: NavEntry[] = [
       label: 'Ticketing',
       items: [
         { id: 'tiers', name: 'Ticket Tiers', icon: Layers },
+        { id: 'tickets', name: 'Issue Tickets', icon: TicketPlus },
         { id: 'scanner', name: 'Ticket Scanner', icon: ScanLine },
       ],
     },

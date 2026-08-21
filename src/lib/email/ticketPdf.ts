@@ -10,6 +10,8 @@ const WHITE = rgb(1, 1, 1)
 export type TicketPdfInput = {
   orderId: string
   buyerEmail: string
+  /** Optional ticket-holder display name (shown above email on the PDF). */
+  holderName?: string
   tourTitle: string
   showTitle: string
   city: string
@@ -211,14 +213,20 @@ async function drawTicketPage(
     color: accentInk,
   })
 
-  drawClampedText(page, `Order ${input.orderId} · ${input.buyerEmail}`, {
-    x: leftX,
-    y: 18,
-    size: 9,
-    font: regular,
-    color: MUTED,
-    maxWidth: textMax,
-  })
+  drawClampedText(
+    page,
+    input.holderName
+      ? `Order ${input.orderId} · ${input.holderName} · ${input.buyerEmail}`
+      : `Order ${input.orderId} · ${input.buyerEmail}`,
+    {
+      x: leftX,
+      y: 18,
+      size: 9,
+      font: regular,
+      color: MUTED,
+      maxWidth: textMax,
+    },
+  )
 }
 
 /** Generate one separate PDF file per purchased ticket (easier to forward individually). */

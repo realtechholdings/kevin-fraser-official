@@ -26,7 +26,7 @@ function tourTitleOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
 export type TicketOrderLike = Pick<
   OrderDocument,
   'email' | 'quantity' | 'amountTotal' | 'currency' | 'tierName'
-> & { _id: unknown; tier?: unknown }
+> & { _id: unknown; tier?: unknown; holderName?: string }
 
 export function ticketTemplateVars(
   show: ShowDocument & { tour?: TourDocument | unknown },
@@ -34,8 +34,9 @@ export function ticketTemplateVars(
 ) {
   const d = formatShowDate(toWallIso(show.date) || String(show.date))
   const tourTitle = tourTitleOf(show)
+  const holderName = String(order.holderName || '').trim()
   return {
-    name: order.email.split('@')[0],
+    name: holderName || order.email.split('@')[0],
     email: order.email,
     show: tourTitle || show.title,
     tour: tourTitle,
@@ -147,6 +148,7 @@ export async function sendTicketEmail(
   const pdfs = await generateTicketPdfs({
     orderId: String(order._id),
     buyerEmail: order.email,
+    holderName: String(order.holderName || '').trim(),
     tourTitle: vars.tour,
     showTitle: show.title,
     city: show.city,
@@ -174,4 +176,29 @@ export async function sendTicketEmail(
   })
 
   return { skipped: false as const, id: result.id, from, attachmentCount: pdfs.length }
+}
+
+/** Build ticket PDF bytes for an order (email + admin download). */
+export async function buildTicketPdfsForOrder(
+  order: TicketOrderLike,
+  show: ShowDocument & { tour?: TourDocument | unknown },
+) {
+  const vars = ticketTemplateVars(show, order)
+  const branding = await resolveTicketBranding(show, order)
+  return generateTicketPdfs({
+    orderId: String(order._id),
+    buyerEmail: order.email,
+    holderName: String(order.holderName || '').trim(),
+    tourTitle: vars.tour,
+    showTitle: show.title,
+    city: show.city,
+    venue: show.venue,
+    address: show.address || '',
+    dateLabel: vars.date,
+    timeLabel: vars.time,
+    tierName: vars.tier,
+    quantity: order.quantity,
+    accentHex: branding.accentHex,
+    artworkBytes: branding.artworkBytes,
+  })
 }

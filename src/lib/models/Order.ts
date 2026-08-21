@@ -9,6 +9,8 @@ const OrderSchema = new Schema(
     stripeSessionId: { type: String, required: true, unique: true },
     stripePaymentIntentId: { type: String, default: '' },
     email: { type: String, required: true, lowercase: true, trim: true },
+    /** Display name for the ticket holder (manual / comp issues). */
+    holderName: { type: String, default: '', trim: true },
     quantity: { type: Number, required: true, min: 1 },
     amountTotal: { type: Number, required: true, min: 0 },
     currency: { type: String, required: true, uppercase: true },
@@ -17,6 +19,15 @@ const OrderSchema = new Schema(
       enum: ['pending', 'paid', 'refunded', 'cancelled'],
       default: 'pending',
     },
+    /** How the order was created — stripe checkout vs admin manual issue. */
+    source: {
+      type: String,
+      enum: ['stripe', 'manual'],
+      default: 'stripe',
+      index: true,
+    },
+    issuedBy: { type: String, default: '' },
+    note: { type: String, default: '' },
     /** Set once the ticket confirmation email (with PDF) has been sent */
     confirmationEmailSentAt: { type: Date, default: null },
     /** Set once accounts@ has been notified of this paid order */

@@ -50,6 +50,8 @@ export async function GET() {
           currency: order.currency,
           status: order.status,
           checkedInCount: (order.checkedIn || []).length,
+          source: order.source || 'stripe',
+          holderName: order.holderName || '',
           stripePaymentIntentId: order.stripePaymentIntentId || '',
           stripeUrl: order.stripePaymentIntentId
             ? `${base}/payments/${order.stripePaymentIntentId}`

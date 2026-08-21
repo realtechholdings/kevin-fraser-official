@@ -30,6 +30,7 @@ import TiersAdminPanel from '@/components/admin/TiersAdminPanel'
 import CmsAdminPanel from '@/components/admin/CmsAdminPanel'
 import ScannerAdminPanel from '@/components/admin/ScannerAdminPanel'
 import SalesAdminPanel from '@/components/admin/SalesAdminPanel'
+import TicketsAdminPanel from '@/components/admin/TicketsAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
 import ConnectAdminPanel from '@/components/admin/ConnectAdminPanel'
@@ -790,6 +791,11 @@ export default function AdminPortal() {
           ? { title: 'Shows', subtitle: 'Manage upcoming dates and ticket status' }
           : tab === 'tiers'
             ? { title: 'Ticket Tiers', subtitle: 'Pricing tiers for tours and individual shows' }
+            : tab === 'tickets'
+              ? {
+                  title: 'Issue Tickets',
+                  subtitle: 'Manually create complimentary tickets, email, and download PDFs',
+                }
             : tab === 'sales'
               ? { title: 'Sales', subtitle: 'Purchases, ticket counts, and Stripe payments' }
               : tab === 'cms'
@@ -825,7 +831,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'sales', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -1857,6 +1863,19 @@ export default function AdminPortal() {
 
           {tab === 'tiers' ? (
             <TiersAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'tickets' ? (
+            <TicketsAdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')
