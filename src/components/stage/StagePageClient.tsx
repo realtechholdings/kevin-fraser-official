@@ -289,10 +289,10 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                   }`}
                                   style={{
                                     background: soldOut
-                                      ? 'var(--danger-soft)'
+                                      ? 'var(--sold-out-bg)'
                                       : 'var(--surface-muted)',
                                     color: soldOut
-                                      ? 'var(--danger)'
+                                      ? 'var(--sold-out-fg)'
                                       : 'var(--foreground-muted)',
                                   }}
                                 >

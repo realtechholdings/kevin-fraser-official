@@ -141,8 +141,8 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                         : 'uppercase'
                     }`}
                     style={{
-                      background: soldOut ? 'var(--danger-soft)' : 'var(--surface-muted)',
-                      color: soldOut ? 'var(--danger)' : 'var(--foreground-muted)',
+                      background: soldOut ? 'var(--sold-out-bg)' : 'var(--surface-muted)',
+                      color: soldOut ? 'var(--sold-out-fg)' : 'var(--foreground-muted)',
                     }}
                   >
                     {badge}
@@ -228,7 +228,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                               {tierSoldOut ? (
                                 <span
                                   className="text-[10px] uppercase tracking-[0.14em]"
-                                  style={{ color: 'var(--danger)' }}
+                                  style={{ color: 'var(--sold-out-fg)' }}
                                 >
                                   Sold Out
                                 </span>
@@ -255,7 +255,10 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em]"
-                    style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                    style={{
+                      background: soldOut ? 'var(--sold-out-bg)' : 'var(--accent)',
+                      color: soldOut ? 'var(--sold-out-fg)' : 'var(--accent-contrast)',
+                    }}
                   >
                     {soldOut ? 'Sold Out' : badge || 'Get Tickets'}
                   </a>

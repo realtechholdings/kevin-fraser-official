@@ -230,7 +230,9 @@ export default function ConnectAdminPanel({
       <section className="admin-card space-y-4 p-5">
         <h3 className="text-sm font-semibold text-white">Intro video</h3>
         <p className="text-xs text-white/40">
-          Full-screen video before the Connect page. Leave blank to use the built-in defaults.
+          Full-screen video before the Connect page. Use an H.264 MP4 (not HEVC/HDR iPhone
+          exports) so it plays smoothly. Leave blank for the built-in defaults, and save
+          Connect after uploading.
         </p>
         <label className="flex items-center gap-2 text-sm text-white/70">
           <input
@@ -262,6 +264,30 @@ export default function ConnectAdminPanel({
             onFile={(file) => void onMobileVideo(file)}
           />
         </div>
+        {connect.introVideoUrl || connect.introVideoMobileUrl ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            {connect.introVideoUrl ? (
+              <video
+                src={connect.introVideoUrl}
+                className="max-h-44 w-full rounded-lg bg-black"
+                controls
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              <div />
+            )}
+            {connect.introVideoMobileUrl ? (
+              <video
+                src={connect.introVideoMobileUrl}
+                className="max-h-44 w-full rounded-lg bg-black"
+                controls
+                playsInline
+                preload="metadata"
+              />
+            ) : null}
+          </div>
+        ) : null}
         {connect.introVideoKey || connect.introVideoMobileKey ? (
           <button
             type="button"

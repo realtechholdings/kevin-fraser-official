@@ -37,21 +37,48 @@ function ConnectIntro({
     setIsMobile(window.matchMedia('(max-width: 767px)').matches)
   }, [])
 
+  const videoSrc = isMobile ? mobileSrc : desktopSrc
+
   useEffect(() => {
     if (isMobile === null) return
     const video = videoRef.current
     if (!video) return
-    video.muted = false
-    video.volume = 1
-    video.play().catch(() => {
-      // Autoplay with sound blocked — play the intro silently instead
-      video.muted = true
-      video.play().catch(() => onDone())
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile])
 
-  const videoSrc = isMobile ? mobileSrc : desktopSrc
+    let cancelled = false
+
+    async function tryPlay() {
+      if (cancelled || !video) return
+      video.volume = 1
+      try {
+        video.muted = false
+        await video.play()
+      } catch {
+        // Autoplay with sound blocked — play the intro silently instead
+        try {
+          video.muted = true
+          await video.play()
+        } catch {
+          if (!cancelled) onDone()
+        }
+      }
+    }
+
+    function onCanPlay() {
+      void tryPlay()
+    }
+
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      void tryPlay()
+    } else {
+      video.addEventListener('canplay', onCanPlay, { once: true })
+    }
+
+    return () => {
+      cancelled = true
+      video.removeEventListener('canplay', onCanPlay)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, videoSrc])
 
   return (
     <div
@@ -68,6 +95,7 @@ function ConnectIntro({
           playsInline
           preload="auto"
           onEnded={finish}
+          onError={finish}
           className="absolute inset-0 h-full w-full scale-[1.02] object-cover"
         />
       ) : null}
@@ -139,6 +167,7 @@ export default function ConnectPage() {
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [introDone, setIntroDone] = useState(false)
+  const [settingsReady, setSettingsReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -146,18 +175,22 @@ export default function ConnectPage() {
       try {
         const res = await fetch('/api/connect/settings')
         const data = await res.json()
-        if (!res.ok || !data.connect || cancelled) return
-        const next = data.connect as ConnectSettings
-        setSettings(next)
-        setForm((f) => ({
-          ...f,
-          inquiryType:
-            next.inquiryTypes.includes(f.inquiryType)
-              ? f.inquiryType
-              : next.inquiryTypes[0] || f.inquiryType,
-        }))
+        if (cancelled) return
+        if (res.ok && data.connect) {
+          const next = data.connect as ConnectSettings
+          setSettings(next)
+          setForm((f) => ({
+            ...f,
+            inquiryType:
+              next.inquiryTypes.includes(f.inquiryType)
+                ? f.inquiryType
+                : next.inquiryTypes[0] || f.inquiryType,
+          }))
+        }
       } catch {
         // Keep defaults on failure
+      } finally {
+        if (!cancelled) setSettingsReady(true)
       }
     })()
     return () => {
@@ -204,11 +237,15 @@ export default function ConnectPage() {
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
       {showIntro && !introDone ? (
-        <ConnectIntro
-          onDone={() => setIntroDone(true)}
-          desktopSrc={desktopVideo}
-          mobileSrc={mobileVideo}
-        />
+        settingsReady ? (
+          <ConnectIntro
+            onDone={() => setIntroDone(true)}
+            desktopSrc={desktopVideo}
+            mobileSrc={mobileVideo}
+          />
+        ) : (
+          <div className="fixed inset-0 z-50" style={{ background: '#F3EFEA' }} />
+        )
       ) : null}
       <header
         className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--background)]/90 backdrop-blur-md"

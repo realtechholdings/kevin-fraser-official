@@ -109,7 +109,7 @@ export default function TicketButton({
         <button
           type="button"
           disabled
-          className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] opacity-40"
+          className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em]"
           style={{ background: 'var(--sold-out-bg)', color: 'var(--sold-out-fg)' }}
         >
           Sold Out
