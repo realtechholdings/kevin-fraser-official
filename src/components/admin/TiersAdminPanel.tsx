@@ -65,9 +65,11 @@ async function uploadTierImage(file: File) {
 export default function TiersAdminPanel({
   onMessage,
   onError,
+  onChanged,
 }: {
   onMessage: (msg: string) => void
   onError: (msg: string) => void
+  onChanged?: () => void
 }) {
   const audRates = useAudRates()
   const [tours, setTours] = useState<PublicTour[]>([])
@@ -219,6 +221,7 @@ export default function TiersAdminPanel({
       setShowForm(false)
       setEditingId(null)
       await load()
+      onChanged?.()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Save failed')
     } finally {
@@ -236,6 +239,7 @@ export default function TiersAdminPanel({
       if (!res.ok) throw new Error(data.error || 'Delete failed')
       onMessage('Tour tier deleted.')
       await load()
+      onChanged?.()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Delete failed')
     } finally {

@@ -65,6 +65,7 @@ type TourForm = {
 type TierConfigForm = {
   slug: string
   name: string
+  published: boolean
   tourPriceCents: number
   tourCurrency: string
   capacity: string
@@ -197,6 +198,61 @@ function mixHex(hex: string, into: string, weight: number) {
   return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`
 }
 
+/** Tour classes + any per-show overrides. Includes drafts so a newly added class shows up for allocation. */
+function buildTierConfigsFrom(
+  allTiers: PublicTicketTier[],
+  tourId: string,
+  showId: string | null,
+): TierConfigForm[] {
+  if (!tourId) return []
+  const tourTiers = allTiers
+    .filter((t) => t.ownerType === 'tour' && t.ownerId === tourId)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
+  const overrides = new Map(
+    (showId
+      ? allTiers.filter((t) => t.ownerType === 'show' && t.ownerId === showId)
+      : []
+    ).map((t) => [t.slug, t]),
+  )
+  return tourTiers.map((tt) => {
+    const o = overrides.get(tt.slug)
+    const overridePrice = o ? !o.inheritPrice : false
+    return {
+      slug: tt.slug,
+      name: tt.name,
+      published: Boolean(tt.published),
+      tourPriceCents: tt.priceCents,
+      tourCurrency: tt.currency,
+      capacity: o ? String(o.capacity) : '0',
+      overridePrice,
+      priceCents: overridePrice && o ? String(o.priceCents) : String(tt.priceCents),
+      currency: overridePrice && o ? o.currency : tt.currency,
+      sold: o?.ticketsSold || 0,
+      soldOut: Boolean(o?.soldOut),
+    }
+  })
+}
+
+/** Keep in-progress allocation edits when a new tour class appears. */
+function mergeTierConfigs(
+  incoming: TierConfigForm[],
+  current: TierConfigForm[],
+): TierConfigForm[] {
+  const currentBySlug = new Map(current.map((c) => [c.slug, c]))
+  return incoming.map((next) => {
+    const existing = currentBySlug.get(next.slug)
+    if (!existing) return next
+    return {
+      ...next,
+      capacity: existing.capacity,
+      overridePrice: existing.overridePrice,
+      priceCents: existing.priceCents,
+      currency: existing.currency,
+      soldOut: existing.soldOut,
+    }
+  })
+}
+
 const ADMIN_MODE_KEY = 'admin-color-mode'
 
 
@@ -287,10 +343,26 @@ export default function AdminPortal() {
     void loadTheme()
   }, [])
 
-  // Pick up new colours as soon as the admin leaves the Theme tab
+  async function refreshTiers(): Promise<PublicTicketTier[]> {
+    try {
+      const res = await fetch('/api/admin/tiers')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to load tiers')
+      const next = (data.tiers || []) as PublicTicketTier[]
+      setTiers(next)
+      return next
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tiers')
+      return tiers
+    }
+  }
+
+  // Pick up new colours / tour classes as soon as the admin leaves those tabs
   useEffect(() => {
     if (prevTabRef.current === 'theme' && tab !== 'theme') void loadTheme()
+    if (prevTabRef.current === 'tiers' && tab !== 'tiers') void refreshTiers()
     prevTabRef.current = tab
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
   function toggleAdminMode() {
@@ -401,34 +473,24 @@ export default function AdminPortal() {
     return formatPriceWithAud(show.priceCents, show.currency, audRates)
   }
 
-  /** Build the per-show tier config rows from the tour's tiers + any existing show overrides. */
   function buildTierConfigs(tourId: string, showId: string | null): TierConfigForm[] {
-    const tourTiers = tiers
-      .filter((t) => t.ownerType === 'tour' && t.ownerId === tourId && t.published)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
-    const overrides = new Map(
-      (showId
-        ? tiers.filter((t) => t.ownerType === 'show' && t.ownerId === showId)
-        : []
-      ).map((t) => [t.slug, t]),
-    )
-    return tourTiers.map((tt) => {
-      const o = overrides.get(tt.slug)
-      const overridePrice = o ? !o.inheritPrice : false
+    return buildTierConfigsFrom(tiers, tourId, showId)
+  }
+
+  // If a tour class is added while this show is open, append it without wiping edits.
+  useEffect(() => {
+    if (!showFormPanel || tab !== 'shows') return
+    setShowForm((prev) => {
+      if (!prev.tourId) return prev
       return {
-        slug: tt.slug,
-        name: tt.name,
-        tourPriceCents: tt.priceCents,
-        tourCurrency: tt.currency,
-        capacity: o ? String(o.capacity) : '0',
-        overridePrice,
-        priceCents: overridePrice && o ? String(o.priceCents) : String(tt.priceCents),
-        currency: overridePrice && o ? o.currency : tt.currency,
-        sold: o?.ticketsSold || 0,
-        soldOut: Boolean(o?.soldOut),
+        ...prev,
+        tierConfigs: mergeTierConfigs(
+          buildTierConfigsFrom(tiers, prev.tourId, editingShowId),
+          prev.tierConfigs,
+        ),
       }
     })
-  }
+  }, [tiers, showFormPanel, tab, editingShowId])
 
   function updateTierConfig(slug: string, patch: Partial<TierConfigForm>) {
     setShowForm((prev) => ({
@@ -546,7 +608,8 @@ export default function AdminPortal() {
     setShowFormPanel(true)
   }
 
-  function editShow(show: PublicShow) {
+  async function editShow(show: PublicShow) {
+    const latest = await refreshTiers()
     setEditingShowId(show.id)
     setShowForm({
       tourId: show.tour.id,
@@ -575,7 +638,7 @@ export default function AdminPortal() {
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
-      tierConfigs: buildTierConfigs(show.tour.id, show.id),
+      tierConfigs: buildTierConfigsFrom(latest, show.tour.id, show.id),
     })
     setTab('shows')
     setShowFormPanel(true)
@@ -765,16 +828,21 @@ export default function AdminPortal() {
     }
   }
 
-  function openCreate(target: 'tours' | 'shows') {
+  async function openCreate(target: 'tours' | 'shows') {
     setTab(target)
     if (target === 'tours') {
       setEditingTourId(null)
       setTourForm(emptyTour)
-    } else {
-      setEditingShowId(null)
-      const tourId = tours[0]?.id || ''
-      setShowForm({ ...emptyShow(tourId), tierConfigs: buildTierConfigs(tourId, null) })
+      setShowFormPanel(true)
+      return
     }
+    setEditingShowId(null)
+    const tourId = tours[0]?.id || ''
+    const latest = await refreshTiers()
+    setShowForm({
+      ...emptyShow(tourId),
+      tierConfigs: buildTierConfigsFrom(latest, tourId, null),
+    })
     setShowFormPanel(true)
   }
 
@@ -1331,7 +1399,7 @@ export default function AdminPortal() {
                         <div className="md:col-span-2">
                           <label className={labelClass}>Ticket tiers — allocation & pricing</label>
                           <p className="mb-3 text-xs text-white/35">
-                            These classes come from the tour — you don&apos;t recreate them per show.
+                            These classes come from the tour — new ones appear here automatically.
                             Set allocation for this date (0 = unlimited), mark sold out, and optionally
                             override price + currency for this show only.
                           </p>
@@ -1342,7 +1410,14 @@ export default function AdminPortal() {
                                 className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
                               >
                                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                  <p className="text-sm font-medium text-white">{config.name}</p>
+                                  <p className="text-sm font-medium text-white">
+                                    {config.name}
+                                    {!config.published ? (
+                                      <span className="ml-2 text-xs font-normal text-amber-400/80">
+                                        Draft — publish in Tiers to sell
+                                      </span>
+                                    ) : null}
+                                  </p>
                                   <p className="text-xs text-white/40">
                                     Tour price{' '}
                                     {formatPriceWithAud(
@@ -1888,6 +1963,9 @@ export default function AdminPortal() {
               onError={(msg) => {
                 setError(msg)
                 setMessage('')
+              }}
+              onChanged={() => {
+                void refreshTiers()
               }}
             />
           ) : null}
