@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Layers, Plus, Trash2 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
-import { formatPrice } from '@/lib/format'
+import { formatPriceWithAud } from '@/lib/fx'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
 import ImageCropField from '@/components/admin/ImageCropField'
+import AudHint from '@/components/admin/AudHint'
+import { useAudRates } from '@/components/admin/useAudRates'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -67,6 +69,7 @@ export default function TiersAdminPanel({
   onMessage: (msg: string) => void
   onError: (msg: string) => void
 }) {
+  const audRates = useAudRates()
   const [tours, setTours] = useState<PublicTour[]>([])
   const [shows, setShows] = useState<PublicShow[]>([])
   const [tiers, setTiers] = useState<PublicTicketTier[]>([])
@@ -377,8 +380,10 @@ export default function TiersAdminPanel({
                 ))}
               </select>
               <p className="mt-1.5 text-xs text-white/35">
-                Shows inherit this unless you override price on the show.
+                Shows inherit this unless you override price on the show. AUD is the admin base
+                currency.
               </p>
+              <AudHint cents={form.priceCents} currency={form.currency} />
             </div>
             <div>
               <label className={labelClass}>Default capacity hint (0 = unlimited)</label>
@@ -531,7 +536,7 @@ export default function TiersAdminPanel({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-white">{tier.name}</p>
                   <p className="mt-0.5 text-xs text-white/40">
-                    {ownerLabel(tier)} · {formatPrice(tier.priceCents, tier.currency)} ·{' '}
+                    {ownerLabel(tier)} · {formatPriceWithAud(tier.priceCents, tier.currency, audRates)} ·{' '}
                     {tier.published ? 'Published' : 'Draft'}
                     {tier.soldOut ? ' · Sold out' : ''}
                   </p>

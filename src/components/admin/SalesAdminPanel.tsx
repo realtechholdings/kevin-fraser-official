@@ -11,6 +11,8 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatPriceWithAud, foreignToAudCents } from '@/lib/fx'
+import { useAudRates } from '@/components/admin/useAudRates'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -54,6 +56,7 @@ export default function SalesAdminPanel({
   onMessage: (msg: string) => void
   onError: (msg: string) => void
 }) {
+  const audRates = useAudRates()
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -103,16 +106,29 @@ export default function SalesAdminPanel({
   const stats = useMemo(() => {
     const paid = filtered.filter((o) => o.status === 'paid')
     const revenue = new Map<string, number>()
+    let audTotal: number | null = 0
     for (const o of paid) {
       revenue.set(o.currency, (revenue.get(o.currency) || 0) + o.amountTotal)
+      if (audTotal !== null) {
+        const asAud = foreignToAudCents(o.amountTotal, o.currency, audRates)
+        if (asAud === null) audTotal = null
+        else audTotal += asAud
+      }
     }
+    const native = Array.from(revenue, ([currency, cents]) => formatPrice(cents, currency)).join(' + ')
+    const audLabel =
+      audTotal !== null && audRates && revenue.size > 0
+        ? formatPrice(audTotal, 'AUD')
+        : null
+    const mixed = Array.from(revenue.keys()).some((c) => c.toUpperCase() !== 'AUD')
     return {
       paidOrders: paid.length,
       tickets: paid.reduce((sum, o) => sum + o.quantity, 0),
       checkedIn: paid.reduce((sum, o) => sum + o.checkedInCount, 0),
-      revenue: Array.from(revenue, ([currency, cents]) => formatPrice(cents, currency)).join(' + '),
+      revenue: native,
+      revenueAud: mixed ? audLabel : null,
     }
-  }, [filtered])
+  }, [filtered, audRates])
 
   return (
     <div className="space-y-6">
@@ -131,10 +147,10 @@ export default function SalesAdminPanel({
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: 'Paid orders', value: String(stats.paidOrders), icon: BadgeCheck, tone: 'bg-emerald-500/10 text-emerald-400' },
-          { label: 'Tickets sold', value: String(stats.tickets), icon: Ticket, tone: 'bg-violet-500/10 text-violet-400' },
-          { label: 'Checked in', value: String(stats.checkedIn), icon: ScanLine, tone: 'bg-sky-500/10 text-sky-400' },
-          { label: 'Revenue', value: stats.revenue || '—', icon: Banknote, tone: 'bg-amber-500/10 text-amber-400' },
+          { label: 'Paid orders', value: String(stats.paidOrders), sub: '', icon: BadgeCheck, tone: 'bg-emerald-500/10 text-emerald-400' },
+          { label: 'Tickets sold', value: String(stats.tickets), sub: '', icon: Ticket, tone: 'bg-violet-500/10 text-violet-400' },
+          { label: 'Checked in', value: String(stats.checkedIn), sub: '', icon: ScanLine, tone: 'bg-sky-500/10 text-sky-400' },
+          { label: 'Revenue', value: stats.revenue || '—', sub: stats.revenueAud ? `${stats.revenueAud} base` : '', icon: Banknote, tone: 'bg-amber-500/10 text-amber-400' },
         ].map((card) => (
           <div key={card.label} className="admin-card p-5">
             <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${card.tone}`}>
@@ -143,6 +159,11 @@ export default function SalesAdminPanel({
             <p className="truncate text-xl font-bold tabular-nums text-white" title={card.value}>
               {loading ? '—' : card.value}
             </p>
+            {card.sub ? (
+              <p className="mt-0.5 truncate text-xs text-white/50" title={card.sub}>
+                {loading ? '' : card.sub}
+              </p>
+            ) : null}
             <p className="mt-0.5 text-xs text-white/40">{card.label}</p>
           </div>
         ))}
@@ -245,7 +266,7 @@ export default function SalesAdminPanel({
                     </p>
                   </td>
                   <td className="hidden whitespace-nowrap px-5 py-4 text-sm text-white/70 sm:table-cell">
-                    {formatPrice(order.amountTotal, order.currency)}
+                    {formatPriceWithAud(order.amountTotal, order.currency, audRates)}
                   </td>
                   <td className="hidden px-5 py-4 sm:table-cell">
                     <span

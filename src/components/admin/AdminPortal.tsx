@@ -11,7 +11,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
-import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatShowDate } from '@/lib/format'
+import { formatPriceWithAud } from '@/lib/fx'
 import { toWallInput } from '@/lib/wallDate'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
 import {
@@ -35,6 +36,8 @@ import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
 import ConnectAdminPanel from '@/components/admin/ConnectAdminPanel'
 import ImageCropField from '@/components/admin/ImageCropField'
+import AudHint from '@/components/admin/AudHint'
+import { useAudRates } from '@/components/admin/useAudRates'
 import { cn } from '@/lib/utils'
 
 type Tab = AdminTab
@@ -250,6 +253,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function AdminPortal() {
+  const audRates = useAudRates()
   const [tours, setTours] = useState<PublicTour[]>([])
   const [shows, setShows] = useState<PublicShow[]>([])
   const [tiers, setTiers] = useState<PublicTicketTier[]>([])
@@ -390,11 +394,11 @@ export default function AdminPortal() {
   function displayPrice(show: PublicShow) {
     const controlling = tiersControllingShow(show.id, show.tour.id)
     if (controlling.length) {
-      const min = Math.min(...controlling.map((t) => t.priceCents))
-      const price = formatPrice(min, controlling[0].currency)
+      const cheapest = controlling.reduce((a, b) => (a.priceCents <= b.priceCents ? a : b))
+      const price = formatPriceWithAud(cheapest.priceCents, cheapest.currency, audRates)
       return controlling.length > 1 ? `From ${price}` : price
     }
-    return formatPrice(show.priceCents, show.currency)
+    return formatPriceWithAud(show.priceCents, show.currency, audRates)
   }
 
   /** Build the per-show tier config rows from the tour's tiers + any existing show overrides. */
@@ -1340,7 +1344,12 @@ export default function AdminPortal() {
                                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                                   <p className="text-sm font-medium text-white">{config.name}</p>
                                   <p className="text-xs text-white/40">
-                                    Tour price {formatPrice(config.tourPriceCents, config.tourCurrency)}
+                                    Tour price{' '}
+                                    {formatPriceWithAud(
+                                      config.tourPriceCents,
+                                      config.tourCurrency,
+                                      audRates,
+                                    )}
                                     {config.sold > 0 ? ` · ${config.sold} sold` : ''}
                                   </p>
                                 </div>
@@ -1417,10 +1426,18 @@ export default function AdminPortal() {
                                           ))}
                                         </select>
                                       </div>
+                                      <div className="col-span-2">
+                                        <AudHint cents={config.priceCents} currency={config.currency} />
+                                      </div>
                                     </div>
                                   ) : (
                                     <div className="flex items-end pb-2 text-xs text-white/35 sm:pb-3">
-                                      Keeps {formatPrice(config.tourPriceCents, config.tourCurrency)}
+                                      Keeps{' '}
+                                      {formatPriceWithAud(
+                                        config.tourPriceCents,
+                                        config.tourCurrency,
+                                        audRates,
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -1455,9 +1472,10 @@ export default function AdminPortal() {
                                 setShowForm({ ...showForm, priceCents: e.target.value })
                               }
                             />
+                            <AudHint cents={showForm.priceCents} currency={showForm.currency} />
                             <p className="mt-1.5 text-xs text-white/35">
                               Used because this tour has no ticket tiers yet — add tiers in the
-                              Tiers tab for per-tier pricing.
+                              Tiers tab for per-tier pricing. AUD is the admin base currency.
                             </p>
                           </div>
                         </>

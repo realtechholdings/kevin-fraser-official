@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import { hexToRgba, type ThemeSettings } from '@/lib/settings/defaults'
+import type { ThemeSettings } from '@/lib/settings/defaults'
+import { themeToCss } from '@/lib/settings/themeCss'
 
 type PublicSettings = {
   theme?: ThemeSettings
@@ -18,30 +19,12 @@ export default function SiteThemeApplicator() {
         const data = (await res.json()) as PublicSettings & { success?: boolean }
         if (!res.ok || !data.success || !data.theme || cancelled) return
 
-        const t = data.theme
         styleEl = document.createElement('style')
         styleEl.setAttribute('data-kf-theme-settings', 'true')
-        styleEl.textContent = `
-:root, html.light {
-  --accent: ${t.lightAccent};
-  --accent-soft: ${hexToRgba(t.lightAccent, 0.12)};
-  --accent-contrast: ${t.lightAccentContrast};
-  --neon-orange: ${t.lightAccent};
-  --sold-out-bg: ${t.soldOutBg || '#3f3f46'};
-  --sold-out-fg: ${t.soldOutFg || '#a1a1aa'};
-}
-html.dark {
-  --accent: ${t.darkAccent};
-  --accent-soft: ${hexToRgba(t.darkAccent, 0.15)};
-  --accent-contrast: ${t.darkAccentContrast};
-  --neon-orange: ${t.darkAccent};
-  --sold-out-bg: ${t.soldOutBg || '#3f3f46'};
-  --sold-out-fg: ${t.soldOutFg || '#a1a1aa'};
-}
-`
+        styleEl.textContent = themeToCss(data.theme)
         document.head.appendChild(styleEl)
       } catch {
-        // keep CSS defaults
+        // keep SSR / CSS defaults
       }
     })()
 

@@ -5,6 +5,7 @@ import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
 import { centsToMetaValue, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
+import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 
 type Props = {
   showId: string
@@ -16,9 +17,9 @@ type Props = {
 
 function maxQuantityForTier(tier: PublicTicketTier) {
   if (tier.capacity > 0) {
-    return Math.max(1, Math.min(10, tier.capacity - tier.ticketsSold))
+    return Math.max(1, Math.min(MAX_TICKET_QUANTITY, tier.capacity - tier.ticketsSold))
   }
-  return 10
+  return MAX_TICKET_QUANTITY
 }
 
 export default function TicketButton({
@@ -164,10 +165,10 @@ export default function TicketButton({
         type="button"
         onClick={checkout}
         disabled={disabled || loading || !selected}
-        className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90 disabled:cursor-not-allowed"
         style={{
-          background: disabled ? 'var(--sold-out-bg)' : 'var(--accent)',
-          color: disabled ? 'var(--sold-out-fg)' : 'var(--accent-contrast)',
+          background: disabled ? 'var(--surface-muted)' : 'var(--accent)',
+          color: disabled ? 'var(--foreground-subtle)' : 'var(--accent-contrast)',
         }}
       >
         {loading

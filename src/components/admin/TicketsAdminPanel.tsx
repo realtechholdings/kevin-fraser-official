@@ -8,7 +8,10 @@ import {
   Ticket,
   UserPlus,
 } from 'lucide-react'
-import { formatPrice, formatShowDate } from '@/lib/format'
+import { formatShowDate } from '@/lib/format'
+import { formatPriceWithAud } from '@/lib/fx'
+import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
+import { useAudRates } from '@/components/admin/useAudRates'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -70,6 +73,7 @@ export default function TicketsAdminPanel({
   onMessage: (msg: string) => void
   onError: (msg: string) => void
 }) {
+  const audRates = useAudRates()
   const [shows, setShows] = useState<ShowOption[]>([])
   const [recent, setRecent] = useState<RecentManual[]>([])
   const [loading, setLoading] = useState(true)
@@ -246,7 +250,9 @@ export default function TicketsAdminPanel({
                 <option key={t.id} value={t.id}>
                   {t.name}
                   {t.soldOut ? ' (sold out)' : ''}
-                  {t.priceCents > 0 ? ` · ${formatPrice(t.priceCents, t.currency)}` : ''}
+                  {t.priceCents > 0
+                    ? ` · ${formatPriceWithAud(t.priceCents, t.currency, audRates)}`
+                    : ''}
                 </option>
               ))}
             </select>
@@ -258,9 +264,11 @@ export default function TicketsAdminPanel({
               className={inputClass}
               type="number"
               min={1}
-              max={20}
+              max={MAX_TICKET_QUANTITY}
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+              onChange={(e) =>
+                setQuantity(Math.max(1, Math.min(MAX_TICKET_QUANTITY, Number(e.target.value) || 1)))
+              }
               disabled={submitting}
             />
           </div>

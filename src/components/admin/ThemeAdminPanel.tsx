@@ -198,7 +198,8 @@ export default function ThemeAdminPanel({
       <section className="admin-card space-y-4 p-5">
         <h3 className="text-sm font-semibold text-white">Sold Out buttons</h3>
         <p className="text-xs text-white/40">
-          Colour for Sold Out CTAs on Stage and show pages (both light and dark).
+          Colour for the right-hand Sold Out button on Stage and on show pages (light and dark).
+          Save theme, then refresh the public Stage page to confirm.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>

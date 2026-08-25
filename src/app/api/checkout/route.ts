@@ -7,6 +7,7 @@ import Order from '@/lib/models/Order'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
+import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { toWallInput } from '@/lib/wallDate'
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const showId = String(body.showId || '')
     const tierId = String(body.tierId || '')
-    const quantity = Math.max(1, Math.min(10, Number(body.quantity) || 1))
+    const quantity = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Number(body.quantity) || 1))
 
     if (!showId) {
       return NextResponse.json({ success: false, error: 'Show is required.' }, { status: 400 })

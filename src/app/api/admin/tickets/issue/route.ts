@@ -7,13 +7,14 @@ import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
+import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { applyPaidInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { sendTicketEmail } from '@/lib/email/ticket'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 
-const MAX_QTY = 20
+const MAX_QTY = MAX_TICKET_QUANTITY
 
 function isLegacyTierId(id: string) {
   return id.startsWith('legacy-')

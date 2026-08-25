@@ -6,6 +6,7 @@ import AIGuide from '@/components/AIGuide'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { ThemeScript } from '@/components/theme/theme-script'
 import SiteThemeApplicator from '@/components/theme/SiteThemeApplicator'
+import SiteThemeStyle from '@/components/theme/SiteThemeStyle'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import AmplitudeProvider from '@/components/analytics/AmplitudeProvider'
 import { clerkAppearance } from '@/lib/clerkAppearance'
@@ -45,6 +46,7 @@ export default function RootLayout({
           <ThemeScript />
         </head>
         <body className={inter.className}>
+          <SiteThemeStyle />
           <ThemeProvider>
             <SiteThemeApplicator />
             {children}
