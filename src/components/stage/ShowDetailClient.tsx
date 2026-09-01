@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, CalendarDays } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
+import FormattedText from '@/components/FormattedText'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
@@ -150,9 +151,10 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                 ) : null}
               </div>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--foreground-muted)]">
-                {blurb}
-              </p>
+              <FormattedText
+                text={blurb}
+                className="mt-5 max-w-xl text-base leading-relaxed text-[var(--foreground-muted)]"
+              />
 
               <div className="mt-8 space-y-4">
                 <div className="flex items-start gap-3 text-sm">
@@ -238,9 +240,10 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                             </span>
                           </div>
                           {tier.description ? (
-                            <p className="mt-1 text-xs leading-relaxed text-[var(--foreground-subtle)]">
-                              {tier.description}
-                            </p>
+                            <FormattedText
+                              text={tier.description}
+                              className="mt-1 text-xs leading-relaxed text-[var(--foreground-subtle)]"
+                            />
                           ) : null}
                         </li>
                       )

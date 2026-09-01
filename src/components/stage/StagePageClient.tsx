@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import FormattedText from '@/components/FormattedText'
 import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
@@ -170,16 +171,17 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                       {featuredTour.subtitle}
                     </p>
                   ) : null}
-                  <p
+                  <FormattedText
+                    text={
+                      featuredTour?.description ||
+                      'Tour dates and tickets. New cities drop here first.'
+                    }
                     className={`mt-6 max-w-2xl text-base leading-relaxed ${
                       bannerAsBackground
                         ? 'text-white/80'
                         : 'text-[var(--foreground-muted)]'
                     }`}
-                  >
-                    {featuredTour?.description ||
-                      'Tour dates and tickets. New cities drop here first.'}
-                  </p>
+                  />
                 </div>
               </div>
             </motion.section>
