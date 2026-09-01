@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
 import type { PublicTicketTable } from '@/lib/tickets/tables'
-import { formatShowDate } from '@/lib/format'
+import { formatPrice, formatShowDate } from '@/lib/format'
 import { formatPriceWithAud } from '@/lib/fx'
 import { toWallInput } from '@/lib/wallDate'
 import { SUPPORTED_CURRENCIES } from '@/lib/currencies'
@@ -92,6 +92,7 @@ type TableConfigForm = {
   currency: string
   soldOut: boolean
   sold: number
+  description: string
 }
 
 type ShowForm = {
@@ -295,7 +296,35 @@ function emptyTableConfig(allTiers: PublicTicketTier[], tourId: string): TableCo
     currency: first?.currency || 'AUD',
     soldOut: false,
     sold: 0,
+    description: '',
   }
+}
+
+function resolvedClassUnit(
+  allTiers: PublicTicketTier[],
+  tourId: string,
+  showId: string | null,
+  slug: string,
+) {
+  const tourTier = allTiers.find(
+    (t) => t.ownerType === 'tour' && t.ownerId === tourId && t.slug === slug,
+  )
+  const showTier = showId
+    ? allTiers.find(
+        (t) => t.ownerType === 'show' && t.ownerId === showId && t.slug === slug,
+      )
+    : undefined
+  const name = tourTier?.name || showTier?.name || slug
+  if (showTier && showTier.inheritPrice === false) {
+    return { name, priceCents: showTier.priceCents, currency: showTier.currency }
+  }
+  if (tourTier) {
+    return { name, priceCents: tourTier.priceCents, currency: tourTier.currency }
+  }
+  if (showTier) {
+    return { name, priceCents: showTier.priceCents, currency: showTier.currency }
+  }
+  return { name: slug, priceCents: 0, currency: 'AUD' }
 }
 
 function tableConfigsFrom(tables: PublicTicketTable[], showId: string): TableConfigForm[] {
@@ -316,6 +345,7 @@ function tableConfigsFrom(tables: PublicTicketTable[], showId: string): TableCon
       currency: t.currency,
       soldOut: t.soldOut,
       sold: t.tablesSold,
+      description: t.description || '',
     }))
 }
 
@@ -659,6 +689,7 @@ export default function AdminPortal() {
           priceCents: Number(c.priceCents) || 0,
           currency: c.currency,
           soldOut: c.soldOut,
+          description: c.description || '',
         })),
       }
       const res = await fetch(
@@ -1714,13 +1745,31 @@ export default function AdminPortal() {
                                     t.ownerType === 'tour' && t.ownerId === showForm.tourId,
                                 )
                                 .sort((a, b) => a.sortOrder - b.sortOrder)
-                              const linked = classOptions.find((t) => t.slug === table.tierSlug)
+                              const classConfig = showForm.tierConfigs.find(
+                                (c) => c.slug === table.tierSlug,
+                              )
+                              const unit = classConfig
+                                ? {
+                                    name: classConfig.name,
+                                    priceCents: classConfig.overridePrice
+                                      ? Number(classConfig.priceCents) || 0
+                                      : classConfig.tourPriceCents,
+                                    currency: classConfig.overridePrice
+                                      ? classConfig.currency
+                                      : classConfig.tourCurrency,
+                                  }
+                                : resolvedClassUnit(
+                                    tiers,
+                                    showForm.tourId,
+                                    editingShowId,
+                                    table.tierSlug,
+                                  )
                               const seats = Math.max(1, Number(table.seats) || 1)
                               const tablePrice = table.inheritPrice
-                                ? (linked?.priceCents || 0) * seats
+                                ? unit.priceCents * seats
                                 : Number(table.priceCents) || 0
                               const tableCurrency = table.inheritPrice
-                                ? linked?.currency || table.currency
+                                ? unit.currency
                                 : table.currency
                               return (
                                 <div
@@ -1780,6 +1829,23 @@ export default function AdminPortal() {
                                           </option>
                                         ))}
                                       </select>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                      <label className={labelClass}>Description (optional)</label>
+                                      <textarea
+                                        className={inputClass}
+                                        rows={3}
+                                        value={table.description || ''}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            description: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Includes 10 Polaroid tickets at one reserved table."
+                                      />
+                                      <p className="mt-1.5 text-xs text-white/35">
+                                        Shown on the show page under this table.
+                                      </p>
                                     </div>
                                     <div>
                                       <label className={labelClass}>Seats per table</label>
@@ -1853,9 +1919,14 @@ export default function AdminPortal() {
                                           })
                                         }
                                       />
-                                      Price is {seats} × class price (
-                                      {formatPriceWithAud(tablePrice, tableCurrency, audRates)})
+                                      Price is {seats} × {formatPrice(unit.priceCents, unit.currency)}{' '}
+                                      = {formatPrice(tablePrice, tableCurrency)}
                                     </label>
+                                    {table.inheritPrice ? (
+                                      <div className="sm:col-span-2 -mt-1">
+                                        <AudHint cents={tablePrice} currency={tableCurrency} />
+                                      </div>
+                                    ) : null}
                                     {!table.inheritPrice ? (
                                       <>
                                         <div>
