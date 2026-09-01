@@ -8,6 +8,7 @@ import '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
+import { tableNameForSeat } from '@/lib/tickets/tables'
 
 export type ScanVerdict =
   | 'valid'
@@ -63,6 +64,9 @@ function serializeScan(order: OrderDocument, ticket: number | null) {
     orderId: String(order._id),
     email: order.email,
     tierName: order.tierName || 'General Admission',
+    tableName: ticket
+      ? tableNameForSeat(ticket, order.tableSeats || 0, order.tableNames || [])
+      : (order.tableNames || []).join(', '),
     quantity: order.quantity,
     status: order.status,
     ticket,

@@ -21,7 +21,7 @@ function tourTitleOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
 export type SalesOrderLike = Pick<
   OrderDocument,
   'email' | 'quantity' | 'amountTotal' | 'currency' | 'tierName' | 'stripeSessionId'
-> & { _id: unknown }
+> & { _id: unknown; tableNames?: string[] }
 
 /** Notify accounts@ of a successful ticket purchase. */
 export async function sendSalesOrderNotification(
@@ -51,6 +51,7 @@ export async function sendSalesOrderNotification(
     `Venue: ${show.venue}`,
     `Date: ${date}${time ? ` · ${time}` : ''}`,
     `Tier: ${order.tierName || 'General Admission'}`,
+    ...(order.tableNames?.length ? [`Table: ${order.tableNames.join(', ')}`] : []),
     `Quantity: ${order.quantity}`,
     `Total: ${total}`,
     `Stripe session: ${order.stripeSessionId}`,

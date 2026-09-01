@@ -34,6 +34,7 @@ type ScanResult = {
     orderId: string
     email: string
     tierName: string
+    tableName?: string
     quantity: number
     status: string
     ticket: number | null
@@ -433,6 +434,7 @@ export default function ScannerAdminPanel({
                   ) : null}
                   <p className="text-white/80">
                     {scan.tierName}
+                    {scan.tableName ? ` · ${scan.tableName}` : ''}
                     {scan.ticket ? ` · Ticket ${scan.ticket} of ${scan.quantity}` : ` · ${scan.quantity} ticket(s)`}
                   </p>
                   <p className="text-white/60">{scan.email}</p>

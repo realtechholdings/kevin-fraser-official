@@ -225,6 +225,9 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                           <div className="flex items-baseline justify-between gap-3">
                             <span className="font-medium text-[var(--foreground)]">
                               {tier.name}
+                              {tier.kind === 'table' && tier.seats
+                                ? ` · ${tier.seats} tickets`
+                                : ''}
                             </span>
                             <span className="shrink-0 text-[var(--foreground-muted)]">
                               {tierSoldOut ? (

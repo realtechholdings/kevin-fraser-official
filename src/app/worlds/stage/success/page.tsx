@@ -52,6 +52,7 @@ async function verify(sessionId?: string, host?: string) {
       showId,
       contentName: order?.tierName || session.metadata?.tierName || null,
       emailSent: Boolean(order?.confirmationEmailSentAt),
+      tableNames: order?.tableNames || [],
     }
   } catch {
     return null
@@ -95,6 +96,9 @@ export default async function StageSuccessPage({ searchParams }: Props) {
             : 'Your Stripe checkout completed. Check your email for the receipt.'}
           {result?.quantity
             ? ` ${result.quantity} ticket${result.quantity > 1 ? 's' : ''} secured.`
+            : ''}
+          {result?.tableNames?.length
+            ? ` ${result.tableNames.join(', ')}.`
             : ''}
         </p>
         <Link

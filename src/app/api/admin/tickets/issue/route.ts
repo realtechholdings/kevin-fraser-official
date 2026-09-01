@@ -13,6 +13,12 @@ import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { sendTicketEmail } from '@/lib/email/ticket'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
+import TicketTable from '@/lib/models/TicketTable'
+import {
+  findTierForShowSlug,
+  isTableOffering,
+  nextTableNames,
+} from '@/lib/tickets/tables'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
 
@@ -57,6 +63,8 @@ export async function GET() {
           ticketsSold: t.ticketsSold,
           soldOut: isTierSoldOut(t),
           legacy: Boolean(t.legacy),
+          kind: t.kind || 'ticket',
+          seats: t.seats || 1,
         })),
       })
     }
@@ -164,7 +172,64 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (
+    const tablePurchase = isTableOffering(tier)
+    const seats = tablePurchase ? Math.max(1, tier.seats || 1) : 1
+    const tableQty = tablePurchase ? quantity : 0
+    const ticketQty = tablePurchase ? tableQty * seats : quantity
+    if (ticketQty > MAX_QTY) {
+      return NextResponse.json(
+        { success: false, error: `A table issue cannot exceed ${MAX_QTY} tickets.` },
+        { status: 400 },
+      )
+    }
+
+    const tourId =
+      show.tour && typeof show.tour === 'object' && '_id' in show.tour
+        ? String((show.tour as { _id: unknown })._id)
+        : String(show.tour)
+
+    let tableDoc = null
+    let underlying = tier
+    if (tablePurchase) {
+      tableDoc = await TicketTable.findById(tier.id)
+      if (!tableDoc || String(tableDoc.show) !== String(show._id)) {
+        return NextResponse.json(
+          { success: false, error: 'That table is not available at this show.' },
+          { status: 400 },
+        )
+      }
+      if (
+        countAgainstInventory &&
+        tableDoc.capacity > 0 &&
+        tableDoc.tablesSold + tableQty > tableDoc.capacity
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Only ${Math.max(0, tableDoc.capacity - tableDoc.tablesSold)} tables left.`,
+          },
+          { status: 400 },
+        )
+      }
+      const linked = await findTierForShowSlug(String(show._id), tourId, tableDoc.tierSlug)
+      if (!linked) {
+        return NextResponse.json(
+          { success: false, error: 'This table is missing its ticket class.' },
+          { status: 400 },
+        )
+      }
+      if (
+        countAgainstInventory &&
+        linked.capacity > 0 &&
+        linked.ticketsSold + ticketQty > linked.capacity
+      ) {
+        return NextResponse.json(
+          { success: false, error: `Not enough ${linked.name} seats left for this table.` },
+          { status: 400 },
+        )
+      }
+      underlying = linked
+    } else if (
       countAgainstInventory &&
       tier.capacity > 0 &&
       tier.ticketsSold + quantity > tier.capacity
@@ -178,7 +243,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const realTierId = await ensureShowScopedTierId(String(show._id), tier)
+    const realTierId = await ensureShowScopedTierId(String(show._id), underlying)
 
     const orderId = new mongoose.Types.ObjectId()
     const issuedBy =
@@ -196,7 +261,7 @@ export async function POST(req: NextRequest) {
       stripePaymentIntentId: '',
       email,
       holderName,
-      quantity,
+      quantity: ticketQty,
       amountTotal: 0,
       currency: (tier.currency || show.currency || 'AUD').toUpperCase(),
       status: 'paid',
@@ -206,6 +271,10 @@ export async function POST(req: NextRequest) {
       confirmationEmailSentAt: null,
       salesNotifyEmailSentAt: null,
       checkedIn: [],
+      table: tableDoc?._id || null,
+      tableQuantity: tableQty,
+      tableSeats: tablePurchase ? seats : 0,
+      tableNames: tableDoc ? nextTableNames(tableDoc, tableDoc.tablesSold, tableQty) : [],
     })
 
     if (countAgainstInventory) {
@@ -225,6 +294,8 @@ export async function POST(req: NextRequest) {
             currency: order.currency,
             tierName: order.tierName,
             tier: order.tier,
+            tableNames: order.tableNames || [],
+            tableSeats: order.tableSeats || 0,
           },
           show,
         )

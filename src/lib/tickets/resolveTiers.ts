@@ -1,6 +1,7 @@
 import TicketTier, { type TicketTierDocument } from '@/lib/models/TicketTier'
 import type { ShowDocument } from '@/lib/models/Show'
 import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
+import { tableToPublicTier, tablesForShows } from '@/lib/tickets/tables'
 
 /**
  * Merge tour tiers with show-level overrides.
@@ -12,9 +13,40 @@ import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
  * - Name / description / branding fall back to the tour tier so show rows stay thin.
  * - Show tiers with slugs not present on the tour are appended as extras.
  * - A show override with offered === false is omitted entirely (this date only).
+ * - Published table packages are appended as kind: 'table' offerings.
  */
 function isOffered(tier: Pick<TicketTierDocument, 'offered'> | undefined) {
   return !tier || tier.offered !== false
+}
+
+function pricingBySlug(
+  tourTiers: TicketTierDocument[],
+  showTiers: TicketTierDocument[],
+): Map<string, PublicTicketTier> {
+  const map = new Map<string, PublicTicketTier>()
+  for (const tourTier of tourTiers) {
+    const serialized = serializeTicketTier(tourTier)
+    serialized.ticketsSold = 0
+    map.set(tourTier.slug, serialized)
+  }
+  for (const showTier of showTiers) {
+    const serialized = serializeTicketTier(showTier)
+    const tour = map.get(showTier.slug)
+    if (tour) {
+      serialized.name = tour.name
+      if (showTier.inheritPrice) {
+        serialized.priceCents = tour.priceCents
+        serialized.currency = tour.currency
+      }
+      if (!serialized.ticketAccent) serialized.ticketAccent = tour.ticketAccent
+      if (!serialized.ticketArtwork && !serialized.ticketArtworkKey) {
+        serialized.ticketArtwork = tour.ticketArtwork
+        serialized.ticketArtworkKey = tour.ticketArtworkKey
+      }
+    }
+    map.set(showTier.slug, serialized)
+  }
+  return map
 }
 
 function mergeTiers(
@@ -67,6 +99,22 @@ function mergeTiers(
   return merged.sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
 }
 
+function withTables(
+  merged: PublicTicketTier[],
+  tables: Awaited<ReturnType<typeof tablesForShows>>,
+  tourTiers: TicketTierDocument[],
+  showTiers: TicketTierDocument[],
+): PublicTicketTier[] {
+  if (!tables.length) return merged
+  const bySlug = pricingBySlug(tourTiers, showTiers)
+  const extras = tables.map((table) =>
+    tableToPublicTier(table, bySlug.get(table.tierSlug) || null),
+  )
+  return [...merged, ...extras].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents,
+  )
+}
+
 function legacyTier(
   show: Pick<ShowDocument, '_id' | 'currency' | 'priceCents'>,
 ): PublicTicketTier {
@@ -84,6 +132,7 @@ function legacyTier(
     ticketsSold: 0,
     soldOut: false,
     offered: true,
+    kind: 'ticket' as const,
     sortOrder: 0,
     published: true,
     legacy: true,
@@ -105,7 +154,7 @@ export async function resolveTiersForShow(
   const showId = String(show._id)
   const tourId = tourIdOf(show)
 
-  const [showTiers, tourTiers] = await Promise.all([
+  const [showTiers, tourTiers, tables] = await Promise.all([
     TicketTier.find({ ownerType: 'show', ownerId: showId, published: true }).sort({
       sortOrder: 1,
       priceCents: 1,
@@ -114,10 +163,14 @@ export async function resolveTiersForShow(
       sortOrder: 1,
       priceCents: 1,
     }),
+    tablesForShows([showId]),
   ])
 
-  if (!showTiers.length && !tourTiers.length) return [legacyTier(show)]
-  return mergeTiers(tourTiers, showTiers)
+  if (!showTiers.length && !tourTiers.length) {
+    const tableOfferings = withTables([], tables, tourTiers, showTiers)
+    return tableOfferings.length ? tableOfferings : [legacyTier(show)]
+  }
+  return withTables(mergeTiers(tourTiers, showTiers), tables, tourTiers, showTiers)
 }
 
 export async function resolveTiersForShows(
@@ -128,7 +181,7 @@ export async function resolveTiersForShows(
   const showIds = shows.map((s) => String(s._id))
   const tourIds = Array.from(new Set(shows.map(tourIdOf)))
 
-  const [showTiers, tourTiers] = await Promise.all([
+  const [showTiers, tourTiers, tables] = await Promise.all([
     TicketTier.find({ ownerType: 'show', ownerId: { $in: showIds }, published: true }).sort({
       sortOrder: 1,
       priceCents: 1,
@@ -137,6 +190,7 @@ export async function resolveTiersForShows(
       sortOrder: 1,
       priceCents: 1,
     }),
+    tablesForShows(showIds),
   ])
 
   const showMap = new Map<string, TicketTierDocument[]>()
@@ -155,15 +209,24 @@ export async function resolveTiersForShows(
     tourMap.set(key, list)
   }
 
+  const tablesByShow = new Map<string, typeof tables>()
+  for (const table of tables) {
+    const key = String(table.show)
+    const list = tablesByShow.get(key) || []
+    list.push(table)
+    tablesByShow.set(key, list)
+  }
+
   const result: Record<string, PublicTicketTier[]> = {}
   for (const show of shows) {
     const showId = String(show._id)
     const fromShow = showMap.get(showId) || []
     const fromTour = tourMap.get(tourIdOf(show)) || []
-    result[showId] =
-      !fromShow.length && !fromTour.length
-        ? [legacyTier(show)]
-        : mergeTiers(fromTour, fromShow)
+    const showTables = tablesByShow.get(showId) || []
+    const base =
+      !fromShow.length && !fromTour.length ? [] : mergeTiers(fromTour, fromShow)
+    const merged = withTables(base, showTables, fromTour, fromShow)
+    result[showId] = merged.length ? merged : [legacyTier(show)]
   }
 
   return result

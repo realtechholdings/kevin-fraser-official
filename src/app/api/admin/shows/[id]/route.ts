@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
+import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseWallDate } from '@/lib/wallDate'
 
@@ -83,6 +84,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     if (Array.isArray(body.tierConfigs)) {
       await applyShowTierConfigs(String(show._id), String(show.tour), body.tierConfigs)
+    }
+    if (Array.isArray(body.tableConfigs)) {
+      await applyShowTableConfigs(String(show._id), body.tableConfigs)
     }
 
     // Tier capacity edits can exhaust inventory without a sale — sync status.

@@ -46,6 +46,7 @@ export async function GET() {
           email: order.email,
           quantity: order.quantity,
           tierName: order.tierName || 'General Admission',
+          tableNames: order.tableNames || [],
           amountTotal: order.amountTotal,
           currency: order.currency,
           status: order.status,

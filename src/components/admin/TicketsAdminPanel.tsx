@@ -36,6 +36,8 @@ type ShowOption = {
     ticketsSold: number
     soldOut: boolean
     legacy: boolean
+    kind?: 'ticket' | 'table'
+    seats?: number
   }[]
 }
 
@@ -96,6 +98,8 @@ export default function TicketsAdminPanel({
   )
 
   const tiers = selectedShow?.tiers || []
+  const selectedTier = tiers.find((t) => t.id === tierId) || tiers[0] || null
+  const issuingTable = selectedTier?.kind === 'table'
 
   async function load() {
     setLoading(true)
@@ -249,6 +253,7 @@ export default function TicketsAdminPanel({
               {tiers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
+                  {t.kind === 'table' && t.seats ? ` (${t.seats} tickets)` : ''}
                   {t.soldOut ? ' (sold out)' : ''}
                   {t.priceCents > 0
                     ? ` · ${formatPriceWithAud(t.priceCents, t.currency, audRates)}`
@@ -259,7 +264,7 @@ export default function TicketsAdminPanel({
           </div>
 
           <div>
-            <label className={labelClass}>Quantity</label>
+            <label className={labelClass}>{issuingTable ? 'Tables' : 'Quantity'}</label>
             <input
               className={inputClass}
               type="number"

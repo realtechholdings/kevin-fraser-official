@@ -10,6 +10,8 @@ import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { toWallInput } from '@/lib/wallDate'
+import TicketTable from '@/lib/models/TicketTable'
+import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 
 export async function POST(req: NextRequest) {
   try {
@@ -68,7 +70,54 @@ export async function POST(req: NextRequest) {
     if (isTierSoldOut(selected)) {
       return NextResponse.json({ success: false, error: 'This ticket tier is sold out.' }, { status: 400 })
     }
-    if (selected.capacity > 0 && selected.ticketsSold + quantity > selected.capacity) {
+
+    const tablePurchase = isTableOffering(selected)
+    const seats = tablePurchase ? Math.max(1, selected.seats || 1) : 1
+    const tableQty = tablePurchase ? quantity : 0
+    const ticketQty = tablePurchase ? tableQty * seats : quantity
+    if (ticketQty > MAX_TICKET_QUANTITY) {
+      return NextResponse.json(
+        { success: false, error: `A table purchase cannot exceed ${MAX_TICKET_QUANTITY} tickets.` },
+        { status: 400 },
+      )
+    }
+
+    const tourId =
+      show.tour && typeof show.tour === 'object' && '_id' in show.tour
+        ? String((show.tour as { _id: unknown })._id)
+        : String(show.tour)
+
+    let tableDoc = null
+    let underlying = selected
+    if (tablePurchase) {
+      tableDoc = await TicketTable.findById(selected.id)
+      if (!tableDoc || String(tableDoc.show) !== String(show._id) || !tableDoc.published) {
+        return NextResponse.json(
+          { success: false, error: 'This table is not available for this show.' },
+          { status: 400 },
+        )
+      }
+      if (tableDoc.capacity > 0 && tableDoc.tablesSold + tableQty > tableDoc.capacity) {
+        return NextResponse.json(
+          { success: false, error: 'Not enough tables left.' },
+          { status: 400 },
+        )
+      }
+      const linked = await findTierForShowSlug(String(show._id), tourId, tableDoc.tierSlug)
+      if (!linked) {
+        return NextResponse.json(
+          { success: false, error: 'This table is missing its ticket class.' },
+          { status: 400 },
+        )
+      }
+      if (linked.capacity > 0 && linked.ticketsSold + ticketQty > linked.capacity) {
+        return NextResponse.json(
+          { success: false, error: 'Not enough tickets left in this class.' },
+          { status: 400 },
+        )
+      }
+      underlying = linked
+    } else if (selected.capacity > 0 && selected.ticketsSold + quantity > selected.capacity) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
     }
 
@@ -76,6 +125,12 @@ export async function POST(req: NextRequest) {
       show.tour && typeof show.tour === 'object' && 'title' in show.tour
         ? String((show.tour as { title: string }).title)
         : show.title
+
+    const stripeQuantity = tablePurchase ? tableQty : quantity
+    const unitAmount = selected.priceCents
+    const lineName = tablePurchase
+      ? `${tourTitle} — ${show.city} (${selected.name}, ${seats} tickets)`
+      : `${tourTitle} — ${show.city} (${selected.name})`
 
     if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_org_') && !process.env.STRIPE_CONTEXT && !process.env.STRIPE_ACCOUNT_ID) {
       return NextResponse.json(
@@ -100,12 +155,12 @@ export async function POST(req: NextRequest) {
         customer_email: typeof body.email === 'string' ? body.email : undefined,
         line_items: [
           {
-            quantity,
+            quantity: stripeQuantity,
             price_data: {
               currency: selected.currency.toLowerCase(),
-              unit_amount: selected.priceCents,
+              unit_amount: unitAmount,
               product_data: {
-                name: `${tourTitle} — ${show.city} (${selected.name})`,
+                name: lineName,
                 description: `${show.venue} · ${toWallInput(show.date).replace('T', ' ')}`,
               },
             },
@@ -113,9 +168,11 @@ export async function POST(req: NextRequest) {
         ],
         metadata: {
           showId: String(show._id),
-          tierId: selected.legacy ? '' : selected.id,
+          tierId: tablePurchase ? String(underlying.id) : selected.legacy ? '' : selected.id,
           tierName: selected.name,
-          quantity: String(quantity),
+          quantity: String(ticketQty),
+          tableId: tableDoc ? String(tableDoc._id) : '',
+          tableQuantity: String(tableQty || ''),
         },
       },
       stripeRequestOptions()
@@ -123,16 +180,20 @@ export async function POST(req: NextRequest) {
 
     await Order.create({
       show: show._id,
-      tier: await ensureShowScopedTierId(String(show._id), selected),
+      tier: await ensureShowScopedTierId(String(show._id), underlying),
       tierName: selected.name,
-      unitAmountCents: selected.priceCents,
+      unitAmountCents: unitAmount,
       stripeSessionId: session.id,
       email: session.customer_email || body.email || 'pending@checkout',
-      quantity,
-      amountTotal: selected.priceCents * quantity,
+      quantity: ticketQty,
+      amountTotal: unitAmount * stripeQuantity,
       currency: selected.currency,
       status: 'pending',
       source: 'stripe',
+      table: tableDoc?._id || null,
+      tableQuantity: tableQty,
+      tableSeats: tablePurchase ? seats : 0,
+      tableNames: [],
     })
 
     return NextResponse.json({ success: true, url: session.url, sessionId: session.id })

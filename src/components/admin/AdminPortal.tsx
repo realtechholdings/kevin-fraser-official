@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
+import type { PublicTicketTable } from '@/lib/tickets/tables'
 import { formatShowDate } from '@/lib/format'
 import { formatPriceWithAud } from '@/lib/fx'
 import { toWallInput } from '@/lib/wallDate'
@@ -77,6 +78,22 @@ type TierConfigForm = {
   offered: boolean
 }
 
+type TableConfigForm = {
+  key: string
+  id: string
+  name: string
+  tierSlug: string
+  seats: string
+  capacity: string
+  namePrefix: string
+  customNames: string
+  inheritPrice: boolean
+  priceCents: string
+  currency: string
+  soldOut: boolean
+  sold: number
+}
+
 type ShowForm = {
   tourId: string
   title: string
@@ -105,6 +122,7 @@ type ShowForm = {
   venueImageKey: string
   description: string
   tierConfigs: TierConfigForm[]
+  tableConfigs: TableConfigForm[]
 }
 
 const emptyTour: TourForm = {
@@ -155,6 +173,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   venueImageKey: '',
   description: '',
   tierConfigs: [],
+  tableConfigs: [],
 })
 
 const IMAGE_FOCUS_POSITIONS = [
@@ -256,6 +275,50 @@ function mergeTierConfigs(
   })
 }
 
+function emptyTableConfig(allTiers: PublicTicketTier[], tourId: string): TableConfigForm {
+  const tourTiers = allTiers
+    .filter((t) => t.ownerType === 'tour' && t.ownerId === tourId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  const first = tourTiers[0]
+  const seats = 5
+  return {
+    key: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: '',
+    name: first ? `${first.name} Table` : 'Table',
+    tierSlug: first?.slug || '',
+    seats: String(seats),
+    capacity: '10',
+    namePrefix: 'Table',
+    customNames: '',
+    inheritPrice: true,
+    priceCents: first ? String(first.priceCents * seats) : '0',
+    currency: first?.currency || 'AUD',
+    soldOut: false,
+    sold: 0,
+  }
+}
+
+function tableConfigsFrom(tables: PublicTicketTable[], showId: string): TableConfigForm[] {
+  return tables
+    .filter((t) => t.showId === showId && t.published)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((t) => ({
+      key: t.id,
+      id: t.id,
+      name: t.name,
+      tierSlug: t.tierSlug,
+      seats: String(t.seats),
+      capacity: String(t.capacity),
+      namePrefix: t.namePrefix,
+      customNames: t.customNames.join('\n'),
+      inheritPrice: t.inheritPrice,
+      priceCents: String(t.priceCents),
+      currency: t.currency,
+      soldOut: t.soldOut,
+      sold: t.tablesSold,
+    }))
+}
+
 const ADMIN_MODE_KEY = 'admin-color-mode'
 
 
@@ -316,6 +379,7 @@ export default function AdminPortal() {
   const [tours, setTours] = useState<PublicTour[]>([])
   const [shows, setShows] = useState<PublicShow[]>([])
   const [tiers, setTiers] = useState<PublicTicketTier[]>([])
+  const [tables, setTables] = useState<PublicTicketTable[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -392,20 +456,24 @@ export default function AdminPortal() {
     setLoading(true)
     setError('')
     try {
-      const [tRes, sRes, tierRes] = await Promise.all([
+      const [tRes, sRes, tierRes, tableRes] = await Promise.all([
         fetch('/api/admin/tours'),
         fetch('/api/admin/shows'),
         fetch('/api/admin/tiers'),
+        fetch('/api/admin/tables'),
       ])
       const tData = await tRes.json()
       const sData = await sRes.json()
       const tierData = await tierRes.json()
+      const tableData = await tableRes.json()
       if (!tRes.ok) throw new Error(tData.error || 'Failed to load tours')
       if (!sRes.ok) throw new Error(sData.error || 'Failed to load shows')
       if (!tierRes.ok) throw new Error(tierData.error || 'Failed to load tiers')
+      if (!tableRes.ok) throw new Error(tableData.error || 'Failed to load tables')
       setTours(tData.tours)
       setShows(sData.shows)
       setTiers(tierData.tiers || [])
+      setTables(tableData.tables || [])
       if (!showForm.tourId && tData.tours[0]) {
         setShowForm((prev) => ({ ...prev, tourId: tData.tours[0].id }))
       }
@@ -510,6 +578,13 @@ export default function AdminPortal() {
     }))
   }
 
+  function updateTableConfig(key: string, patch: Partial<TableConfigForm>) {
+    setShowForm((prev) => ({
+      ...prev,
+      tableConfigs: prev.tableConfigs.map((c) => (c.key === key ? { ...c, ...patch } : c)),
+    }))
+  }
+
   async function saveTour(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true)
@@ -571,6 +646,19 @@ export default function AdminPortal() {
           currency: c.currency,
           soldOut: c.soldOut,
           offered: c.offered,
+        })),
+        tableConfigs: (showForm.tableConfigs || []).map((c) => ({
+          id: c.id || undefined,
+          name: c.name,
+          tierSlug: c.tierSlug,
+          seats: Number(c.seats) || 1,
+          capacity: Number(c.capacity) || 0,
+          namePrefix: c.namePrefix,
+          customNames: c.customNames,
+          inheritPrice: c.inheritPrice,
+          priceCents: Number(c.priceCents) || 0,
+          currency: c.currency,
+          soldOut: c.soldOut,
         })),
       }
       const res = await fetch(
@@ -651,6 +739,7 @@ export default function AdminPortal() {
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
       tierConfigs: buildTierConfigsFrom(latest, show.tour.id, show.id),
+      tableConfigs: tableConfigsFrom(tables, show.id),
     })
     setTab('shows')
     setShowFormPanel(true)
@@ -1589,6 +1678,243 @@ export default function AdminPortal() {
                           </div>
                         </>
                       )}
+                      {showForm.tourId ? (
+                        <div className="md:col-span-2">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <label className={labelClass}>Tables</label>
+                              <p className="text-xs text-white/35">
+                                A table is a bulk buy of one ticket class (e.g. 5 Polaroids).
+                                Set how many tables are for sale; the buyer gets that many
+                                tickets, each printed with the table name.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className={btnSecondary}
+                              onClick={() =>
+                                setShowForm((prev) => ({
+                                  ...prev,
+                                  tableConfigs: [
+                                    ...prev.tableConfigs,
+                                    emptyTableConfig(tiers, prev.tourId),
+                                  ],
+                                }))
+                              }
+                            >
+                              <Plus className="mr-1 inline h-3.5 w-3.5" />
+                              Add table
+                            </button>
+                          </div>
+                          <div className="space-y-3">
+                            {showForm.tableConfigs.map((table) => {
+                              const classOptions = tiers
+                                .filter(
+                                  (t) =>
+                                    t.ownerType === 'tour' && t.ownerId === showForm.tourId,
+                                )
+                                .sort((a, b) => a.sortOrder - b.sortOrder)
+                              const linked = classOptions.find((t) => t.slug === table.tierSlug)
+                              const seats = Math.max(1, Number(table.seats) || 1)
+                              const tablePrice = table.inheritPrice
+                                ? (linked?.priceCents || 0) * seats
+                                : Number(table.priceCents) || 0
+                              const tableCurrency = table.inheritPrice
+                                ? linked?.currency || table.currency
+                                : table.currency
+                              return (
+                                <div
+                                  key={table.key}
+                                  className="rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                                >
+                                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                    <p className="text-sm font-medium text-white">
+                                      {table.name || 'Untitled table'}
+                                      {table.sold > 0 ? (
+                                        <span className="ml-2 text-xs font-normal text-white/40">
+                                          {table.sold} sold
+                                        </span>
+                                      ) : null}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      className={btnGhost}
+                                      onClick={() =>
+                                        setShowForm((prev) => ({
+                                          ...prev,
+                                          tableConfigs: prev.tableConfigs.filter(
+                                            (c) => c.key !== table.key,
+                                          ),
+                                        }))
+                                      }
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                      <label className={labelClass}>Table name</label>
+                                      <input
+                                        className={inputClass}
+                                        value={table.name}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, { name: e.target.value })
+                                        }
+                                        placeholder="Polaroid Table"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Ticket class</label>
+                                      <select
+                                        className={inputClass}
+                                        value={table.tierSlug}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            tierSlug: e.target.value,
+                                          })
+                                        }
+                                      >
+                                        {classOptions.map((t) => (
+                                          <option key={t.slug} value={t.slug} className="bg-[#141420]">
+                                            {t.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Seats per table</label>
+                                      <input
+                                        className={inputClass}
+                                        type="number"
+                                        min="1"
+                                        value={table.seats}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, { seats: e.target.value })
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>
+                                        Tables available (0 = unlimited)
+                                      </label>
+                                      <input
+                                        className={inputClass}
+                                        type="number"
+                                        min="0"
+                                        value={table.capacity}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            capacity: e.target.value,
+                                          })
+                                        }
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Name prefix</label>
+                                      <input
+                                        className={inputClass}
+                                        value={table.namePrefix}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            namePrefix: e.target.value,
+                                          })
+                                        }
+                                        placeholder="Table"
+                                      />
+                                      <p className="mt-1.5 text-xs text-white/35">
+                                        Assigned in order: {table.namePrefix || 'Table'} 1,{' '}
+                                        {table.namePrefix || 'Table'} 2…
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <label className={labelClass}>Custom names (optional)</label>
+                                      <textarea
+                                        className={inputClass}
+                                        rows={3}
+                                        value={table.customNames}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            customNames: e.target.value,
+                                          })
+                                        }
+                                        placeholder={'Booth A\nBooth B'}
+                                      />
+                                      <p className="mt-1.5 text-xs text-white/35">
+                                        One name per line. Used instead of the prefix when set.
+                                      </p>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-sm text-white/70 sm:col-span-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={table.inheritPrice}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            inheritPrice: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Price is {seats} × class price (
+                                      {formatPriceWithAud(tablePrice, tableCurrency, audRates)})
+                                    </label>
+                                    {!table.inheritPrice ? (
+                                      <>
+                                        <div>
+                                          <label className={labelClass}>Table price (cents)</label>
+                                          <input
+                                            className={inputClass}
+                                            type="number"
+                                            min="0"
+                                            value={table.priceCents}
+                                            onChange={(e) =>
+                                              updateTableConfig(table.key, {
+                                                priceCents: e.target.value,
+                                              })
+                                            }
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className={labelClass}>Currency</label>
+                                          <select
+                                            className={inputClass}
+                                            value={table.currency}
+                                            onChange={(e) =>
+                                              updateTableConfig(table.key, {
+                                                currency: e.target.value,
+                                              })
+                                            }
+                                          >
+                                            {SUPPORTED_CURRENCIES.map((c) => (
+                                              <option key={c} value={c} className="bg-[#141420]">
+                                                {c}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <AudHint
+                                            cents={table.priceCents}
+                                            currency={table.currency}
+                                          />
+                                        </div>
+                                      </>
+                                    ) : null}
+                                    <label className="flex items-center gap-2 text-sm text-white/70">
+                                      <input
+                                        type="checkbox"
+                                        checked={table.soldOut}
+                                        onChange={(e) =>
+                                          updateTableConfig(table.key, {
+                                            soldOut: e.target.checked,
+                                          })
+                                        }
+                                      />
+                                      Sold out
+                                    </label>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
                       <div>
                         <label className={labelClass}>Venue capacity</label>
                         <input

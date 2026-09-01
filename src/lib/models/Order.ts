@@ -32,6 +32,14 @@ const OrderSchema = new Schema(
     confirmationEmailSentAt: { type: Date, default: null },
     /** Set once accounts@ has been notified of this paid order */
     salesNotifyEmailSentAt: { type: Date, default: null },
+    /** Table package this order bought (null for regular class sales). */
+    table: { type: Schema.Types.ObjectId, ref: 'TicketTable', default: null, index: true },
+    /** How many tables in this order. */
+    tableQuantity: { type: Number, default: 0, min: 0 },
+    /** Seats per table at purchase time. */
+    tableSeats: { type: Number, default: 0, min: 0 },
+    /** Assigned names, one per table, e.g. ["Table 3", "Table 4"]. */
+    tableNames: { type: [String], default: [] },
     /** Door check-ins: one entry per scanned ticket number (1-based) */
     checkedIn: {
       type: [

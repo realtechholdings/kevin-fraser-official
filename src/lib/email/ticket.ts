@@ -26,7 +26,13 @@ function tourTitleOf(show: ShowDocument & { tour?: TourDocument | unknown }) {
 export type TicketOrderLike = Pick<
   OrderDocument,
   'email' | 'quantity' | 'amountTotal' | 'currency' | 'tierName'
-> & { _id: unknown; tier?: unknown; holderName?: string }
+> & {
+  _id: unknown
+  tier?: unknown
+  holderName?: string
+  tableNames?: string[]
+  tableSeats?: number
+}
 
 export function ticketTemplateVars(
   show: ShowDocument & { tour?: TourDocument | unknown },
@@ -50,6 +56,7 @@ export function ticketTemplateVars(
     quantity: String(order.quantity),
     total: formatPrice(order.amountTotal, order.currency),
     orderId: String(order._id),
+    table: (order.tableNames || []).filter(Boolean).join(', '),
   }
 }
 
@@ -158,6 +165,8 @@ export async function sendTicketEmail(
     timeLabel: vars.time,
     tierName: vars.tier,
     quantity: order.quantity,
+    tableNames: order.tableNames || [],
+    tableSeats: order.tableSeats || 0,
     accentHex: branding.accentHex,
     artworkBytes: branding.artworkBytes,
   })
@@ -198,6 +207,8 @@ export async function buildTicketPdfsForOrder(
     timeLabel: vars.time,
     tierName: vars.tier,
     quantity: order.quantity,
+    tableNames: order.tableNames || [],
+    tableSeats: order.tableSeats || 0,
     accentHex: branding.accentHex,
     artworkBytes: branding.artworkBytes,
   })

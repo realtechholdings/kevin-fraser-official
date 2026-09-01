@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeShow } from '@/lib/serialize'
 import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
+import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseWallDate } from '@/lib/wallDate'
 
@@ -105,6 +106,9 @@ export async function POST(req: NextRequest) {
 
     if (Array.isArray(body.tierConfigs)) {
       await applyShowTierConfigs(String(show._id), tourId, body.tierConfigs)
+    }
+    if (Array.isArray(body.tableConfigs)) {
+      await applyShowTableConfigs(String(show._id), body.tableConfigs)
     }
 
     if (status === 'on_sale') {

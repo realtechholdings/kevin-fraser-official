@@ -45,6 +45,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
         currency: order.currency,
         tierName: order.tierName,
         tier: order.tier,
+        tableNames: order.tableNames || [],
+        tableSeats: order.tableSeats || 0,
       },
       show,
     )

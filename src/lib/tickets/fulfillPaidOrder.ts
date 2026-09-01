@@ -2,12 +2,17 @@ import type { HydratedDocument } from 'mongoose'
 import type { OrderDocument } from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import TicketTier from '@/lib/models/TicketTier'
+import TicketTable from '@/lib/models/TicketTable'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { nextTableNames } from '@/lib/tickets/tables'
 
-/** Increment show + tier inventory for a paid order (Stripe or manual). */
-export async function applyPaidInventory(
-  order: Pick<OrderDocument, 'show' | 'tier' | 'quantity'>,
-): Promise<void> {
+type InventoryOrder = Pick<
+  OrderDocument,
+  'show' | 'tier' | 'quantity' | 'table' | 'tableQuantity' | 'tableNames'
+> & { save?: () => Promise<unknown> }
+
+/** Increment show + tier + table inventory for a paid order (Stripe or manual). */
+export async function applyPaidInventory(order: InventoryOrder): Promise<void> {
   await Show.findByIdAndUpdate(order.show, {
     $inc: { ticketsSold: order.quantity },
   })
@@ -16,6 +21,19 @@ export async function applyPaidInventory(
     await TicketTier.findByIdAndUpdate(order.tier, {
       $inc: { ticketsSold: order.quantity },
     })
+  }
+
+  const tableQty = Number(order.tableQuantity) || 0
+  if (order.table && tableQty > 0) {
+    const previous = await TicketTable.findOneAndUpdate(
+      { _id: order.table },
+      { $inc: { tablesSold: tableQty } },
+      { new: false },
+    )
+    if (previous && !(order.tableNames && order.tableNames.length)) {
+      order.tableNames = nextTableNames(previous, previous.tablesSold, tableQty)
+      if (typeof order.save === 'function') await order.save()
+    }
   }
 
   await maybeMarkShowSoldOut(String(order.show))

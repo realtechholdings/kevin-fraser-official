@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont, type RGB } from 'pdf-lib'
 import QRCode from 'qrcode'
+import { tableNameForSeat } from '@/lib/tickets/tables'
 
 const DEFAULT_ACCENT = rgb(1, 0.4, 0)
 const DARK = rgb(0.05, 0.05, 0.07)
@@ -21,6 +22,10 @@ export type TicketPdfInput = {
   timeLabel: string
   tierName: string
   quantity: number
+  tableNames?: string[]
+  tableSeats?: number
+  /** Assigned table name for this ticket (e.g. "Table 3"). */
+  tableName?: string
   /** Hex accent for header + tier badge (e.g. #FF6600) */
   accentHex?: string
   /** Optional PNG/JPEG bytes for left-side artwork */
@@ -31,6 +36,11 @@ export type SingleTicketPdf = {
   ticketNumber: number
   filename: string
   bytes: Uint8Array
+}
+
+function tableLabelForTicket(input: TicketPdfInput, ticketNumber: number) {
+  if (input.tableName) return input.tableName
+  return tableNameForSeat(ticketNumber, input.tableSeats || 0, input.tableNames)
 }
 
 function parseHexColor(hex: string | undefined): RGB {
@@ -213,6 +223,18 @@ async function drawTicketPage(
     color: accentInk,
   })
 
+  if (input.tableName) {
+    cursorY -= 22
+    drawClampedText(page, input.tableName.toUpperCase(), {
+      x: leftX,
+      y: cursorY,
+      size: 12,
+      font: bold,
+      color: LIGHT,
+      maxWidth: textMax,
+    })
+  }
+
   drawClampedText(
     page,
     input.holderName
@@ -258,7 +280,18 @@ export async function generateTicketPdfs(input: TicketPdfInput): Promise<SingleT
       }
     }
 
-    await drawTicketPage(doc, input, i, { bold, regular }, accent, accentInk, artworkImage)
+    await drawTicketPage(
+      doc,
+      {
+        ...input,
+        tableName: tableLabelForTicket(input, i),
+      },
+      i,
+      { bold, regular },
+      accent,
+      accentInk,
+      artworkImage,
+    )
     const bytes = await doc.save()
     files.push({
       ticketNumber: i,

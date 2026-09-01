@@ -24,6 +24,7 @@ type AdminOrder = {
   email: string
   quantity: number
   tierName: string
+  tableNames?: string[]
   amountTotal: number
   currency: string
   status: string
@@ -259,6 +260,9 @@ export default function SalesAdminPanel({
                     <p className="text-sm text-white/80">
                       {order.quantity} × {order.tierName}
                     </p>
+                    {order.tableNames?.length ? (
+                      <p className="mt-0.5 text-xs text-white/40">{order.tableNames.join(', ')}</p>
+                    ) : null}
                     <p className="mt-0.5 text-xs text-white/40">
                       {order.checkedInCount
                         ? `${order.checkedInCount} of ${order.quantity} checked in`

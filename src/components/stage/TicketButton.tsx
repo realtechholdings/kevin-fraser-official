@@ -16,10 +16,27 @@ type Props = {
 }
 
 function maxQuantityForTier(tier: PublicTicketTier) {
+  const remaining =
+    tier.capacity > 0
+      ? Math.max(0, tier.capacity - tier.ticketsSold)
+      : MAX_TICKET_QUANTITY
+  if (tier.kind === 'table') {
+    const seats = Math.max(1, tier.seats || 1)
+    const maxByPdfs = Math.max(1, Math.floor(MAX_TICKET_QUANTITY / seats))
+    const cap = remaining || MAX_TICKET_QUANTITY
+    return Math.max(1, Math.min(cap, maxByPdfs, MAX_TICKET_QUANTITY))
+  }
   if (tier.capacity > 0) {
-    return Math.max(1, Math.min(MAX_TICKET_QUANTITY, tier.capacity - tier.ticketsSold))
+    return Math.max(1, Math.min(MAX_TICKET_QUANTITY, remaining))
   }
   return MAX_TICKET_QUANTITY
+}
+
+function offeringLabel(tier: PublicTicketTier) {
+  if (tier.kind === 'table' && tier.seats) {
+    return `${tier.name} (${tier.seats} tickets)`
+  }
+  return tier.name
 }
 
 export default function TicketButton({
@@ -102,7 +119,7 @@ export default function TicketButton({
           >
             {publishedTiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
-                {tier.name} — Sold Out
+                {offeringLabel(tier)} — Sold Out
               </option>
             ))}
           </select>
@@ -133,7 +150,7 @@ export default function TicketButton({
               const soldOut = isTierSoldOut(tier)
               return (
                 <option key={tier.id} value={tier.id} disabled={soldOut}>
-                  {tier.name} —{' '}
+                  {offeringLabel(tier)} —{' '}
                   {soldOut ? 'Sold Out' : formatPrice(tier.priceCents, tier.currency)}
                 </option>
               )
@@ -141,17 +158,21 @@ export default function TicketButton({
           </select>
         ) : (
           <div className="flex items-center px-1 text-xs text-[var(--foreground-muted)]">
-            {selected?.name}
+            {selected?.kind === 'table' && selected.seats
+              ? `${offeringLabel(selected)}`
+              : selected?.name}
           </div>
         )}
         <label className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)]">
-          <span className="uppercase tracking-[0.14em] text-[var(--foreground-subtle)]">Qty</span>
+          <span className="uppercase tracking-[0.14em] text-[var(--foreground-subtle)]">
+            {selected?.kind === 'table' ? 'Tables' : 'Qty'}
+          </span>
           <select
             value={quantity}
             onChange={(e) => setQuantity(Number(e.target.value) || 1)}
             disabled={disabled || loading}
             className="bg-transparent outline-none"
-            aria-label="Ticket quantity"
+            aria-label={selected?.kind === 'table' ? 'Number of tables' : 'Ticket quantity'}
           >
             {Array.from({ length: maxQty }, (_, i) => i + 1).map((n) => (
               <option key={n} value={n}>
@@ -174,7 +195,7 @@ export default function TicketButton({
         {loading
           ? 'Redirecting…'
           : quantity > 1
-            ? `${label} · ${quantity}`
+            ? `${label} · ${quantity}${selected?.kind === 'table' ? ' tables' : ''}`
             : label}
       </button>
       {error ? (

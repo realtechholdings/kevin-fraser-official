@@ -82,7 +82,7 @@ type Template = {
 type Section = 'ticket' | 'compose' | 'templates' | 'signature'
 
 const TICKET_PLACEHOLDERS =
-  '{{name}} {{email}} {{show}} {{tour}} {{city}} {{venue}} {{address}} {{date}} {{time}} {{doors}} {{tier}} {{quantity}} {{total}} {{orderId}}'
+  '{{name}} {{email}} {{show}} {{tour}} {{city}} {{venue}} {{address}} {{date}} {{time}} {{doors}} {{tier}} {{table}} {{quantity}} {{total}} {{orderId}}'
 
 /** Append an [image: url] tag on its own line at the end of a body. */
 function appendImageTag(body: string, url: string) {
