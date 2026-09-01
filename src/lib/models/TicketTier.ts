@@ -31,6 +31,11 @@ const TicketTierSchema = new Schema(
     ticketsSold: { type: Number, default: 0, min: 0 },
     /** Manual override — blocks sales even when capacity remains. */
     soldOut: { type: Boolean, default: false },
+    /**
+     * Show-owned only: when false, this tour class is not sold at this date
+     * (hidden from the public page and checkout). Defaults to offered.
+     */
+    offered: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
     /** Optional ticket PDF accent colour override for this tier (hex) */

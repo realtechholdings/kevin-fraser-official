@@ -11,7 +11,12 @@ import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
  *   tour price/currency (inheritPrice) or overrides them.
  * - Name / description / branding fall back to the tour tier so show rows stay thin.
  * - Show tiers with slugs not present on the tour are appended as extras.
+ * - A show override with offered === false is omitted entirely (this date only).
  */
+function isOffered(tier: Pick<TicketTierDocument, 'offered'> | undefined) {
+  return !tier || tier.offered !== false
+}
+
 function mergeTiers(
   tourTiers: TicketTierDocument[],
   showTiers: TicketTierDocument[],
@@ -19,13 +24,18 @@ function mergeTiers(
   const overridesBySlug = new Map(showTiers.map((t) => [t.slug, t]))
   const tourSlugs = new Set(tourTiers.map((t) => t.slug))
 
-  const merged: PublicTicketTier[] = tourTiers.map((tourTier) => {
+  const merged: PublicTicketTier[] = []
+
+  for (const tourTier of tourTiers) {
     const override = overridesBySlug.get(tourTier.slug)
+    if (!isOffered(override)) continue
+
     if (!override) {
       const serialized = serializeTicketTier(tourTier)
       // No per-show row yet — don't show shared tour sold counts on every date.
       serialized.ticketsSold = 0
-      return serialized
+      merged.push(serialized)
+      continue
     }
 
     const serialized = serializeTicketTier(override)
@@ -46,10 +56,11 @@ function mergeTiers(
       serialized.ticketArtwork = tourTier.ticketArtwork || ''
       serialized.ticketArtworkKey = tourTier.ticketArtworkKey || ''
     }
-    return serialized
-  })
+    merged.push(serialized)
+  }
 
   for (const showTier of showTiers) {
+    if (!isOffered(showTier)) continue
     if (!tourSlugs.has(showTier.slug)) merged.push(serializeTicketTier(showTier))
   }
 
@@ -72,6 +83,7 @@ function legacyTier(
     capacity: 0,
     ticketsSold: 0,
     soldOut: false,
+    offered: true,
     sortOrder: 0,
     published: true,
     legacy: true,

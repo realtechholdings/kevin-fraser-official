@@ -10,17 +10,19 @@ export type ShowTierConfigInput = {
   priceCents?: number
   currency?: string
   soldOut?: boolean
+  /** When false, this class is hidden on this date only. */
+  offered?: boolean
 }
 
 /**
  * Apply per-show tier configs against the owning tour's tiers.
  *
  * For each tour tier the admin can set a per-show allocation, optionally
- * override the price/currency, and mark the tier sold out. An active config
- * is stored as a show-owned TicketTier with the same slug (picked up by
- * resolveTiers as an override). Clearing a config removes the override so
- * the show falls back to the tour tier — unless tickets were already sold
- * against it.
+ * override the price/currency, mark the tier sold out, or stop offering it
+ * at this date. An active config is stored as a show-owned TicketTier with
+ * the same slug (picked up by resolveTiers as an override). Clearing a
+ * config removes the override so the show falls back to the tour tier —
+ * unless tickets were already sold against it.
  */
 export async function applyShowTierConfigs(
   showId: string,
@@ -42,7 +44,8 @@ export async function applyShowTierConfigs(
     const capacity = Math.max(0, Number(config.capacity) || 0)
     const overridePrice = Boolean(config.overridePrice)
     const soldOut = Boolean(config.soldOut)
-    const active = capacity > 0 || overridePrice || soldOut
+    const offered = config.offered !== false
+    const active = capacity > 0 || overridePrice || soldOut || !offered
     const existing = existingBySlug.get(slug)
 
     if (!active) {
@@ -52,6 +55,7 @@ export async function applyShowTierConfigs(
         existing.capacity = 0
         existing.inheritPrice = true
         existing.soldOut = false
+        existing.offered = true
         await existing.save()
       }
       continue
@@ -72,6 +76,7 @@ export async function applyShowTierConfigs(
       existing.priceCents = priceCents
       existing.currency = currency
       existing.soldOut = soldOut
+      existing.offered = offered
       existing.sortOrder = tourTier.sortOrder
       existing.published = true
       await existing.save()
@@ -88,6 +93,7 @@ export async function applyShowTierConfigs(
         capacity,
         ticketsSold: 0,
         soldOut,
+        offered,
         sortOrder: tourTier.sortOrder,
         published: true,
       })
@@ -137,6 +143,7 @@ export async function ensureShowScopedTierId(
     capacity: 0,
     ticketsSold: 0,
     soldOut: false,
+    offered: true,
     sortOrder: tourTier.sortOrder,
     published: true,
   })

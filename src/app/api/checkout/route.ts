@@ -50,9 +50,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
     }
 
-    const selected =
-      (tierId && tiers.find((t) => t.id === tierId)) ||
-      tiers[0]
+    const selected = tierId
+      ? tiers.find((t) => t.id === tierId)
+      : tiers[0]
+
+    if (tierId && !selected) {
+      return NextResponse.json(
+        { success: false, error: 'This ticket class is not available for this show.' },
+        { status: 400 },
+      )
+    }
 
     if (!selected) {
       return NextResponse.json({ success: false, error: 'No ticket tier available.' }, { status: 400 })

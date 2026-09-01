@@ -144,10 +144,14 @@ export async function POST(req: NextRequest) {
     }
 
     const tiers = await resolveTiersForShow(show)
-    const tier =
-      (tierId ? tiers.find((t) => t.id === tierId) : null) ||
-      tiers[0] ||
-      null
+    const tier = tierId ? tiers.find((t) => t.id === tierId) : tiers[0] || null
+
+    if (tierId && !tier) {
+      return NextResponse.json(
+        { success: false, error: 'That ticket class is not offered at this show.' },
+        { status: 400 },
+      )
+    }
 
     if (!tier) {
       return NextResponse.json({ success: false, error: 'No ticket tier available for this show.' }, { status: 400 })

@@ -74,6 +74,7 @@ type TierConfigForm = {
   currency: string
   sold: number
   soldOut: boolean
+  offered: boolean
 }
 
 type ShowForm = {
@@ -229,6 +230,7 @@ function buildTierConfigsFrom(
       currency: overridePrice && o ? o.currency : tt.currency,
       sold: o?.ticketsSold || 0,
       soldOut: Boolean(o?.soldOut),
+      offered: o ? o.offered !== false : true,
     }
   })
 }
@@ -249,6 +251,7 @@ function mergeTierConfigs(
       priceCents: existing.priceCents,
       currency: existing.currency,
       soldOut: existing.soldOut,
+      offered: existing.offered,
     }
   })
 }
@@ -443,20 +446,28 @@ export default function AdminPortal() {
     const overridesBySlug = new Map(showTiers.map((t) => [t.slug, t]))
     const tourSlugs = new Set(tourTiers.map((t) => t.slug))
 
-    const merged = tourTiers.map((tourTier) => {
+    const merged: PublicTicketTier[] = []
+
+    for (const tourTier of tourTiers) {
       const override = overridesBySlug.get(tourTier.slug)
-      if (!override) return tourTier
+      if (override && override.offered === false) continue
+      if (!override) {
+        merged.push(tourTier)
+        continue
+      }
       if (override.inheritPrice) {
-        return {
+        merged.push({
           ...override,
           priceCents: tourTier.priceCents,
           currency: tourTier.currency,
-        }
+        })
+        continue
       }
-      return override
-    })
+      merged.push(override)
+    }
 
     for (const showTier of showTiers) {
+      if (showTier.offered === false) continue
       if (!tourSlugs.has(showTier.slug)) merged.push(showTier)
     }
 
@@ -559,6 +570,7 @@ export default function AdminPortal() {
           priceCents: Number(c.priceCents) || 0,
           currency: c.currency,
           soldOut: c.soldOut,
+          offered: c.offered,
         })),
       }
       const res = await fetch(
@@ -1400,8 +1412,9 @@ export default function AdminPortal() {
                           <label className={labelClass}>Ticket tiers — allocation & pricing</label>
                           <p className="mb-3 text-xs text-white/35">
                             These classes come from the tour — new ones appear here automatically.
-                            Set allocation for this date (0 = unlimited), mark sold out, and optionally
-                            override price + currency for this show only.
+                            Uncheck “Offer at this show” to hide a class on this date only (other
+                            dates keep it). Set allocation (0 = unlimited), mark sold out, or
+                            override price + currency for this show.
                           </p>
                           <div className="space-y-3">
                             {showForm.tierConfigs.map((config) => (
@@ -1417,6 +1430,11 @@ export default function AdminPortal() {
                                         Draft — publish in Tiers to sell
                                       </span>
                                     ) : null}
+                                    {!config.offered ? (
+                                      <span className="ml-2 text-xs font-normal text-amber-400/80">
+                                        Hidden on this date
+                                      </span>
+                                    ) : null}
                                   </p>
                                   <p className="text-xs text-white/40">
                                     Tour price{' '}
@@ -1428,7 +1446,23 @@ export default function AdminPortal() {
                                     {config.sold > 0 ? ` · ${config.sold} sold` : ''}
                                   </p>
                                 </div>
-                                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                <label className="mt-3 flex items-center gap-2 text-sm text-white/70">
+                                  <input
+                                    type="checkbox"
+                                    checked={config.offered}
+                                    onChange={(e) =>
+                                      updateTierConfig(config.slug, {
+                                        offered: e.target.checked,
+                                      })
+                                    }
+                                  />
+                                  Offer at this show
+                                </label>
+                                <div
+                                  className={`mt-3 grid gap-3 sm:grid-cols-3 ${
+                                    config.offered ? '' : 'pointer-events-none opacity-40'
+                                  }`}
+                                >
                                   <div>
                                     <label className={labelClass}>Allocation (0 = unlimited)</label>
                                     <input

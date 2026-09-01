@@ -42,6 +42,8 @@ export type PublicTicketTier = {
   capacity: number
   ticketsSold: number
   soldOut: boolean
+  /** Show-level: false means this class is not sold at this date. */
+  offered?: boolean
   sortOrder: number
   published: boolean
   legacy?: boolean
@@ -248,6 +250,7 @@ export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier 
     capacity: tier.capacity || 0,
     ticketsSold: tier.ticketsSold || 0,
     soldOut: Boolean(tier.soldOut),
+    offered: tier.offered !== false,
     sortOrder: tier.sortOrder || 0,
     published: Boolean(tier.published),
     inheritPrice: Boolean(tier.inheritPrice),
