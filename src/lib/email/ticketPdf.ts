@@ -65,10 +65,22 @@ function drawClampedText(
   opts: { x: number; y: number; size: number; font: PDFFont; color: RGB; maxWidth: number },
 ) {
   let value = text
-  while (value.length > 3 && opts.font.widthOfTextAtSize(value, opts.size) > opts.maxWidth) {
+  const ellipsis = '...'
+  while (
+    value.length > 3 &&
+    opts.font.widthOfTextAtSize(value, opts.size) > opts.maxWidth
+  ) {
     value = value.slice(0, -1)
   }
-  if (value !== text && value.length > 3) value = `${value.slice(0, -1)}…`
+  if (value !== text && value.length > 3) {
+    while (
+      value.length > 1 &&
+      opts.font.widthOfTextAtSize(`${value}${ellipsis}`, opts.size) > opts.maxWidth
+    ) {
+      value = value.slice(0, -1)
+    }
+    value = `${value}${ellipsis}`
+  }
   page.drawText(value, {
     x: opts.x,
     y: opts.y,
@@ -76,6 +88,79 @@ function drawClampedText(
     font: opts.font,
     color: opts.color,
   })
+}
+
+function sizeToFit(
+  font: PDFFont,
+  text: string,
+  maxWidth: number,
+  preferred: number,
+  min: number,
+) {
+  let size = preferred
+  while (size > min && font.widthOfTextAtSize(text, size) > maxWidth) {
+    size -= 0.5
+  }
+  return size
+}
+
+function wrapToWidth(font: PDFFont, text: string, size: number, maxWidth: number): string[] {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return [text]
+  const words = text.split(/\s+/).filter(Boolean)
+  if (words.length <= 1) {
+    const chars = text.split('')
+    let line = ''
+    const lines: string[] = []
+    for (const ch of chars) {
+      const next = `${line}${ch}`
+      if (line && font.widthOfTextAtSize(next, size) > maxWidth) {
+        lines.push(line)
+        line = ch
+      } else {
+        line = next
+      }
+    }
+    if (line) lines.push(line)
+    return lines.slice(0, 2)
+  }
+  const lines: string[] = ['']
+  for (const word of words) {
+    const candidate = lines[lines.length - 1] ? `${lines[lines.length - 1]} ${word}` : word
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth || !lines[lines.length - 1]) {
+      lines[lines.length - 1] = candidate
+    } else if (lines.length < 2) {
+      lines.push(word)
+    } else {
+      break
+    }
+  }
+  return lines
+}
+
+/** City is the ticket headline — shrink (then wrap) instead of slicing letters off. */
+function drawCityHeadline(
+  page: PDFPage,
+  city: string,
+  opts: { x: number; y: number; font: PDFFont; color: RGB; maxWidth: number },
+) {
+  const text = city.toUpperCase()
+  const size = sizeToFit(opts.font, text, opts.maxWidth, 34, 18)
+  const lines =
+    opts.font.widthOfTextAtSize(text, size) > opts.maxWidth
+      ? wrapToWidth(opts.font, text, size, opts.maxWidth)
+      : [text]
+  let y = opts.y
+  for (const line of lines) {
+    page.drawText(line, {
+      x: opts.x,
+      y,
+      size,
+      font: opts.font,
+      color: opts.color,
+    })
+    y -= size * 0.92
+  }
+  return opts.y - lines.length * size * 0.92
 }
 
 async function drawTicketPage(
@@ -163,15 +248,14 @@ async function drawTicketPage(
   const textMax = qrX - 24 - leftX
   let cursorY = pageHeight - 92
 
-  drawClampedText(page, input.city.toUpperCase(), {
+  cursorY = drawCityHeadline(page, input.city, {
     x: leftX,
     y: cursorY,
-    size: 34,
     font: bold,
     color: LIGHT,
     maxWidth: textMax,
   })
-  cursorY -= 24
+  cursorY -= 8
 
   drawClampedText(page, input.venue, {
     x: leftX,
