@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import {
   clearPendingCheckout,
   centsToMetaValue,
+  identifyMetaUser,
   trackMeta,
 } from '@/lib/metaPixel'
 
@@ -15,6 +16,7 @@ type Props = {
   showId: string | null
   quantity: number
   contentName?: string | null
+  email?: string | null
 }
 
 export default function MetaPurchasePixel({
@@ -25,6 +27,7 @@ export default function MetaPurchasePixel({
   showId,
   quantity,
   contentName,
+  email,
 }: Props) {
   const fired = useRef(false)
 
@@ -40,6 +43,7 @@ export default function MetaPurchasePixel({
     }
 
     fired.current = true
+    identifyMetaUser(email)
     trackMeta(
       'Purchase',
       {
@@ -53,7 +57,7 @@ export default function MetaPurchasePixel({
       { eventID: sessionId },
     )
     clearPendingCheckout()
-  }, [paid, sessionId, amountTotal, currency, showId, quantity, contentName])
+  }, [paid, sessionId, amountTotal, currency, showId, quantity, contentName, email])
 
   return null
 }

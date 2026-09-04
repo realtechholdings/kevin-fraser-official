@@ -15,6 +15,7 @@ export type MetaContentParams = {
 
 export type PendingCheckout = MetaContentParams & {
   showId?: string
+  email?: string
   startedAt: number
 }
 
@@ -48,6 +49,15 @@ export function trackMeta(
   } else {
     window.fbq('track', event, params || {})
   }
+}
+
+export function identifyMetaUser(email?: string | null) {
+  if (typeof window === 'undefined' || !isMetaPixelEnabled() || typeof window.fbq !== 'function') {
+    return
+  }
+  const em = String(email || '').trim().toLowerCase()
+  if (!em) return
+  window.fbq('init', META_PIXEL_ID, { em })
 }
 
 export function trackMetaCustom(event: string, params?: MetaContentParams) {

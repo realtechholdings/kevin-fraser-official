@@ -12,6 +12,7 @@ import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { toWallInput } from '@/lib/wallDate'
 import TicketTable from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
+import { normalizeCheckoutEmail } from '@/lib/email/address'
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,9 +20,16 @@ export async function POST(req: NextRequest) {
     const showId = String(body.showId || '')
     const tierId = String(body.tierId || '')
     const quantity = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Number(body.quantity) || 1))
+    const email = normalizeCheckoutEmail(body.email)
 
     if (!showId) {
       return NextResponse.json({ success: false, error: 'Show is required.' }, { status: 400 })
+    }
+    if (!email) {
+      return NextResponse.json(
+        { success: false, error: 'Enter your email so we can send your tickets.' },
+        { status: 400 },
+      )
     }
 
     await dbConnect()
@@ -152,7 +160,7 @@ export async function POST(req: NextRequest) {
         adaptive_pricing: { enabled: true },
         success_url: `${returnBase}/worlds/stage/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${returnBase}/worlds/stage?cancelled=1`,
-        customer_email: typeof body.email === 'string' ? body.email : undefined,
+        customer_email: email,
         line_items: [
           {
             quantity: stripeQuantity,
@@ -173,6 +181,7 @@ export async function POST(req: NextRequest) {
           quantity: String(ticketQty),
           tableId: tableDoc ? String(tableDoc._id) : '',
           tableQuantity: String(tableQty || ''),
+          email,
         },
       },
       stripeRequestOptions()
@@ -184,7 +193,7 @@ export async function POST(req: NextRequest) {
       tierName: selected.name,
       unitAmountCents: unitAmount,
       stripeSessionId: session.id,
-      email: session.customer_email || body.email || 'pending@checkout',
+      email,
       quantity: ticketQty,
       amountTotal: unitAmount * stripeQuantity,
       currency: selected.currency,

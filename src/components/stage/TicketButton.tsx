@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
-import { centsToMetaValue, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
+import { centsToMetaValue, identifyMetaUser, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
+import { normalizeCheckoutEmail } from '@/lib/email/address'
+
+const EMAIL_STORAGE_KEY = 'kf_checkout_email'
 
 type Props = {
   showId: string
@@ -58,6 +61,7 @@ export default function TicketButton({
 
   const [tierId, setTierId] = useState(purchasableTiers[0]?.id || '')
   const [quantity, setQuantity] = useState(1)
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -70,11 +74,30 @@ export default function TicketButton({
     setQuantity((q) => Math.min(Math.max(1, q), maxQty))
   }, [maxQty, tierId])
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(EMAIL_STORAGE_KEY)
+      if (saved) setEmail(saved)
+    } catch {
+      // ignore
+    }
+  }, [])
+
   async function checkout() {
     if (disabled || loading || !selected) return
+    const buyerEmail = normalizeCheckoutEmail(email)
+    if (!buyerEmail) {
+      setError('Enter your email so we can send your tickets.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
+      try {
+        localStorage.setItem(EMAIL_STORAGE_KEY, buyerEmail)
+      } catch {
+        // ignore
+      }
       const qty = Math.min(Math.max(1, quantity), maxQty)
       const res = await fetch('/api/checkout', {
         method: 'POST',
@@ -83,6 +106,7 @@ export default function TicketButton({
           showId,
           tierId: selected.legacy ? undefined : selected.id,
           quantity: qty,
+          email: buyerEmail,
         }),
       })
       const data = await res.json()
@@ -98,8 +122,9 @@ export default function TicketButton({
         currency: selected.currency,
         num_items: qty,
       }
+      identifyMetaUser(buyerEmail)
       trackMeta('InitiateCheckout', checkoutParams)
-      savePendingCheckout({ ...checkoutParams, showId })
+      savePendingCheckout({ ...checkoutParams, showId, email: buyerEmail })
 
       window.location.href = data.url
     } catch (err) {
@@ -137,7 +162,27 @@ export default function TicketButton({
   }
 
   return (
-    <div className={className}>
+    <form
+      className={className}
+      onSubmit={(e) => {
+        e.preventDefault()
+        void checkout()
+      }}
+    >
+      <label className="mb-2 block">
+        <span className="sr-only">Email</span>
+        <input
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={disabled || loading}
+          placeholder="Email for your tickets"
+          className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
+        />
+      </label>
       <div className="mb-2 grid gap-2 sm:grid-cols-[1fr_auto]">
         {publishedTiers.length > 1 ? (
           <select
@@ -183,8 +228,7 @@ export default function TicketButton({
         </label>
       </div>
       <button
-        type="button"
-        onClick={checkout}
+        type="submit"
         disabled={disabled || loading || !selected}
         className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90 disabled:cursor-not-allowed"
         style={{
@@ -203,6 +247,6 @@ export default function TicketButton({
           {error}
         </p>
       ) : null}
-    </div>
+    </form>
   )
 }

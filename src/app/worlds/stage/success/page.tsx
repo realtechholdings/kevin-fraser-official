@@ -78,6 +78,7 @@ export default async function StageSuccessPage({ searchParams }: Props) {
           showId={result.showId}
           quantity={result.quantity}
           contentName={result.contentName}
+          email={result.email}
         />
       ) : null}
       <div className="w-full max-w-md rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] px-8 py-12 text-center">

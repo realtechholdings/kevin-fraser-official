@@ -6,6 +6,7 @@ import Script from 'next/script'
 import {
   META_PIXEL_ID,
   clearPendingCheckout,
+  identifyMetaUser,
   isMetaPixelEnabled,
   readPendingCheckout,
   trackMeta,
@@ -36,6 +37,7 @@ function MetaPixelTracker() {
     // Stripe cancel_url lands here — treat as abandoned checkout.
     if (pathname === '/worlds/stage' && searchParams.get('cancelled') === '1') {
       const pending = readPendingCheckout()
+      identifyMetaUser(pending?.email)
       trackMetaCustom('AbandonCheckout', {
         content_ids: pending?.content_ids,
         content_name: pending?.content_name,
