@@ -32,6 +32,7 @@ import TiersAdminPanel from '@/components/admin/TiersAdminPanel'
 import CmsAdminPanel from '@/components/admin/CmsAdminPanel'
 import ScannerAdminPanel from '@/components/admin/ScannerAdminPanel'
 import SalesAdminPanel from '@/components/admin/SalesAdminPanel'
+import GuestListAdminPanel from '@/components/admin/GuestListAdminPanel'
 import TicketsAdminPanel from '@/components/admin/TicketsAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
@@ -1002,6 +1003,8 @@ export default function AdminPortal() {
                 }
             : tab === 'sales'
               ? { title: 'Sales', subtitle: 'Purchases, ticket counts, and Stripe payments' }
+              : tab === 'guestlist'
+                ? { title: 'Guest List', subtitle: 'Printable door lists by show' }
               : tab === 'cms'
               ? { title: 'CMS', subtitle: 'Ticket emails, broadcasts, templates, and signature' }
               : tab === 'scanner'
@@ -1035,7 +1038,7 @@ export default function AdminPortal() {
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
+            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
               <button
                 key={id}
                 type="button"
@@ -1059,6 +1062,8 @@ export default function AdminPortal() {
                         ? 'CMS'
                         : id === 'scanner'
                         ? 'Scanner'
+                        : id === 'guestlist'
+                        ? 'Guests'
                         : id === 'kevin11'
                         ? 'Kevin11'
                         : id === 'connect'
@@ -2429,6 +2434,19 @@ export default function AdminPortal() {
 
           {tab === 'sales' ? (
             <SalesAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'guestlist' ? (
+            <GuestListAdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

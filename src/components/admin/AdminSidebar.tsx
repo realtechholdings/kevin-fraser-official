@@ -4,6 +4,7 @@ import {
   BadgeDollarSign,
   Bot,
   CalendarDays,
+  ClipboardList,
   Clapperboard,
   Film,
   Layers,
@@ -26,6 +27,7 @@ export type AdminTab =
   | 'tiers'
   | 'tickets'
   | 'sales'
+  | 'guestlist'
   | 'cms'
   | 'scanner'
   | 'bonus'
@@ -44,7 +46,16 @@ const nav: NavEntry[] = [
   { type: 'item', item: { id: 'overview', name: 'Overview', icon: LayoutDashboard } },
   { type: 'item', item: { id: 'tours', name: 'Tours', icon: Ticket } },
   { type: 'item', item: { id: 'shows', name: 'Shows', icon: CalendarDays } },
-  { type: 'item', item: { id: 'sales', name: 'Sales', icon: BadgeDollarSign } },
+  {
+    type: 'group',
+    group: {
+      label: 'Sales',
+      items: [
+        { id: 'sales', name: 'Sales', icon: BadgeDollarSign },
+        { id: 'guestlist', name: 'Guest List', icon: ClipboardList },
+      ],
+    },
+  },
   { type: 'item', item: { id: 'cms', name: 'CMS', icon: Mail } },
   {
     type: 'group',
