@@ -27,7 +27,7 @@ export type SalesOrderLike = Pick<
   | 'tierName'
   | 'stripeSessionId'
   | 'tableQuantity'
-> & { _id: unknown; tableNames?: string[] }
+> & { _id: unknown; tableNames?: string[]; upgradedFrom?: unknown }
 
 /** Notify accounts@ of a successful ticket purchase. */
 export async function sendSalesOrderNotification(
@@ -46,9 +46,12 @@ export async function sendSalesOrderNotification(
   const from = salesFromAddress(host)
   const site = host || appUrl().replace(/^https?:\/\//, '')
 
-  const subject = `New ticket order — ${tourTitle || show.title} · ${show.city}`
+  const isUpgrade = Boolean(order.upgradedFrom)
+  const subject = isUpgrade
+    ? `Ticket upgrade — ${tourTitle || show.title} · ${show.city}`
+    : `New ticket order — ${tourTitle || show.title} · ${show.city}`
   const text = [
-    'A new ticket purchase was completed.',
+    isUpgrade ? 'A ticket upgrade was completed.' : 'A new ticket purchase was completed.',
     '',
     `Order: ${orderId}`,
     `Buyer: ${order.email}`,

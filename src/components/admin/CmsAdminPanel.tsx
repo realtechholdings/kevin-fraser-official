@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Mail, Send, Ticket, PenLine, FileText } from 'lucide-react'
+import { Mail, Send, Ticket, PenLine, FileText, ArrowUpRight, Sparkles } from 'lucide-react'
 import ImageCropField from '@/components/admin/ImageCropField'
 import type { IMAGE_CROP_PRESETS } from '@/lib/admin/imageCrop'
 
@@ -20,6 +20,12 @@ type Settings = {
   ticketEmailEnabled: boolean
   ticketEmailSubject: string
   ticketEmailBody: string
+  upgradeEmailEnabled: boolean
+  upgradeEmailSubject: string
+  upgradeEmailBody: string
+  upgradeOfferEmailEnabled: boolean
+  upgradeOfferEmailSubject: string
+  upgradeOfferEmailBody: string
   emailConfigured: boolean
   fromAddress: string
 }
@@ -79,10 +85,10 @@ type Template = {
   updatedAt: string
 }
 
-type Section = 'ticket' | 'compose' | 'templates' | 'signature'
+type Section = 'ticket' | 'upgrade' | 'upgrade-offer' | 'compose' | 'templates' | 'signature'
 
 const TICKET_PLACEHOLDERS =
-  '{{name}} {{email}} {{show}} {{tour}} {{city}} {{venue}} {{address}} {{date}} {{time}} {{doors}} {{tier}} {{table}} {{quantity}} {{total}} {{orderId}}'
+  '{{name}} {{email}} {{show}} {{tour}} {{city}} {{venue}} {{address}} {{date}} {{time}} {{doors}} {{tier}} {{table}} {{quantity}} {{total}} {{orderId}} {{upgradeUrl}} {{offers}} {{oldTier}} {{newTier}} {{upgradePrice}}'
 
 /** Append an [image: url] tag on its own line at the end of a body. */
 function appendImageTag(body: string, url: string) {
@@ -163,7 +169,7 @@ export default function CmsAdminPanel({
     }
   }
 
-  async function sendTest() {
+  async function sendTest(kind: 'ticket' | 'upgrade' | 'upgrade-offer' = 'ticket') {
     if (!testEmail.includes('@')) {
       onError('Enter a valid email for the test.')
       return
@@ -174,11 +180,13 @@ export default function CmsAdminPanel({
       const res = await fetch('/api/admin/cms/test-ticket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: testEmail }),
+        body: JSON.stringify({ email: testEmail, kind }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Test send failed')
-      onMessage(`Test ticket email sent to ${testEmail}.`)
+      const label =
+        kind === 'upgrade' ? 'upgrade' : kind === 'upgrade-offer' ? 'upgrade offer' : 'ticket'
+      onMessage(`Test ${label} email sent to ${testEmail}.`)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Test send failed')
     } finally {
@@ -247,6 +255,8 @@ export default function CmsAdminPanel({
 
   const sections: { id: Section; label: string; icon: typeof Mail }[] = [
     { id: 'ticket', label: 'Ticket email', icon: Ticket },
+    { id: 'upgrade', label: 'Upgrade email', icon: ArrowUpRight },
+    { id: 'upgrade-offer', label: 'Upgrade offer', icon: Sparkles },
     { id: 'compose', label: 'Compose', icon: Send },
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'signature', label: 'Signature', icon: PenLine },
@@ -268,7 +278,7 @@ export default function CmsAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">CMS</h2>
           <p className="mt-1 text-sm text-white/40">
-            Ticket confirmation emails, broadcasts, templates, and signature
+            Ticket confirmation, upgrades, broadcasts, and signature
           </p>
         </div>
       </div>
@@ -373,7 +383,190 @@ export default function CmsAdminPanel({
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
               />
-              <button type="button" disabled={busy} className={btnSecondary} onClick={sendTest}>
+              <button type="button" disabled={busy} className={btnSecondary} onClick={() => sendTest('ticket')}>
+                Send test
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {section === 'upgrade' && settings ? (
+        <section className="admin-card space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-white">Upgrade confirmation email</h3>
+            <label className="flex items-center gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={settings.upgradeEmailEnabled}
+                onChange={(e) =>
+                  setSettings({ ...settings, upgradeEmailEnabled: e.target.checked })
+                }
+              />
+              Enabled
+            </label>
+          </div>
+          <p className="text-xs text-white/40">
+            Sent when an upgrade completes, with the new PDF tickets attached. Old tickets are
+            void — say that clearly.
+          </p>
+          <div>
+            <label className={labelClass}>Subject</label>
+            <input
+              className={inputClass}
+              value={settings.upgradeEmailSubject}
+              onChange={(e) => setSettings({ ...settings, upgradeEmailSubject: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Body</label>
+            <textarea
+              className={`${inputClass} min-h-[180px]`}
+              value={settings.upgradeEmailBody}
+              onChange={(e) => setSettings({ ...settings, upgradeEmailBody: e.target.value })}
+            />
+            <p className="mt-1.5 text-xs text-white/35">Placeholders: {TICKET_PLACEHOLDERS}</p>
+            <div className="mt-2">
+              <InsertImageButton
+                disabled={busy}
+                onBusy={setBusy}
+                onError={onError}
+                onUploaded={(url) =>
+                  setSettings((s) =>
+                    s ? { ...s, upgradeEmailBody: appendImageTag(s.upgradeEmailBody, url) } : s,
+                  )
+                }
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              className={btnPrimary}
+              onClick={() =>
+                saveSettings(
+                  {
+                    upgradeEmailEnabled: settings.upgradeEmailEnabled,
+                    upgradeEmailSubject: settings.upgradeEmailSubject,
+                    upgradeEmailBody: settings.upgradeEmailBody,
+                  },
+                  'Upgrade email saved.',
+                )
+              }
+            >
+              Save upgrade email
+            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                className={inputClass}
+                style={{ width: '16rem' }}
+                placeholder="you@example.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+              <button
+                type="button"
+                disabled={busy}
+                className={btnSecondary}
+                onClick={() => sendTest('upgrade')}
+              >
+                Send test
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {section === 'upgrade-offer' && settings ? (
+        <section className="admin-card space-y-4 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold text-white">Post-purchase upgrade offer</h3>
+            <label className="flex items-center gap-2 text-sm text-white/70">
+              <input
+                type="checkbox"
+                checked={settings.upgradeOfferEmailEnabled}
+                onChange={(e) =>
+                  setSettings({ ...settings, upgradeOfferEmailEnabled: e.target.checked })
+                }
+              />
+              Enabled
+            </label>
+          </div>
+          <p className="text-xs text-white/40">
+            Optional extra email after checkout when this show has upgrade paths turned on.
+            Off by default — the ticket email can already include {'{{upgradeUrl}}'}.
+          </p>
+          <div>
+            <label className={labelClass}>Subject</label>
+            <input
+              className={inputClass}
+              value={settings.upgradeOfferEmailSubject}
+              onChange={(e) =>
+                setSettings({ ...settings, upgradeOfferEmailSubject: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Body</label>
+            <textarea
+              className={`${inputClass} min-h-[180px]`}
+              value={settings.upgradeOfferEmailBody}
+              onChange={(e) =>
+                setSettings({ ...settings, upgradeOfferEmailBody: e.target.value })
+              }
+            />
+            <p className="mt-1.5 text-xs text-white/35">Placeholders: {TICKET_PLACEHOLDERS}</p>
+            <div className="mt-2">
+              <InsertImageButton
+                disabled={busy}
+                onBusy={setBusy}
+                onError={onError}
+                onUploaded={(url) =>
+                  setSettings((s) =>
+                    s
+                      ? {
+                          ...s,
+                          upgradeOfferEmailBody: appendImageTag(s.upgradeOfferEmailBody, url),
+                        }
+                      : s,
+                  )
+                }
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              className={btnPrimary}
+              onClick={() =>
+                saveSettings(
+                  {
+                    upgradeOfferEmailEnabled: settings.upgradeOfferEmailEnabled,
+                    upgradeOfferEmailSubject: settings.upgradeOfferEmailSubject,
+                    upgradeOfferEmailBody: settings.upgradeOfferEmailBody,
+                  },
+                  'Upgrade offer email saved.',
+                )
+              }
+            >
+              Save offer email
+            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                className={inputClass}
+                style={{ width: '16rem' }}
+                placeholder="you@example.com"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+              />
+              <button
+                type="button"
+                disabled={busy}
+                className={btnSecondary}
+                onClick={() => sendTest('upgrade-offer')}
+              >
                 Send test
               </button>
             </div>

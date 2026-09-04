@@ -99,6 +99,14 @@ export async function GET(req: NextRequest) {
           stripeUrl: order.stripePaymentIntentId
             ? `${base}/payments/${order.stripePaymentIntentId}`
             : '',
+          upgradedFrom: order.upgradedFrom ? String(order.upgradedFrom) : null,
+          supersededBy: order.supersededBy ? String(order.supersededBy) : null,
+          canUpgrade:
+            order.status === 'paid' &&
+            !(order.tableQuantity || 0) &&
+            !order.table &&
+            !(order.checkedIn || []).length &&
+            !order.supersededBy,
           show: show
             ? {
                 id: String(show._id),
@@ -135,6 +143,7 @@ export async function GET(req: NextRequest) {
           tiers: tiers.map((t) => ({
             id: t.id,
             name: t.name,
+            slug: t.slug,
             kind: t.kind || 'ticket',
             seats: t.seats || 1,
             capacity: t.capacity || 0,

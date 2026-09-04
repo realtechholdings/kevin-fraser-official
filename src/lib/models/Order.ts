@@ -16,7 +16,7 @@ const OrderSchema = new Schema(
     currency: { type: String, required: true, uppercase: true },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'refunded', 'cancelled'],
+      enum: ['pending', 'paid', 'refunded', 'cancelled', 'upgraded'],
       default: 'pending',
     },
     /** How the order was created — stripe checkout vs admin manual issue. */
@@ -40,6 +40,12 @@ const OrderSchema = new Schema(
     tableSeats: { type: Number, default: 0, min: 0 },
     /** Assigned names, one per table, e.g. ["Table 3", "Table 4"]. */
     tableNames: { type: [String], default: [] },
+    /** Original order this paid upgrade replaced (null for a first purchase). */
+    upgradedFrom: { type: Schema.Types.ObjectId, ref: 'Order', default: null, index: true },
+    /** New order that replaced this one after an upgrade (old QR is then void). */
+    supersededBy: { type: Schema.Types.ObjectId, ref: 'Order', default: null },
+    /** Set once the post-purchase upgrade-offer email has been sent */
+    upgradeOfferEmailSentAt: { type: Date, default: null },
     /** Door check-ins: one entry per scanned ticket number (1-based) */
     checkedIn: {
       type: [

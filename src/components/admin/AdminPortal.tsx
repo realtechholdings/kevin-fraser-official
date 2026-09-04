@@ -125,6 +125,7 @@ type ShowForm = {
   description: string
   tierConfigs: TierConfigForm[]
   tableConfigs: TableConfigForm[]
+  upgradeOffers: { fromSlug: string; toSlug: string; enabled: boolean; discountCents: string }[]
 }
 
 const emptyTour: TourForm = {
@@ -176,6 +177,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   description: '',
   tierConfigs: [],
   tableConfigs: [],
+  upgradeOffers: [],
 })
 
 const IMAGE_FOCUS_POSITIONS = [
@@ -254,6 +256,37 @@ function buildTierConfigsFrom(
       offered: o ? o.offered !== false : true,
     }
   })
+}
+
+function upgradePathOptions(configs: TierConfigForm[]) {
+  const offered = configs.filter((c) => c.offered && c.published)
+  const unit = (c: TierConfigForm) =>
+    Number(c.overridePrice ? c.priceCents : c.tourPriceCents) || 0
+  const currencyOf = (c: TierConfigForm) => (c.overridePrice ? c.currency : c.tourCurrency)
+  const rows: {
+    fromSlug: string
+    toSlug: string
+    fromName: string
+    toName: string
+    currency: string
+    delta: number
+  }[] = []
+  for (const from of offered) {
+    for (const to of offered) {
+      if (from.slug === to.slug) continue
+      if (currencyOf(from) !== currencyOf(to)) continue
+      if (unit(to) <= unit(from)) continue
+      rows.push({
+        fromSlug: from.slug,
+        toSlug: to.slug,
+        fromName: from.name,
+        toName: to.name,
+        currency: currencyOf(from),
+        delta: unit(to) - unit(from),
+      })
+    }
+  }
+  return rows
 }
 
 /** Keep in-progress allocation edits when a new tour class appears. */
@@ -692,6 +725,14 @@ export default function AdminPortal() {
           soldOut: c.soldOut,
           description: c.description || '',
         })),
+        upgradeOffers: (showForm.upgradeOffers || [])
+          .filter((o) => o.enabled)
+          .map((o) => ({
+            fromSlug: o.fromSlug,
+            toSlug: o.toSlug,
+            enabled: true,
+            discountCents: Math.max(0, Number(o.discountCents) || 0),
+          })),
       }
       const res = await fetch(
         editingShowId ? `/api/admin/shows/${editingShowId}` : '/api/admin/shows',
@@ -772,6 +813,12 @@ export default function AdminPortal() {
       description: show.description || '',
       tierConfigs: buildTierConfigsFrom(latest, show.tour.id, show.id),
       tableConfigs: tableConfigsFrom(tables, show.id),
+      upgradeOffers: (show.upgradeOffers || []).map((o) => ({
+        fromSlug: o.fromSlug,
+        toSlug: o.toSlug,
+        enabled: o.enabled !== false,
+        discountCents: String(o.discountCents || 0),
+      })),
     })
     setTab('shows')
     setShowFormPanel(true)
@@ -1006,7 +1053,7 @@ export default function AdminPortal() {
               : tab === 'guestlist'
                 ? { title: 'Guest List', subtitle: 'Printable door lists by show' }
               : tab === 'cms'
-              ? { title: 'CMS', subtitle: 'Ticket emails, broadcasts, templates, and signature' }
+              ? { title: 'CMS', subtitle: 'Ticket emails, upgrades, broadcasts, and signature' }
               : tab === 'scanner'
               ? { title: 'Ticket Scanner', subtitle: 'Verify ticket QR codes and check guests in' }
               : tab === 'bonus'
@@ -1714,6 +1761,116 @@ export default function AdminPortal() {
                           </div>
                         </>
                       )}
+                      {showForm.tierConfigs.length > 1 ? (
+                        <div className="md:col-span-2">
+                          <label className={labelClass}>Upgrade offers</label>
+                          <p className="mb-3 text-xs text-white/35">
+                            Buyer upsell after purchase (success page + ticket email link).
+                            Admin can still upgrade any paid class order from Sales even if a
+                            path is off. Tables cannot be upgraded.
+                          </p>
+                          {upgradePathOptions(showForm.tierConfigs).length ? (
+                            <div className="space-y-2">
+                              {upgradePathOptions(showForm.tierConfigs).map((path) => {
+                                const saved = (showForm.upgradeOffers || []).find(
+                                  (o) =>
+                                    o.fromSlug === path.fromSlug && o.toSlug === path.toSlug,
+                                )
+                                const enabled = Boolean(saved?.enabled)
+                                const discount = saved?.discountCents || '0'
+                                const charge = Math.max(
+                                  0,
+                                  path.delta - (Number(discount) || 0),
+                                )
+                                return (
+                                  <div
+                                    key={`${path.fromSlug}-${path.toSlug}`}
+                                    className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                                  >
+                                    <label className="flex min-w-[12rem] flex-1 items-center gap-2 text-sm text-white/80">
+                                      <input
+                                        type="checkbox"
+                                        checked={enabled}
+                                        onChange={(e) => {
+                                          const nextEnabled = e.target.checked
+                                          setShowForm((prev) => {
+                                            const rest = (prev.upgradeOffers || []).filter(
+                                              (o) =>
+                                                !(
+                                                  o.fromSlug === path.fromSlug &&
+                                                  o.toSlug === path.toSlug
+                                                ),
+                                            )
+                                            return {
+                                              ...prev,
+                                              upgradeOffers: [
+                                                ...rest,
+                                                {
+                                                  fromSlug: path.fromSlug,
+                                                  toSlug: path.toSlug,
+                                                  enabled: nextEnabled,
+                                                  discountCents: discount,
+                                                },
+                                              ],
+                                            }
+                                          })
+                                        }}
+                                      />
+                                      {path.fromName} → {path.toName}
+                                    </label>
+                                    <p className="text-xs text-white/40">
+                                      Diff {formatPrice(path.delta, path.currency)}
+                                      {enabled
+                                        ? ` · buyer pays ${formatPrice(charge, path.currency)}`
+                                        : ''}
+                                    </p>
+                                    {enabled ? (
+                                      <div className="w-32">
+                                        <label className={labelClass}>Discount (cents)</label>
+                                        <input
+                                          className={inputClass}
+                                          type="number"
+                                          min="0"
+                                          value={discount}
+                                          onChange={(e) => {
+                                            const discountCents = e.target.value
+                                            setShowForm((prev) => {
+                                              const rest = (prev.upgradeOffers || []).filter(
+                                                (o) =>
+                                                  !(
+                                                    o.fromSlug === path.fromSlug &&
+                                                    o.toSlug === path.toSlug
+                                                  ),
+                                              )
+                                              return {
+                                                ...prev,
+                                                upgradeOffers: [
+                                                  ...rest,
+                                                  {
+                                                    fromSlug: path.fromSlug,
+                                                    toSlug: path.toSlug,
+                                                    enabled: true,
+                                                    discountCents,
+                                                  },
+                                                ],
+                                              }
+                                            })
+                                          }}
+                                        />
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-white/40">
+                              Offer at least two classes at this show, with a higher price, to
+                              create an upgrade path.
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
                       {showForm.tourId ? (
                         <div className="md:col-span-2">
                           <div className="mb-3 flex items-center justify-between gap-3">

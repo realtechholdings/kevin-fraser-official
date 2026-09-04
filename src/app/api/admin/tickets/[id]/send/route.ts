@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
-import { sendTicketEmail } from '@/lib/email/ticket'
+import { sendTicketEmail, sendUpgradeEmail } from '@/lib/email/ticket'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 
 type Params = { params: Promise<{ id: string }> }
@@ -68,25 +68,48 @@ export async function POST(req: NextRequest, { params }: Params) {
     order.confirmationEmailSentAt = null
     await order.save()
 
-    const result = await sendTicketEmail(
-      {
-        _id: order._id,
-        email: to,
-        holderName: order.holderName,
-        quantity: order.quantity,
-        amountTotal: order.amountTotal,
-        currency: order.currency,
-        tierName: order.tierName,
-        tier: order.tier,
-        tableNames: order.tableNames || [],
-        tableSeats: order.tableSeats || 0,
-      },
-      show,
-    )
+    const result = order.upgradedFrom
+      ? await sendUpgradeEmail(
+          {
+            _id: order._id,
+            email: to,
+            holderName: order.holderName,
+            quantity: order.quantity,
+            amountTotal: order.amountTotal,
+            currency: order.currency,
+            tierName: order.tierName,
+            tier: order.tier,
+            tableNames: order.tableNames || [],
+            tableSeats: order.tableSeats || 0,
+          },
+          show,
+          {
+            oldTier:
+              (await Order.findById(order.upgradedFrom))?.tierName || 'previous class',
+            newTier: order.tierName || 'General Admission',
+          },
+        )
+      : await sendTicketEmail(
+          {
+            _id: order._id,
+            email: to,
+            holderName: order.holderName,
+            quantity: order.quantity,
+            amountTotal: order.amountTotal,
+            currency: order.currency,
+            tierName: order.tierName,
+            tier: order.tier,
+            tableNames: order.tableNames || [],
+            tableSeats: order.tableSeats || 0,
+          },
+          show,
+        )
 
     if (result.skipped) {
       return NextResponse.json(
-        { success: false, error: 'Ticket email is disabled — enable it in CMS first.' },
+        { success: false, error: order.upgradedFrom
+          ? 'Upgrade email is disabled — enable it in CMS first.'
+          : 'Ticket email is disabled — enable it in CMS first.' },
         { status: 400 },
       )
     }

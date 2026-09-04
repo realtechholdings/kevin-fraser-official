@@ -8,6 +8,7 @@ import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
 
 export async function GET() {
@@ -87,6 +88,7 @@ export async function POST(req: NextRequest) {
       venueImage: String(body.venueImage || ''),
       venueImageKey: String(body.venueImageKey || ''),
       description: String(body.description || '').trim(),
+      upgradeOffers: parseUpgradeOfferRows(body.upgradeOffers) || [],
     })
 
     let dirty = false

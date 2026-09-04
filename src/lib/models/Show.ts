@@ -50,6 +50,25 @@ const ShowSchema = new Schema(
     venueImageKey: { type: String, default: '' },
     /** Optional blurb for the show detail page */
     description: { type: String, default: '', trim: true },
+    /**
+     * Buyer-facing upgrade paths (class → higher class). Admin can still
+     * upgrade any paid class order; these rows power the public upsell.
+     */
+    upgradeOffers: {
+      type: [
+        new Schema(
+          {
+            fromSlug: { type: String, required: true, trim: true, lowercase: true },
+            toSlug: { type: String, required: true, trim: true, lowercase: true },
+            enabled: { type: Boolean, default: true },
+            /** Cents off the per-ticket price difference. */
+            discountCents: { type: Number, default: 0, min: 0 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 )

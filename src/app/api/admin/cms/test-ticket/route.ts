@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
 import Show from '@/lib/models/Show'
-// Registers the Tour schema for .populate('tour')
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
-import { sendTicketEmail } from '@/lib/email/ticket'
+import { sendTicketEmail, sendUpgradeEmail, sendUpgradeOfferEmail } from '@/lib/email/ticket'
 
-/** Send a sample ticket email (with PDF) so the admin can preview the template. */
+/** Send a sample ticket / upgrade email so the admin can preview the template. */
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin()
   if (!admin.ok) {
@@ -17,6 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const email = String(body.email || '').trim().toLowerCase()
+    const kind = String(body.kind || 'ticket')
     if (!email.includes('@')) {
       return NextResponse.json({ success: false, error: 'A valid email is required.' }, { status: 400 })
     }
@@ -35,24 +35,43 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const tiers = await resolveTiersForShow(show)
-    const tier = tiers[0]
+    const tiers = (await resolveTiersForShow(show)).filter((t) => t.kind !== 'table')
+    const from = tiers[0]
+    const to = tiers[1] || tiers[0]
+    const fakeOrder = {
+      _id: 'TEST-PREVIEW',
+      email,
+      quantity: 2,
+      amountTotal: (to?.priceCents || show.priceCents) * 2,
+      currency: to?.currency || show.currency,
+      tierName: to?.name || 'General Admission',
+    }
 
-    const result = await sendTicketEmail(
-      {
-        _id: 'TEST-PREVIEW',
-        email,
-        quantity: 2,
-        amountTotal: (tier?.priceCents || show.priceCents) * 2,
-        currency: tier?.currency || show.currency,
-        tierName: tier?.name || 'General Admission',
-      },
-      show,
-    )
+    const result =
+      kind === 'upgrade'
+        ? await sendUpgradeEmail(
+            fakeOrder,
+            show,
+            {
+              oldTier: from?.name || 'General Admission',
+              newTier: to?.name || 'Polaroids',
+            },
+          )
+        : kind === 'upgrade-offer'
+          ? await sendUpgradeOfferEmail(fakeOrder, show, {
+              preview: {
+                oldTier: from?.name || 'General Admission',
+                newTier: to?.name || 'Polaroids',
+                upgradePrice: 'R200',
+                upgradeUrl: 'https://kevinfraserofficial.com/worlds/stage/upgrade',
+                offers: `• ${to?.name || 'Polaroids'} — preview price more`,
+              },
+            })
+          : await sendTicketEmail(fakeOrder, show)
 
     if (result.skipped) {
       return NextResponse.json(
-        { success: false, error: 'Ticket email is disabled — enable it first.' },
+        { success: false, error: 'That email is disabled — enable it first.' },
         { status: 400 },
       )
     }

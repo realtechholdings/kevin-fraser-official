@@ -7,6 +7,7 @@ import { normalizeCurrency } from '@/lib/currencies'
 import { applyShowTierConfigs } from '@/lib/tickets/applyTierConfigs'
 import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -79,6 +80,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.venueImage !== undefined) show.venueImage = String(body.venueImage)
     if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)
     if (body.description !== undefined) show.description = String(body.description || '').trim()
+    if (body.upgradeOffers !== undefined) {
+      const parsed = parseUpgradeOfferRows(body.upgradeOffers)
+      if (parsed) show.set('upgradeOffers', parsed)
+    }
 
     await show.save()
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
+  ArrowUpRight,
   BadgeCheck,
   Banknote,
   Download,
@@ -53,6 +54,9 @@ type AdminOrder = {
   source?: string
   holderName?: string
   confirmationEmailSentAt?: string | null
+  upgradedFrom?: string | null
+  supersededBy?: string | null
+  canUpgrade?: boolean
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
 }
 
@@ -116,6 +120,7 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'text-amber-400 bg-amber-400/10',
   refunded: 'text-sky-400 bg-sky-400/10',
   cancelled: 'text-white/30 bg-white/5',
+  upgraded: 'text-violet-300 bg-violet-400/10',
 }
 
 const SHOW_STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -274,7 +279,13 @@ export default function SalesAdminPanel({
   const [customTo, setCustomTo] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sendEmail, setSendEmail] = useState('')
-  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | null>(null)
+  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | 'upgrade' | null>(null)
+  const [upgradeTo, setUpgradeTo] = useState('')
+  const [upgradeTargets, setUpgradeTargets] = useState<
+    { slug: string; name: string; chargeCents: number; currency: string }[]
+  >([])
+  const [upgradeBlocked, setUpgradeBlocked] = useState<string | null>(null)
+  const [checkoutUrl, setCheckoutUrl] = useState('')
 
   const range = useMemo(
     () => timelineRange(timeline, customFrom, customTo),
@@ -347,6 +358,31 @@ export default function SalesAdminPanel({
   useEffect(() => {
     if (selected) setSendEmail(selected.email === 'pending@checkout' ? '' : selected.email)
   }, [selected])
+
+  useEffect(() => {
+    setUpgradeTo('')
+    setUpgradeTargets([])
+    setUpgradeBlocked(null)
+    setCheckoutUrl('')
+    if (!selected?.canUpgrade) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch(`/api/admin/orders/${selected.id}/upgrade`)
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to load upgrades')
+        if (cancelled) return
+        setUpgradeBlocked(data.blocked || null)
+        setUpgradeTargets(data.targets || [])
+        if (data.targets?.[0]?.slug) setUpgradeTo(data.targets[0].slug)
+      } catch {
+        if (!cancelled) setUpgradeBlocked('Could not load upgrade options.')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selected?.id, selected?.canUpgrade])
 
   const stats = useMemo(() => {
     const paid = filtered.filter((o) => o.status === 'paid')
@@ -434,13 +470,40 @@ export default function SalesAdminPanel({
     }
   }
 
+  async function runUpgrade(comp: boolean) {
+    if (!selected || busyAction || !upgradeTo) return
+    setBusyAction('upgrade')
+    setCheckoutUrl('')
+    try {
+      const res = await fetch(`/api/admin/orders/${selected.id}/upgrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toSlug: upgradeTo, comp }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upgrade failed')
+      if (data.completed) {
+        onMessage('Tickets upgraded. New PDFs were emailed.')
+        await load()
+        if (data.orderId) setSelectedId(data.orderId)
+      } else if (data.url) {
+        setCheckoutUrl(data.url)
+        onMessage('Checkout link ready — send it to the buyer to pay the difference.')
+      }
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Upgrade failed')
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Sales</h2>
           <p className="mt-1 text-sm text-white/40">
-            Filter by timeline and show, then open an order to send or resend tickets
+            Filter by timeline and show, then open an order to send tickets or upgrade
           </p>
         </div>
         <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
@@ -497,7 +560,7 @@ export default function SalesAdminPanel({
         <div>
           <label className={labelClass}>Status</label>
           <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {['all', 'paid', 'pending', 'refunded', 'cancelled'].map((s) => (
+            {['all', 'paid', 'pending', 'upgraded', 'refunded', 'cancelled'].map((s) => (
               <option key={s} value={s} className="bg-[#141420]">
                 {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
               </option>
@@ -672,6 +735,93 @@ export default function SalesAdminPanel({
               Tickets can be emailed once this order is paid.
             </p>
           )}
+          {selected.upgradedFrom ? (
+            <p className="mt-4 text-sm text-white/50">
+              Upgraded from{' '}
+              <button
+                type="button"
+                className="font-mono text-violet-300 hover:text-violet-200"
+                onClick={() => setSelectedId(selected.upgradedFrom || null)}
+              >
+                {selected.upgradedFrom}
+              </button>
+            </p>
+          ) : null}
+          {selected.supersededBy ? (
+            <p className="mt-4 text-sm text-white/50">
+              Replaced by{' '}
+              <button
+                type="button"
+                className="font-mono text-violet-300 hover:text-violet-200"
+                onClick={() => setSelectedId(selected.supersededBy || null)}
+              >
+                {selected.supersededBy}
+              </button>
+              . Old tickets will not scan.
+            </p>
+          ) : null}
+          {selected.canUpgrade ? (
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <p className="text-sm font-medium text-white">Upgrade tickets</p>
+              <p className="mt-1 text-xs text-white/40">
+                Replaces this order. Old PDFs stop scanning; inventory moves to the new class.
+              </p>
+              {upgradeTargets.length ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+                  <div>
+                    <label className={labelClass}>New class</label>
+                    <select
+                      className={inputClass}
+                      value={upgradeTo}
+                      onChange={(e) => setUpgradeTo(e.target.value)}
+                    >
+                      {upgradeTargets.map((t) => (
+                        <option key={t.slug} value={t.slug} className="bg-[#141420]">
+                          {t.name} — {formatPrice(t.chargeCents, t.currency)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    className={btnPrimary}
+                    disabled={busyAction !== null || !upgradeTo}
+                    onClick={() => void runUpgrade(false)}
+                  >
+                    <ArrowUpRight className="mr-1.5 inline h-4 w-4" />
+                    {busyAction === 'upgrade' ? 'Working…' : 'Charge difference'}
+                  </button>
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    disabled={busyAction !== null || !upgradeTo}
+                    onClick={() => void runUpgrade(true)}
+                  >
+                    Comp upgrade
+                  </button>
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-white/40">
+                  {upgradeBlocked
+                    ? 'This order cannot be upgraded.'
+                    : 'No higher class has remaining allocation.'}
+                </p>
+              )}
+              {checkoutUrl ? (
+                <p className="mt-3 break-all text-xs text-white/50">
+                  Buyer checkout:{' '}
+                  <a
+                    href={checkoutUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-300 hover:text-violet-200"
+                  >
+                    {checkoutUrl}
+                  </a>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

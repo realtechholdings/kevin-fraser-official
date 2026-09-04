@@ -39,6 +39,18 @@ export async function applyPaidInventory(order: InventoryOrder): Promise<void> {
   await maybeMarkShowSoldOut(String(order.show))
 }
 
+/** Put class seats back (upgrade / void). Does not change show.ticketsSold. */
+export async function releaseClassInventory(
+  order: Pick<OrderDocument, 'tier' | 'quantity'>,
+): Promise<void> {
+  if (!order.tier) return
+  const qty = Math.abs(Number(order.quantity) || 0)
+  if (!qty) return
+  await TicketTier.findByIdAndUpdate(order.tier, {
+    $inc: { ticketsSold: -qty },
+  })
+}
+
 /**
  * Mark a pending order paid and increment inventory.
  * Safe to call more than once — only acts when status flips to paid.
@@ -48,6 +60,10 @@ export async function fulfillPaidOrder(
   session: import('stripe').Stripe.Checkout.Session,
 ): Promise<boolean> {
   if (order.status === 'paid') return false
+  if (order.upgradedFrom) {
+    const { fulfillUpgradeOrder } = await import('@/lib/tickets/upgrades')
+    return fulfillUpgradeOrder(order, session)
+  }
 
   order.status = 'paid'
   order.source = order.source || 'stripe'

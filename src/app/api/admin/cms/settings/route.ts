@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
-import { getEmailSettings } from '@/lib/models/EmailSettings'
+import {
+  DEFAULT_TICKET_BODY,
+  DEFAULT_TICKET_SUBJECT,
+  DEFAULT_UPGRADE_BODY,
+  DEFAULT_UPGRADE_OFFER_BODY,
+  DEFAULT_UPGRADE_OFFER_SUBJECT,
+  DEFAULT_UPGRADE_SUBJECT,
+  getEmailSettings,
+} from '@/lib/models/EmailSettings'
 import { emailConfigured, fromAddress } from '@/lib/email/resend'
 
 function serializeSettings(settings: Awaited<ReturnType<typeof getEmailSettings>>) {
@@ -10,9 +18,15 @@ function serializeSettings(settings: Awaited<ReturnType<typeof getEmailSettings>
     signatureTagline: settings.signatureTagline,
     signatureLinkUrl: settings.signatureLinkUrl,
     signatureImageUrl: settings.signatureImageUrl,
-    ticketEmailEnabled: settings.ticketEmailEnabled,
-    ticketEmailSubject: settings.ticketEmailSubject,
-    ticketEmailBody: settings.ticketEmailBody,
+    ticketEmailEnabled: settings.ticketEmailEnabled !== false,
+    ticketEmailSubject: settings.ticketEmailSubject || DEFAULT_TICKET_SUBJECT,
+    ticketEmailBody: settings.ticketEmailBody || DEFAULT_TICKET_BODY,
+    upgradeEmailEnabled: settings.upgradeEmailEnabled !== false,
+    upgradeEmailSubject: settings.upgradeEmailSubject || DEFAULT_UPGRADE_SUBJECT,
+    upgradeEmailBody: settings.upgradeEmailBody || DEFAULT_UPGRADE_BODY,
+    upgradeOfferEmailEnabled: Boolean(settings.upgradeOfferEmailEnabled),
+    upgradeOfferEmailSubject: settings.upgradeOfferEmailSubject || DEFAULT_UPGRADE_OFFER_SUBJECT,
+    upgradeOfferEmailBody: settings.upgradeOfferEmailBody || DEFAULT_UPGRADE_OFFER_BODY,
     emailConfigured: emailConfigured(),
     fromAddress: fromAddress(),
   }
@@ -63,6 +77,24 @@ export async function POST(req: NextRequest) {
     }
     if (body.ticketEmailBody !== undefined) {
       settings.ticketEmailBody = String(body.ticketEmailBody)
+    }
+    if (body.upgradeEmailEnabled !== undefined) {
+      settings.upgradeEmailEnabled = Boolean(body.upgradeEmailEnabled)
+    }
+    if (body.upgradeEmailSubject !== undefined) {
+      settings.upgradeEmailSubject = String(body.upgradeEmailSubject)
+    }
+    if (body.upgradeEmailBody !== undefined) {
+      settings.upgradeEmailBody = String(body.upgradeEmailBody)
+    }
+    if (body.upgradeOfferEmailEnabled !== undefined) {
+      settings.upgradeOfferEmailEnabled = Boolean(body.upgradeOfferEmailEnabled)
+    }
+    if (body.upgradeOfferEmailSubject !== undefined) {
+      settings.upgradeOfferEmailSubject = String(body.upgradeOfferEmailSubject)
+    }
+    if (body.upgradeOfferEmailBody !== undefined) {
+      settings.upgradeOfferEmailBody = String(body.upgradeOfferEmailBody)
     }
 
     await settings.save()

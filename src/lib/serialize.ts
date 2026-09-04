@@ -87,6 +87,12 @@ export type PublicShow = {
   venueImage: string
   venueImageKey: string
   description: string
+  upgradeOffers?: {
+    fromSlug: string
+    toSlug: string
+    enabled: boolean
+    discountCents: number
+  }[]
   tiers?: PublicTicketTier[]
 }
 
@@ -235,6 +241,12 @@ export function serializeShow(
       show.venueImage ||
       (show.venueImageKey ? `/api/shows/${String(show._id)}/venue` : ''),
     description: show.description || '',
+    upgradeOffers: (show.upgradeOffers || []).map((o) => ({
+      fromSlug: o.fromSlug,
+      toSlug: o.toSlug,
+      enabled: o.enabled !== false,
+      discountCents: Math.max(0, Number(o.discountCents) || 0),
+    })),
     tiers: serializedTiers,
   }
 }

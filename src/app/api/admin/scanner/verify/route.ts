@@ -14,6 +14,7 @@ export type ScanVerdict =
   | 'valid'
   | 'already_used'
   | 'not_paid'
+  | 'upgraded'
   | 'not_found'
   | 'invalid_ticket'
   | 'wrong_show'
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
     if (order.status !== 'paid') {
       return NextResponse.json({
         success: true,
-        verdict: 'not_paid' as ScanVerdict,
+        verdict: (order.status === 'upgraded' ? 'upgraded' : 'not_paid') as ScanVerdict,
         scan: serializeScan(order, ticket),
       })
     }
