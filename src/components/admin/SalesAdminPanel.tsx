@@ -272,6 +272,9 @@ export default function SalesAdminPanel({
   const [shows, setShows] = useState<SalesShow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [truncated, setTruncated] = useState(false)
+  const [searched, setSearched] = useState(false)
   const [status, setStatus] = useState('all')
   const [showFilter, setShowFilter] = useState('all')
   const [timeline, setTimeline] = useState<TimelineId>('all')
@@ -292,18 +295,29 @@ export default function SalesAdminPanel({
     [timeline, customFrom, customTo],
   )
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => window.clearTimeout(t)
+  }, [search])
+
   async function load() {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (showFilter !== 'all') params.set('showId', showFilter)
-      if (range.from) params.set('from', range.from.toISOString())
-      if (range.to) params.set('to', range.to.toISOString())
+      if (debouncedSearch.length >= 2) {
+        params.set('q', debouncedSearch)
+      } else {
+        if (range.from) params.set('from', range.from.toISOString())
+        if (range.to) params.set('to', range.to.toISOString())
+      }
       const qs = params.toString()
       const res = await fetch(`/api/admin/orders${qs ? `?${qs}` : ''}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load orders')
       setOrders(data.orders || [])
+      setTruncated(Boolean(data.truncated))
+      setSearched(Boolean(data.searched))
       if (Array.isArray(data.shows)) setShows(data.shows)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load orders')
@@ -315,7 +329,7 @@ export default function SalesAdminPanel({
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFilter, range.from?.getTime(), range.to?.getTime()])
+  }, [showFilter, range.from?.getTime(), range.to?.getTime(), debouncedSearch])
 
   const showOptions = useMemo(() => sortShows(shows), [shows])
   const selectedShow = useMemo(
@@ -334,10 +348,11 @@ export default function SalesAdminPanel({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
+    const serverDidSearch = searched && debouncedSearch.length >= 2
     return orders.filter((o) => {
       if (status !== 'all' && o.status !== status) return false
+      if (serverDidSearch || !q) return true
       if (
-        q &&
         !o.email.toLowerCase().includes(q) &&
         !o.id.toLowerCase().includes(q) &&
         !(o.holderName || '').toLowerCase().includes(q) &&
@@ -348,7 +363,7 @@ export default function SalesAdminPanel({
       }
       return true
     })
-  }, [orders, search, status])
+  }, [orders, search, status, searched, debouncedSearch])
 
   const selected = useMemo(
     () => (selectedId ? orders.find((o) => o.id === selectedId) || null : null),
@@ -575,11 +590,21 @@ export default function SalesAdminPanel({
               className={`${inputClass} pl-9`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Email, name, order ID, or table"
+              placeholder="Email, name, or order ID"
             />
           </div>
+          <p className="mt-1.5 text-xs text-white/35">
+            Looks up every sale, not just this list. Names match emails like jane.doe@…
+          </p>
         </div>
       </div>
+
+      {truncated && !searched ? (
+        <p className="text-xs text-amber-300/80">
+          Showing the {orders.length} most recent orders. Search by email, name, or order ID to
+          find anyone else.
+        </p>
+      ) : null}
 
       {timeline === 'custom' ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -850,7 +875,11 @@ export default function SalesAdminPanel({
             ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-sm text-white/40">
-                  {orders.length === 0 ? 'No orders in this view.' : 'No orders match the filters.'}
+                  {orders.length === 0
+                    ? searched
+                      ? 'No orders match that search.'
+                      : 'No orders in this view.'
+                    : 'No orders match the filters.'}
                 </td>
               </tr>
             ) : (

@@ -13,6 +13,44 @@ import { isTierSoldOut } from '@/lib/tickets/soldOut'
 
 const MAX_ORDERS_DEFAULT = 500
 const MAX_ORDERS_FILTERED = 2000
+const MAX_ORDERS_SEARCH = 100
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Mongo filter so resend search can find older sales, names in emails, and Stripe ids. */
+function orderSearchClause(raw: string): Record<string, unknown> | null {
+  const q = raw.trim()
+  if (q.length < 2) return null
+
+  const or: Record<string, unknown>[] = []
+  const rx = new RegExp(escapeRegex(q), 'i')
+  or.push({ email: rx }, { holderName: rx }, { stripeSessionId: rx }, { stripePaymentIntentId: rx }, { tableNames: rx })
+
+  if (/^[a-f0-9]{24}$/i.test(q)) {
+    or.push({ _id: q })
+  } else if (/^[a-f0-9]{6,23}$/i.test(q)) {
+    or.push({
+      $expr: {
+        $regexMatch: {
+          input: { $toString: '$_id' },
+          regex: escapeRegex(q),
+          options: 'i',
+        },
+      },
+    })
+  }
+
+  const tokens = q.toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length >= 2) {
+    const collapsed = tokens.map(escapeRegex).join('[._+\\s-]*')
+    or.push({ email: { $regex: collapsed, $options: 'i' } })
+    or.push({ holderName: { $regex: tokens.map((t) => `(?=.*${escapeRegex(t)})`).join(''), $options: 'i' } })
+  }
+
+  return { $or: or }
+}
 
 function stripeDashboardBase() {
   const testMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test')
@@ -38,22 +76,30 @@ export async function GET(req: NextRequest) {
   const showId = req.nextUrl.searchParams.get('showId') || ''
   const from = parseBound(req.nextUrl.searchParams.get('from'), false)
   const to = parseBound(req.nextUrl.searchParams.get('to'), true)
+  const search = orderSearchClause(req.nextUrl.searchParams.get('q') || '')
+  const exactId = /^[a-f0-9]{24}$/i.test((req.nextUrl.searchParams.get('q') || '').trim())
 
   try {
     await dbConnect()
 
     const query: Record<string, unknown> = {}
-    if (showId && mongoose.isValidObjectId(showId)) {
+    if (search) Object.assign(query, search)
+    if (showId && mongoose.isValidObjectId(showId) && !exactId) {
       query.show = showId
     }
-    if (from || to) {
+    // A lookup for resend should not be trapped in the timeline window.
+    if (!search && (from || to)) {
       query.createdAt = {
         ...(from ? { $gte: from } : {}),
         ...(to ? { $lte: to } : {}),
       }
     }
 
-    const limit = showId || from || to ? MAX_ORDERS_FILTERED : MAX_ORDERS_DEFAULT
+    const limit = search
+      ? MAX_ORDERS_SEARCH
+      : showId || from || to
+        ? MAX_ORDERS_FILTERED
+        : MAX_ORDERS_DEFAULT
 
     const [orders, shows] = await Promise.all([
       Order.find(query)
@@ -68,6 +114,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      truncated: !search && orders.length === limit,
+      searched: Boolean(search),
+      limit,
       orders: orders.map((order) => {
         const show = order.show as unknown as {
           _id: unknown
