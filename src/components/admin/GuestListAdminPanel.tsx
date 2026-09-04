@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { ClipboardList, Download, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, ClipboardList, Download, RefreshCw, Search } from 'lucide-react'
 import { formatShowDate } from '@/lib/format'
+import { parseWallParts } from '@/lib/wallDate'
 import type { PublicShow } from '@/lib/serialize'
 import type { GuestListRow } from '@/lib/tickets/guestListPdf'
 
@@ -10,6 +11,9 @@ const inputClass = 'admin-input'
 const labelClass = 'admin-label'
 const btnPrimary = 'admin-btn-primary disabled:opacity-50'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+
+/** Keep lists through the show day and the two calendar days after; then hide. */
+const DAYS_AFTER_SHOW = 2
 
 type GuestShow = {
   id: string
@@ -27,8 +31,18 @@ function showOptionLabel(show: PublicShow) {
   }`
 }
 
-function startOfLocalDay(d = new Date()) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+function daysUntilShow(iso: string | null | undefined) {
+  const parts = parseWallParts(iso)
+  if (!parts) return null
+  const show = Date.UTC(parts.year, parts.month - 1, parts.day)
+  const n = new Date()
+  const today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())
+  return Math.round((show - today) / 86400000)
+}
+
+function isGuestListActive(show: PublicShow) {
+  const days = daysUntilShow(show.date)
+  return days !== null && days >= -DAYS_AFTER_SHOW
 }
 
 export default function GuestListAdminPanel({
@@ -47,18 +61,25 @@ export default function GuestListAdminPanel({
   const [guests, setGuests] = useState<GuestListRow[]>([])
   const [totals, setTotals] = useState({ guests: 0, tickets: 0, comps: 0 })
 
-  const upcoming = useMemo(() => {
-    const today = startOfLocalDay()
-    return shows
-      .filter((s) => new Date(s.date).getTime() >= today)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  }, [shows])
-  const past = useMemo(() => {
-    const today = startOfLocalDay()
-    return shows
-      .filter((s) => new Date(s.date).getTime() < today)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [shows])
+  const [query, setQuery] = useState('')
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  const activeShows = useMemo(
+    () =>
+      shows
+        .filter(isGuestListActive)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [shows],
+  )
+
+  const filteredShows = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return activeShows
+    return activeShows.filter((s) => showOptionLabel(s).toLowerCase().includes(q))
+  }, [activeShows, query])
+
+  const selectedShow = activeShows.find((s) => s.id === showId) || null
 
   async function loadShows() {
     setLoadingShows(true)
@@ -66,16 +87,18 @@ export default function GuestListAdminPanel({
       const res = await fetch('/api/admin/shows')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load shows')
-      const list = (data.shows || []) as PublicShow[]
-      setShows(list)
+      const list = ((data.shows || []) as PublicShow[]).filter(isGuestListActive)
+      setShows((data.shows || []) as PublicShow[])
       if (!showId && list.length) {
-        const today = startOfLocalDay()
-        const next =
-          list
-            .filter((s) => new Date(s.date).getTime() >= today)
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ||
-          list[0]
+        const next = [...list].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        )[0]
         if (next) setShowId(next.id)
+      } else if (showId && !list.some((s) => s.id === showId)) {
+        const next = [...list].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+        )[0]
+        setShowId(next?.id || '')
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load shows')
@@ -114,8 +137,21 @@ export default function GuestListAdminPanel({
 
   useEffect(() => {
     if (showId) void loadList(showId)
+    else {
+      setShow(null)
+      setGuests([])
+      setTotals({ guests: 0, tickets: 0, comps: 0 })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showId])
+
+  useEffect(() => {
+    function onPointerDown(event: MouseEvent) {
+      if (!pickerRef.current?.contains(event.target as Node)) setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [])
 
   async function downloadPdf() {
     if (!showId || downloading) return
@@ -170,36 +206,74 @@ export default function GuestListAdminPanel({
 
       <div className="admin-card p-5 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-          <div>
+          <div ref={pickerRef} className="relative">
             <label className={labelClass}>Show</label>
-            <select
-              className={inputClass}
-              value={showId}
-              onChange={(e) => setShowId(e.target.value)}
-              disabled={loadingShows}
-            >
-              <option value="" className="bg-[#141420]">
-                {loadingShows ? 'Loading shows…' : 'Select a show…'}
-              </option>
-              {upcoming.length ? (
-                <optgroup label="Upcoming" className="bg-[#141420]">
-                  {upcoming.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-[#141420]">
-                      {showOptionLabel(s)}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {past.length ? (
-                <optgroup label="Past" className="bg-[#141420]">
-                  {past.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-[#141420]">
-                      {showOptionLabel(s)}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-            </select>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <input
+                className={`${inputClass} pl-9 pr-9`}
+                value={pickerOpen ? query : selectedShow ? showOptionLabel(selectedShow) : query}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setPickerOpen(true)
+                }}
+                onFocus={() => {
+                  setQuery('')
+                  setPickerOpen(true)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setPickerOpen(false)
+                    setQuery('')
+                    ;(e.target as HTMLInputElement).blur()
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const first = filteredShows[0]
+                    if (first) {
+                      setShowId(first.id)
+                      setQuery('')
+                      setPickerOpen(false)
+                    }
+                  }
+                }}
+                placeholder={loadingShows ? 'Loading shows…' : 'Search city, venue, or tour'}
+                disabled={loadingShows}
+                autoComplete="off"
+              />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+            </div>
+            {pickerOpen ? (
+              <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] py-1 shadow-lg">
+                {filteredShows.length === 0 ? (
+                  <p className="px-3 py-2 text-sm text-white/40">
+                    {activeShows.length === 0
+                      ? 'No current or upcoming shows.'
+                      : 'No shows match that search.'}
+                  </p>
+                ) : (
+                  filteredShows.map((s) => {
+                    const active = s.id === showId
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`block w-full px-3 py-2 text-left text-sm ${
+                          active ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
+                        }`}
+                        onClick={() => {
+                          setShowId(s.id)
+                          setQuery('')
+                          setPickerOpen(false)
+                        }}
+                      >
+                        {showOptionLabel(s)}
+                      </button>
+                    )
+                  })
+                )}
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
