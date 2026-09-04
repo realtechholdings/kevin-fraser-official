@@ -4,11 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   BadgeCheck,
   Banknote,
+  Download,
   ExternalLink,
+  Mail,
   ScanLine,
   Search,
   Ticket,
   RefreshCw,
+  X,
 } from 'lucide-react'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import { formatPriceWithAud, foreignToAudCents } from '@/lib/fx'
@@ -18,6 +21,8 @@ import { useAudRates } from '@/components/admin/useAudRates'
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+const btnPrimary = 'admin-btn-primary disabled:opacity-50'
+const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
 
 type TimelineId = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom'
 
@@ -45,6 +50,9 @@ type AdminOrder = {
   checkedInCount: number
   stripePaymentIntentId: string
   stripeUrl: string
+  source?: string
+  holderName?: string
+  confirmationEmailSentAt?: string | null
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
 }
 
@@ -73,6 +81,21 @@ type SalesShow = {
   tour: string
   published: boolean
   tiers: SalesShowTier[]
+}
+
+function downloadBase64Pdf(filename: string, base64: string) {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 function tableCount(order: AdminOrder) {
@@ -233,6 +256,7 @@ function dailyTicketBars(orders: AdminOrder[], from: Date | null, to: Date | nul
 }
 
 export default function SalesAdminPanel({
+  onMessage,
   onError,
 }: {
   onMessage: (msg: string) => void
@@ -248,6 +272,9 @@ export default function SalesAdminPanel({
   const [timeline, setTimeline] = useState<TimelineId>('all')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [sendEmail, setSendEmail] = useState('')
+  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | null>(null)
 
   const range = useMemo(
     () => timelineRange(timeline, customFrom, customTo),
@@ -302,6 +329,8 @@ export default function SalesAdminPanel({
         q &&
         !o.email.toLowerCase().includes(q) &&
         !o.id.toLowerCase().includes(q) &&
+        !(o.holderName || '').toLowerCase().includes(q) &&
+        !o.tierName.toLowerCase().includes(q) &&
         !(o.tableNames || []).some((name) => name.toLowerCase().includes(q))
       ) {
         return false
@@ -309,6 +338,15 @@ export default function SalesAdminPanel({
       return true
     })
   }, [orders, search, status])
+
+  const selected = useMemo(
+    () => (selectedId ? orders.find((o) => o.id === selectedId) || null : null),
+    [orders, selectedId],
+  )
+
+  useEffect(() => {
+    if (selected) setSendEmail(selected.email === 'pending@checkout' ? '' : selected.email)
+  }, [selected])
 
   const stats = useMemo(() => {
     const paid = filtered.filter((o) => o.status === 'paid')
@@ -340,13 +378,69 @@ export default function SalesAdminPanel({
     }
   }, [filtered, audRates])
 
+  async function sendTickets() {
+    if (!selected || busyAction) return
+    setBusyAction('send')
+    try {
+      const res = await fetch(`/api/admin/tickets/${selected.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: sendEmail.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to send tickets')
+      const to = data.email || sendEmail.trim()
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === selected.id
+            ? {
+                ...o,
+                email: to,
+                confirmationEmailSentAt: new Date().toISOString(),
+              }
+            : o,
+        ),
+      )
+      onMessage(
+        selected.confirmationEmailSentAt
+          ? `Tickets resent to ${to}`
+          : `Tickets sent to ${to}`,
+      )
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to send tickets')
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function downloadTickets() {
+    if (!selected || busyAction) return
+    setBusyAction('pdf')
+    try {
+      const res = await fetch(`/api/admin/tickets/${selected.id}/pdf`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate PDFs')
+      const files = data.files || []
+      if (!files.length) throw new Error('No PDF files returned')
+      for (const file of files) {
+        downloadBase64Pdf(file.filename, file.contentBase64)
+        await new Promise((r) => setTimeout(r, 120))
+      }
+      onMessage(`Downloaded ${files.length} PDF${files.length === 1 ? '' : 's'}`)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to download PDFs')
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Sales</h2>
           <p className="mt-1 text-sm text-white/40">
-            Filter by timeline and show to see how a date is tracking
+            Filter by timeline and show, then open an order to send or resend tickets
           </p>
         </div>
         <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
@@ -418,7 +512,7 @@ export default function SalesAdminPanel({
               className={`${inputClass} pl-9`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Email, order ID, or table"
+              placeholder="Email, name, order ID, or table"
             />
           </div>
         </div>
@@ -494,6 +588,93 @@ export default function SalesAdminPanel({
         ))}
       </div>
 
+      {selected ? (
+        <div className="admin-card p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-lg font-semibold text-white">
+                {selected.holderName || selected.email}
+              </p>
+              <p className="mt-1 font-mono text-xs text-white/35">{selected.id}</p>
+            </div>
+            <button
+              type="button"
+              className={btnGhost}
+              onClick={() => setSelectedId(null)}
+              aria-label="Close order"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-white/40">Show</p>
+              <p className="mt-0.5 text-white/80">
+                {selected.show
+                  ? `${selected.show.city} · ${selected.show.venue}`
+                  : '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-white/40">Tickets</p>
+              <p className="mt-0.5 text-white/80">{purchaseQtyLabel(selected)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/40">Status</p>
+              <p className="mt-0.5 capitalize text-white/80">{selected.status}</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/40">Last emailed</p>
+              <p className="mt-0.5 text-white/80">
+                {selected.confirmationEmailSentAt
+                  ? orderDateLabel(selected.confirmationEmailSentAt)
+                  : 'Not sent'}
+              </p>
+            </div>
+          </div>
+          {selected.status === 'paid' ? (
+            <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+              <div>
+                <label className={labelClass}>Send tickets to</label>
+                <input
+                  className={inputClass}
+                  type="email"
+                  value={sendEmail}
+                  onChange={(e) => setSendEmail(e.target.value)}
+                  placeholder="buyer@email.com"
+                />
+              </div>
+              <button
+                type="button"
+                className={btnPrimary}
+                disabled={busyAction !== null || !sendEmail.trim()}
+                onClick={() => void sendTickets()}
+              >
+                <Mail className="mr-1.5 inline h-4 w-4" />
+                {busyAction === 'send'
+                  ? 'Sending…'
+                  : selected.confirmationEmailSentAt
+                    ? 'Resend tickets'
+                    : 'Send tickets'}
+              </button>
+              <button
+                type="button"
+                className={btnSecondary}
+                disabled={busyAction !== null}
+                onClick={() => void downloadTickets()}
+              >
+                <Download className="mr-1.5 inline h-4 w-4" />
+                {busyAction === 'pdf' ? 'Preparing…' : 'Download PDFs'}
+              </button>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-white/40">
+              Tickets can be emailed once this order is paid.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="admin-card overflow-x-auto">
         <table className="admin-table w-full">
           <thead>
@@ -524,12 +705,23 @@ export default function SalesAdminPanel({
               </tr>
             ) : (
               filtered.map((order) => (
-                <tr key={order.id} className="transition-colors hover:bg-white/[0.02]">
+                <tr
+                  key={order.id}
+                  className={`cursor-pointer transition-colors hover:bg-white/[0.04] ${
+                    selectedId === order.id ? 'bg-white/[0.06]' : ''
+                  }`}
+                  onClick={() => setSelectedId(order.id)}
+                >
                   <td className="whitespace-nowrap px-5 py-4 text-sm text-white/70">
                     {orderDateLabel(order.createdAt)}
                   </td>
                   <td className="px-5 py-4">
-                    <p className="text-sm font-medium text-white">{order.email}</p>
+                    <p className="text-sm font-medium text-white">
+                      {order.holderName || order.email}
+                    </p>
+                    {order.holderName ? (
+                      <p className="mt-0.5 text-xs text-white/50">{order.email}</p>
+                    ) : null}
                     <p className="mt-0.5 font-mono text-[11px] text-white/35">{order.id}</p>
                   </td>
                   <td className="hidden px-5 py-4 md:table-cell">
@@ -580,6 +772,7 @@ export default function SalesAdminPanel({
                         href={order.stripeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="inline-flex items-center gap-1 text-sm text-violet-300 hover:text-violet-200"
                       >
                         Payment

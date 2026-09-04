@@ -92,6 +92,9 @@ export async function GET(req: NextRequest) {
           checkedInCount: (order.checkedIn || []).length,
           source: order.source || 'stripe',
           holderName: order.holderName || '',
+          confirmationEmailSentAt: order.confirmationEmailSentAt
+            ? new Date(order.confirmationEmailSentAt).toISOString()
+            : null,
           stripePaymentIntentId: order.stripePaymentIntentId || '',
           stripeUrl: order.stripePaymentIntentId
             ? `${base}/payments/${order.stripePaymentIntentId}`

@@ -6,10 +6,11 @@ import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { sendTicketEmail } from '@/lib/email/ticket'
+import { normalizeCheckoutEmail } from '@/lib/email/address'
 
 type Params = { params: Promise<{ id: string }> }
 
-export async function POST(_req: NextRequest, { params }: Params) {
+export async function POST(req: NextRequest, { params }: Params) {
   const admin = await requireAdmin()
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
@@ -30,6 +31,34 @@ export async function POST(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ success: false, error: 'Order is not paid.' }, { status: 400 })
     }
 
+    const raw = await req.text()
+    let overrideEmail = ''
+    if (raw) {
+      try {
+        const body = JSON.parse(raw) as { email?: unknown }
+        if (body.email != null && String(body.email).trim() !== '') {
+          overrideEmail = normalizeCheckoutEmail(body.email)
+          if (!overrideEmail) {
+            return NextResponse.json(
+              { success: false, error: 'A valid email is required to send tickets.' },
+              { status: 400 },
+            )
+          }
+        }
+      } catch {
+        overrideEmail = ''
+      }
+    }
+    if (overrideEmail) order.email = overrideEmail
+    const to = normalizeCheckoutEmail(order.email)
+    if (!to) {
+      return NextResponse.json(
+        { success: false, error: 'A valid email is required to send tickets.' },
+        { status: 400 },
+      )
+    }
+    order.email = to
+
     const show = await Show.findById(order.show).populate('tour')
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found for this order.' }, { status: 404 })
@@ -42,7 +71,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const result = await sendTicketEmail(
       {
         _id: order._id,
-        email: order.email,
+        email: to,
         holderName: order.holderName,
         quantity: order.quantity,
         amountTotal: order.amountTotal,
@@ -65,7 +94,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
     order.confirmationEmailSentAt = new Date()
     await order.save()
 
-    return NextResponse.json({ success: true, id: result.id })
+    return NextResponse.json({ success: true, id: result.id, email: to })
   } catch (error) {
     console.error('Admin ticket send POST:', error)
     const message = error instanceof Error ? error.message : 'Failed to send tickets.'
