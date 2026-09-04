@@ -12,11 +12,23 @@ import {
 } from 'lucide-react'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import { formatPriceWithAud, foreignToAudCents } from '@/lib/fx'
+import { parseWallParts } from '@/lib/wallDate'
 import { useAudRates } from '@/components/admin/useAudRates'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+
+type TimelineId = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom'
+
+const TIMELINES: { id: TimelineId; label: string }[] = [
+  { id: 'all', label: 'All time' },
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'month', label: 'This month' },
+  { id: 'custom', label: 'Custom range' },
+]
 
 type AdminOrder = {
   id: string
@@ -24,6 +36,8 @@ type AdminOrder = {
   email: string
   quantity: number
   tierName: string
+  tableQuantity?: number
+  tableSeats?: number
   tableNames?: string[]
   amountTotal: number
   currency: string
@@ -34,11 +48,58 @@ type AdminOrder = {
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
 }
 
+type SalesShowTier = {
+  id: string
+  name: string
+  kind: 'ticket' | 'table'
+  seats: number
+  capacity: number
+  ticketsSold: number
+  priceCents: number
+  currency: string
+  soldOut: boolean
+}
+
+type SalesShow = {
+  id: string
+  label: string
+  city: string
+  venue: string
+  date: string | null
+  status: string
+  capacity: number
+  ticketsSold: number
+  currency: string
+  tour: string
+  published: boolean
+  tiers: SalesShowTier[]
+}
+
+function tableCount(order: AdminOrder) {
+  if ((order.tableQuantity || 0) > 0) return order.tableQuantity || 0
+  return order.tableNames?.length || 0
+}
+
+function purchaseQtyLabel(order: AdminOrder) {
+  const tables = tableCount(order)
+  if (tables > 0) {
+    return `${tables} × ${order.tierName} (${tables === 1 ? 'table' : 'tables'})`
+  }
+  return `${order.quantity} × ${order.tierName}`
+}
+
 const STATUS_STYLES: Record<string, string> = {
   paid: 'text-emerald-400 bg-emerald-400/10',
   pending: 'text-amber-400 bg-amber-400/10',
   refunded: 'text-sky-400 bg-sky-400/10',
   cancelled: 'text-white/30 bg-white/5',
+}
+
+const SHOW_STATUS_STYLES: Record<string, { label: string; className: string }> = {
+  on_sale: { label: 'On sale', className: 'text-emerald-400 bg-emerald-400/10' },
+  coming_soon: { label: 'Coming soon', className: 'text-amber-400 bg-amber-400/10' },
+  sold_out: { label: 'Sold out', className: 'text-red-400 bg-red-500/10' },
+  cancelled: { label: 'Cancelled', className: 'text-white/30 bg-white/5' },
 }
 
 function orderDateLabel(iso: string | null) {
@@ -51,6 +112,126 @@ function orderDateLabel(iso: string | null) {
   })
 }
 
+function startOfLocalDay(d = new Date()) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+function toDateInput(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function timelineRange(
+  timeline: TimelineId,
+  customFrom: string,
+  customTo: string,
+): { from: Date | null; to: Date | null; label: string } {
+  const now = new Date()
+  const today = startOfLocalDay(now)
+  const meta = TIMELINES.find((t) => t.id === timeline)?.label || 'All time'
+  if (timeline === 'today') return { from: today, to: null, label: meta }
+  if (timeline === '7d') {
+    return { from: new Date(today.getTime() - 6 * 86400000), to: null, label: meta }
+  }
+  if (timeline === '30d') {
+    return { from: new Date(today.getTime() - 29 * 86400000), to: null, label: meta }
+  }
+  if (timeline === 'month') {
+    return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: null, label: meta }
+  }
+  if (timeline === 'custom') {
+    const from = customFrom ? new Date(`${customFrom}T00:00:00`) : null
+    const to = customTo ? new Date(`${customTo}T23:59:59.999`) : null
+    const fromOk = from && !Number.isNaN(from.getTime()) ? from : null
+    const toOk = to && !Number.isNaN(to.getTime()) ? to : null
+    return { from: fromOk, to: toOk, label: meta }
+  }
+  return { from: null, to: null, label: meta }
+}
+
+function windowDayCount(from: Date | null, to: Date | null) {
+  const end = startOfLocalDay(to || new Date())
+  const start = startOfLocalDay(from || end)
+  return Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1)
+}
+
+function daysUntilShow(iso: string | null) {
+  const parts = parseWallParts(iso)
+  if (!parts) return null
+  const show = Date.UTC(parts.year, parts.month - 1, parts.day)
+  const n = new Date()
+  const today = Date.UTC(n.getFullYear(), n.getMonth(), n.getDate())
+  return Math.round((show - today) / 86400000)
+}
+
+function showWhenLabel(iso: string | null) {
+  const days = daysUntilShow(iso)
+  if (days === null) return ''
+  if (days > 1) return `${days} days out`
+  if (days === 1) return 'Tomorrow'
+  if (days === 0) return 'Today'
+  if (days === -1) return 'Yesterday'
+  return `${Math.abs(days)} days ago`
+}
+
+function inventoryOf(show: SalesShow) {
+  const classes = show.tiers.filter((t) => t.kind !== 'table')
+  const tables = show.tiers.filter((t) => t.kind === 'table')
+  const classCap = classes.reduce((sum, t) => sum + (t.capacity || 0), 0)
+  const classSold = classes.reduce((sum, t) => sum + (t.ticketsSold || 0), 0)
+  const cap = show.capacity > 0 ? show.capacity : classCap
+  const sold = show.ticketsSold > 0 ? show.ticketsSold : classSold
+  return {
+    cap,
+    sold,
+    remaining: cap > 0 ? Math.max(0, cap - sold) : null,
+    pct: cap > 0 ? Math.min(100, Math.round((sold / cap) * 100)) : null,
+    classes,
+    tables,
+  }
+}
+
+function sortShows(shows: SalesShow[]) {
+  const today = startOfLocalDay().getTime()
+  return [...shows].sort((a, b) => {
+    const ad = a.date ? new Date(a.date).getTime() : 0
+    const bd = b.date ? new Date(b.date).getTime() : 0
+    const aUp = ad >= today
+    const bUp = bd >= today
+    if (aUp !== bUp) return aUp ? -1 : 1
+    return aUp ? ad - bd : bd - ad
+  })
+}
+
+function dailyTicketBars(orders: AdminOrder[], from: Date | null, to: Date | null) {
+  const paid = orders.filter((o) => o.status === 'paid' && o.createdAt)
+  const end = startOfLocalDay(to || new Date())
+  let start = from ? startOfLocalDay(from) : new Date(end.getTime() - 13 * 86400000)
+  const maxDays = 30
+  const span = Math.round((end.getTime() - start.getTime()) / 86400000) + 1
+  if (span > maxDays) start = new Date(end.getTime() - (maxDays - 1) * 86400000)
+  const days: { key: string; label: string; tickets: number }[] = []
+  for (let t = start.getTime(); t <= end.getTime(); t += 86400000) {
+    const d = new Date(t)
+    days.push({
+      key: toDateInput(d),
+      label: d.toLocaleDateString([], { day: 'numeric', month: 'short' }),
+      tickets: 0,
+    })
+  }
+  const index = new Map(days.map((d, i) => [d.key, i]))
+  for (const o of paid) {
+    const key = toDateInput(new Date(o.createdAt as string))
+    const i = index.get(key)
+    if (i === undefined) continue
+    days[i].tickets += o.quantity
+  }
+  const max = Math.max(1, ...days.map((d) => d.tickets))
+  return { days, max }
+}
+
 export default function SalesAdminPanel({
   onError,
 }: {
@@ -59,18 +240,33 @@ export default function SalesAdminPanel({
 }) {
   const audRates = useAudRates()
   const [orders, setOrders] = useState<AdminOrder[]>([])
+  const [shows, setShows] = useState<SalesShow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [showFilter, setShowFilter] = useState('all')
+  const [timeline, setTimeline] = useState<TimelineId>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  const range = useMemo(
+    () => timelineRange(timeline, customFrom, customTo),
+    [timeline, customFrom, customTo],
+  )
 
   async function load() {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/orders')
+      const params = new URLSearchParams()
+      if (showFilter !== 'all') params.set('showId', showFilter)
+      if (range.from) params.set('from', range.from.toISOString())
+      if (range.to) params.set('to', range.to.toISOString())
+      const qs = params.toString()
+      const res = await fetch(`/api/admin/orders${qs ? `?${qs}` : ''}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load orders')
       setOrders(data.orders || [])
+      if (Array.isArray(data.shows)) setShows(data.shows)
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load orders')
     } finally {
@@ -79,30 +275,40 @@ export default function SalesAdminPanel({
   }
 
   useEffect(() => {
-    load()
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [showFilter, range.from?.getTime(), range.to?.getTime()])
 
-  const showOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const o of orders) {
-      if (o.show) {
-        const d = o.show.date ? formatShowDate(o.show.date) : null
-        map.set(o.show.id, `${o.show.city} · ${o.show.venue}${d ? ` (${d.day} ${d.month})` : ''}`)
-      }
-    }
-    return Array.from(map, ([id, label]) => ({ id, label }))
-  }, [orders])
+  const showOptions = useMemo(() => sortShows(shows), [shows])
+  const selectedShow = useMemo(
+    () => (showFilter === 'all' ? null : shows.find((s) => s.id === showFilter) || null),
+    [shows, showFilter],
+  )
+
+  const upcomingShows = useMemo(() => {
+    const today = startOfLocalDay().getTime()
+    return showOptions.filter((s) => (s.date ? new Date(s.date).getTime() >= today : false))
+  }, [showOptions])
+  const pastShows = useMemo(() => {
+    const today = startOfLocalDay().getTime()
+    return showOptions.filter((s) => (s.date ? new Date(s.date).getTime() < today : true))
+  }, [showOptions])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return orders.filter((o) => {
       if (status !== 'all' && o.status !== status) return false
-      if (showFilter !== 'all' && o.show?.id !== showFilter) return false
-      if (q && !o.email.toLowerCase().includes(q) && !o.id.toLowerCase().includes(q)) return false
+      if (
+        q &&
+        !o.email.toLowerCase().includes(q) &&
+        !o.id.toLowerCase().includes(q) &&
+        !(o.tableNames || []).some((name) => name.toLowerCase().includes(q))
+      ) {
+        return false
+      }
       return true
     })
-  }, [orders, search, status, showFilter])
+  }, [orders, search, status])
 
   const stats = useMemo(() => {
     const paid = filtered.filter((o) => o.status === 'paid')
@@ -122,9 +328,12 @@ export default function SalesAdminPanel({
         ? formatPrice(audTotal, 'AUD')
         : null
     const mixed = Array.from(revenue.keys()).some((c) => c.toUpperCase() !== 'AUD')
+    const tickets = paid.reduce((sum, o) => sum + o.quantity, 0)
+    const tables = paid.reduce((sum, o) => sum + tableCount(o), 0)
     return {
       paidOrders: paid.length,
-      tickets: paid.reduce((sum, o) => sum + o.quantity, 0),
+      tickets,
+      tables,
       checkedIn: paid.reduce((sum, o) => sum + o.checkedInCount, 0),
       revenue: native,
       revenueAud: mixed ? audLabel : null,
@@ -137,7 +346,7 @@ export default function SalesAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Sales</h2>
           <p className="mt-1 text-sm text-white/40">
-            Ticket purchases with check-in status and Stripe payment links
+            Filter by timeline and show to see how a date is tracking
           </p>
         </div>
         <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
@@ -146,12 +355,127 @@ export default function SalesAdminPanel({
         </button>
       </div>
 
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <label className={labelClass}>Timeline</label>
+          <select
+            className={inputClass}
+            value={timeline}
+            onChange={(e) => setTimeline(e.target.value as TimelineId)}
+          >
+            {TIMELINES.map((t) => (
+              <option key={t.id} value={t.id} className="bg-[#141420]">
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Show</label>
+          <select
+            className={inputClass}
+            value={showFilter}
+            onChange={(e) => setShowFilter(e.target.value)}
+          >
+            <option value="all" className="bg-[#141420]">
+              All shows
+            </option>
+            {upcomingShows.length ? (
+              <optgroup label="Upcoming" className="bg-[#141420]">
+                {upcomingShows.map((s) => (
+                  <option key={s.id} value={s.id} className="bg-[#141420]">
+                    {s.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {pastShows.length ? (
+              <optgroup label="Past" className="bg-[#141420]">
+                {pastShows.map((s) => (
+                  <option key={s.id} value={s.id} className="bg-[#141420]">
+                    {s.label}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Status</label>
+          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
+            {['all', 'paid', 'pending', 'refunded', 'cancelled'].map((s) => (
+              <option key={s} value={s} className="bg-[#141420]">
+                {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Search</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+            <input
+              className={`${inputClass} pl-9`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Email, order ID, or table"
+            />
+          </div>
+        </div>
+      </div>
+
+      {timeline === 'custom' ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>From</label>
+            <input
+              className={inputClass}
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>To</label>
+            <input
+              className={inputClass}
+              type="date"
+              value={customTo}
+              min={customFrom || undefined}
+              onChange={(e) => setCustomTo(e.target.value)}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {selectedShow ? (
+        <ShowTrackingCard
+          show={selectedShow}
+          periodLabel={range.label}
+          periodDays={windowDayCount(range.from, range.to)}
+          periodTickets={stats.tickets}
+          periodRevenue={stats.revenue}
+          periodOrders={filtered}
+          rangeFrom={range.from}
+          rangeTo={range.to}
+          loading={loading}
+        />
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: 'Paid orders', value: String(stats.paidOrders), sub: '', icon: BadgeCheck, tone: 'bg-emerald-500/10 text-emerald-400' },
-          { label: 'Tickets sold', value: String(stats.tickets), sub: '', icon: Ticket, tone: 'bg-violet-500/10 text-violet-400' },
+          { label: 'Paid orders', value: String(stats.paidOrders), sub: range.label, icon: BadgeCheck, tone: 'bg-emerald-500/10 text-emerald-400' },
+          {
+            label: 'Tickets sold',
+            value: String(stats.tickets),
+            sub: stats.tables
+              ? `${stats.tables} table${stats.tables === 1 ? '' : 's'}`
+              : range.label,
+            icon: Ticket,
+            tone: 'bg-violet-500/10 text-violet-400',
+          },
           { label: 'Checked in', value: String(stats.checkedIn), sub: '', icon: ScanLine, tone: 'bg-sky-500/10 text-sky-400' },
-          { label: 'Revenue', value: stats.revenue || '—', sub: stats.revenueAud ? `${stats.revenueAud} base` : '', icon: Banknote, tone: 'bg-amber-500/10 text-amber-400' },
+          { label: 'Revenue', value: stats.revenue || '—', sub: stats.revenueAud ? `${stats.revenueAud} base` : range.label, icon: Banknote, tone: 'bg-amber-500/10 text-amber-400' },
         ].map((card) => (
           <div key={card.label} className="admin-card p-5">
             <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${card.tone}`}>
@@ -168,42 +492,6 @@ export default function SalesAdminPanel({
             <p className="mt-0.5 text-xs text-white/40">{card.label}</p>
           </div>
         ))}
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <div>
-          <label className={labelClass}>Search</label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-            <input
-              className={`${inputClass} pl-9`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Email or order ID"
-            />
-          </div>
-        </div>
-        <div>
-          <label className={labelClass}>Show</label>
-          <select className={inputClass} value={showFilter} onChange={(e) => setShowFilter(e.target.value)}>
-            <option value="all" className="bg-[#141420]">All shows</option>
-            {showOptions.map((s) => (
-              <option key={s.id} value={s.id} className="bg-[#141420]">
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className={labelClass}>Status</label>
-          <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {['all', 'paid', 'pending', 'refunded', 'cancelled'].map((s) => (
-              <option key={s} value={s} className="bg-[#141420]">
-                {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="admin-card overflow-x-auto">
@@ -231,7 +519,7 @@ export default function SalesAdminPanel({
             ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-sm text-white/40">
-                  {orders.length === 0 ? 'No orders yet.' : 'No orders match the filters.'}
+                  {orders.length === 0 ? 'No orders in this view.' : 'No orders match the filters.'}
                 </td>
               </tr>
             ) : (
@@ -257,11 +545,18 @@ export default function SalesAdminPanel({
                     )}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4">
-                    <p className="text-sm text-white/80">
-                      {order.quantity} × {order.tierName}
-                    </p>
-                    {order.tableNames?.length ? (
-                      <p className="mt-0.5 text-xs text-white/40">{order.tableNames.join(', ')}</p>
+                    <p className="text-sm text-white/80">{purchaseQtyLabel(order)}</p>
+                    {tableCount(order) > 0 ? (
+                      <p className="mt-0.5 text-xs text-white/40">
+                        {order.quantity} ticket{order.quantity === 1 ? '' : 's'}
+                        {order.tableNames?.length
+                          ? ` · ${order.tableNames.join(', ')}`
+                          : ''}
+                      </p>
+                    ) : order.tableNames?.length ? (
+                      <p className="mt-0.5 text-xs text-white/40">
+                        {order.tableNames.join(', ')}
+                      </p>
                     ) : null}
                     <p className="mt-0.5 text-xs text-white/40">
                       {order.checkedInCount
@@ -299,6 +594,156 @@ export default function SalesAdminPanel({
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function ShowTrackingCard({
+  show,
+  periodLabel,
+  periodDays,
+  periodTickets,
+  periodRevenue,
+  periodOrders,
+  rangeFrom,
+  rangeTo,
+  loading,
+}: {
+  show: SalesShow
+  periodLabel: string
+  periodDays: number
+  periodTickets: number
+  periodRevenue: string
+  periodOrders: AdminOrder[]
+  rangeFrom: Date | null
+  rangeTo: Date | null
+  loading: boolean
+}) {
+  const inv = inventoryOf(show)
+  const days = daysUntilShow(show.date)
+  const when = showWhenLabel(show.date)
+  const date = show.date ? formatShowDate(show.date) : null
+  const status = SHOW_STATUS_STYLES[show.status] || SHOW_STATUS_STYLES.on_sale
+  const pace = periodTickets / Math.max(1, periodDays)
+  const needed =
+    inv.remaining !== null && days !== null && days > 0
+      ? inv.remaining / days
+      : null
+  const onTrack = needed !== null ? pace + 0.05 >= needed : null
+  const bars = dailyTicketBars(periodOrders, rangeFrom, rangeTo)
+
+  let paceCopy = `${pace.toFixed(1)} tickets/day in this period`
+  if (show.status === 'sold_out' || (inv.remaining === 0 && inv.cap > 0)) {
+    paceCopy = 'Sold out'
+  } else if (days !== null && days < 0) {
+    paceCopy = 'Show has passed'
+  } else if (needed !== null && onTrack) {
+    paceCopy = `On track — selling ${pace.toFixed(1)}/day vs ~${needed.toFixed(1)}/day needed`
+  } else if (needed !== null) {
+    paceCopy = `Behind — ${pace.toFixed(1)}/day this period, need ~${needed.toFixed(1)}/day`
+  }
+
+  return (
+    <div className="admin-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-lg font-semibold text-white">
+            {show.city} · {show.venue}
+          </p>
+          <p className="mt-1 text-sm text-white/45">
+            {date?.full || 'Date TBC'}
+            {when ? ` · ${when}` : ''}
+            {show.tour ? ` · ${show.tour}` : ''}
+          </p>
+        </div>
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${status.className}`}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm text-white/70">
+              {loading ? '—' : `${inv.sold} sold`}
+              {inv.cap > 0 ? ` of ${inv.cap}` : ''}
+            </p>
+            {inv.pct !== null ? (
+              <p className="text-sm tabular-nums text-white/50">{inv.pct}%</p>
+            ) : (
+              <p className="text-xs text-white/35">Unlimited allocation</p>
+            )}
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-violet-400"
+              style={{ width: `${inv.pct ?? 0}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-white/40">{loading ? '' : paceCopy}</p>
+          <p className="mt-3 text-xs text-white/35">
+            {periodLabel}: {periodTickets} ticket{periodTickets === 1 ? '' : 's'}
+            {periodRevenue ? ` · ${periodRevenue}` : ''}
+          </p>
+
+          {bars.days.length > 1 ? (
+            <div className="mt-4">
+              <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-white/30">
+                Daily tickets
+              </p>
+              <div className="flex h-16 items-end gap-px">
+                {bars.days.map((d) => (
+                  <div
+                    key={d.key}
+                    className="min-w-0 flex-1 rounded-sm bg-violet-400/80"
+                    style={{ height: `${Math.max(d.tickets ? 8 : 2, (d.tickets / bars.max) * 100)}%` }}
+                    title={`${d.label}: ${d.tickets}`}
+                  />
+                ))}
+              </div>
+              <div className="mt-1 flex justify-between text-[10px] text-white/25">
+                <span>{bars.days[0]?.label}</span>
+                <span>{bars.days[bars.days.length - 1]?.label}</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-white/30">Classes</p>
+          {inv.classes.length || inv.tables.length ? (
+            <ul className="space-y-2">
+              {inv.classes.map((tier) => (
+                <li key={tier.id} className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="truncate text-white/75">{tier.name}</span>
+                  <span className="shrink-0 tabular-nums text-white/45">
+                    {tier.ticketsSold}
+                    {tier.capacity > 0 ? ` / ${tier.capacity}` : ''}
+                    {tier.soldOut ? ' · sold out' : ''}
+                  </span>
+                </li>
+              ))}
+              {inv.tables.map((tier) => (
+                <li key={tier.id} className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="truncate text-white/75">
+                    {tier.name}
+                    <span className="text-white/35"> · tables</span>
+                  </span>
+                  <span className="shrink-0 tabular-nums text-white/45">
+                    {tier.ticketsSold}
+                    {tier.capacity > 0 ? ` / ${tier.capacity}` : ''}
+                    {tier.soldOut ? ' · sold out' : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-white/40">No ticket classes on this date.</p>
+          )}
+        </div>
       </div>
     </div>
   )
