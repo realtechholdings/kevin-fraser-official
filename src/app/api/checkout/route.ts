@@ -9,10 +9,10 @@ import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
-import { toWallInput } from '@/lib/wallDate'
 import TicketTable from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
+import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
 
 export async function POST(req: NextRequest) {
   try {
@@ -129,16 +129,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
     }
 
-    const tourTitle =
-      show.tour && typeof show.tour === 'object' && 'title' in show.tour
-        ? String((show.tour as { title: string }).title)
-        : show.title
-
+    const copy = stripeShowCopy(show)
+    const className = stripContactNumbers(selected.name)
     const stripeQuantity = tablePurchase ? tableQty : quantity
     const unitAmount = selected.priceCents
     const lineName = tablePurchase
-      ? `${tourTitle} — ${show.city} (${selected.name}, ${seats} tickets)`
-      : `${tourTitle} — ${show.city} (${selected.name})`
+      ? `${copy.tourTitle} — ${copy.city} (${className}, ${seats} tickets)`
+      : `${copy.tourTitle} — ${copy.city} (${className})`
 
     if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_org_') && !process.env.STRIPE_CONTEXT && !process.env.STRIPE_ACCOUNT_ID) {
       return NextResponse.json(
@@ -161,6 +158,9 @@ export async function POST(req: NextRequest) {
         success_url: `${returnBase}/worlds/stage/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${returnBase}/worlds/stage?cancelled=1`,
         customer_email: email,
+        payment_intent_data: {
+          description: lineName,
+        },
         line_items: [
           {
             quantity: stripeQuantity,
@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
               unit_amount: unitAmount,
               product_data: {
                 name: lineName,
-                description: `${show.venue} · ${toWallInput(show.date).replace('T', ' ')}`,
+                description: copy.lineDescription,
               },
             },
           },

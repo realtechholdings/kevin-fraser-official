@@ -11,7 +11,7 @@ import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { releaseClassInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
-import { toWallInput } from '@/lib/wallDate'
+import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
 
 export type UpgradeBlockReason =
   | 'not_paid'
@@ -368,10 +368,10 @@ export async function startUpgradeCheckout(opts: {
     return { completedOrderId: String(next._id) }
   }
 
-  const tourTitle =
-    opts.show.tour && typeof opts.show.tour === 'object' && 'title' in opts.show.tour
-      ? String((opts.show.tour as { title: string }).title)
-      : opts.show.title
+  const copy = stripeShowCopy(opts.show)
+  const fromName = stripContactNumbers(opts.quote.from.name)
+  const toName = stripContactNumbers(opts.quote.target.name)
+  const upgradeName = `Upgrade to ${toName} — ${copy.tourTitle} · ${copy.city}`
 
   const stripe = getStripe()
   const returnBase = checkoutReturnUrl(opts.req)
@@ -384,6 +384,9 @@ export async function startUpgradeCheckout(opts: {
         opts.cancelUrl ||
         `${returnBase}/worlds/stage/upgrade?order=${opts.original._id}&cancelled=1`,
       customer_email: opts.original.email,
+      payment_intent_data: {
+        description: upgradeName,
+      },
       line_items: [
         {
           quantity: 1,
@@ -391,8 +394,8 @@ export async function startUpgradeCheckout(opts: {
             currency: opts.quote.target.currency.toLowerCase(),
             unit_amount: opts.quote.target.chargeCents,
             product_data: {
-              name: `Upgrade to ${opts.quote.target.name} — ${tourTitle} · ${opts.show.city}`,
-              description: `Replaces ${opts.quote.quantity} × ${opts.quote.from.name} · ${opts.show.venue} · ${toWallInput(opts.show.date).replace('T', ' ')}`,
+              name: upgradeName,
+              description: `Replaces ${opts.quote.quantity} × ${fromName} · ${copy.lineDescription}`,
             },
           },
         },
