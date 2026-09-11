@@ -221,31 +221,53 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     .map((tier) => {
                       const tierSoldOut = isTierSoldOut(tier)
                       return (
-                        <li key={tier.id} className="text-sm">
+                        <li
+                          key={tier.id}
+                          className={
+                            tierSoldOut ? '-mx-2 rounded-xl px-2 py-2 text-sm' : 'text-sm'
+                          }
+                          style={
+                            tierSoldOut
+                              ? {
+                                  color: 'var(--danger)',
+                                  background: 'var(--danger-soft)',
+                                }
+                              : undefined
+                          }
+                        >
                           <div className="flex items-baseline justify-between gap-3">
-                            <span className="font-medium text-[var(--foreground)]">
+                            <span
+                              className={
+                                tierSoldOut
+                                  ? 'font-medium'
+                                  : 'font-medium text-[var(--foreground)]'
+                              }
+                            >
                               {tier.name}
                               {tier.kind === 'table' && tier.seats
                                 ? ` · ${tier.seats} tickets`
                                 : ''}
                             </span>
-                            <span className="shrink-0 text-[var(--foreground-muted)]">
-                              {tierSoldOut ? (
-                                <span
-                                  className="text-[10px] uppercase tracking-[0.14em]"
-                                  style={{ color: 'var(--sold-out-fg)' }}
-                                >
-                                  Sold Out
-                                </span>
-                              ) : (
-                                formatPrice(tier.priceCents, tier.currency)
-                              )}
+                            <span
+                              className={
+                                tierSoldOut
+                                  ? 'shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em]'
+                                  : 'shrink-0 text-[var(--foreground-muted)]'
+                              }
+                            >
+                              {tierSoldOut
+                                ? 'Sold Out'
+                                : formatPrice(tier.priceCents, tier.currency)}
                             </span>
                           </div>
                           {tier.description ? (
                             <FormattedText
                               text={tier.description}
-                              className="mt-1 text-xs leading-relaxed text-[var(--foreground-subtle)]"
+                              className={`mt-1 text-xs leading-relaxed ${
+                                tierSoldOut
+                                  ? 'opacity-80'
+                                  : 'text-[var(--foreground-subtle)]'
+                              }`}
                             />
                           ) : null}
                         </li>
