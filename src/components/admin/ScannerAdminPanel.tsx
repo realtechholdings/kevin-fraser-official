@@ -26,6 +26,7 @@ type ScanResult = {
     | 'already_used'
     | 'not_paid'
     | 'upgraded'
+    | 'refunded'
     | 'not_found'
     | 'invalid_ticket'
     | 'wrong_show'
@@ -66,6 +67,11 @@ const VERDICT_META: Record<
   upgraded: {
     label: 'Ticket was upgraded — use the new PDF',
     className: 'border-violet-500/40 bg-violet-500/10 text-violet-200',
+    icon: XCircle,
+  },
+  refunded: {
+    label: 'Ticket was refunded',
+    className: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
     icon: XCircle,
   },
   not_found: {
@@ -452,7 +458,9 @@ export default function ScannerAdminPanel({
                           .join(', ')})`
                       : ''}
                   </p>
-                  {result.verdict === 'not_paid' || result.verdict === 'upgraded' ? (
+                  {result.verdict === 'not_paid' ||
+                  result.verdict === 'upgraded' ||
+                  result.verdict === 'refunded' ? (
                     <p className="text-white/60">Order status: {scan.status}</p>
                   ) : null}
                 </div>

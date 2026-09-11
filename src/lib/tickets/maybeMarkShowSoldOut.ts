@@ -17,3 +17,19 @@ export async function maybeMarkShowSoldOut(showId: string): Promise<boolean> {
   await show.save()
   return true
 }
+
+/**
+ * After a refund frees inventory, put a sold_out show back on sale
+ * if any sellable tier still has remaining capacity.
+ */
+export async function maybeReopenSoldOutShow(showId: string): Promise<boolean> {
+  const show = await Show.findById(showId)
+  if (!show || show.status !== 'sold_out') return false
+
+  const tiers = await resolveTiersForShow(show)
+  if (areAllTiersSoldOut(tiers)) return false
+
+  show.status = 'on_sale'
+  await show.save()
+  return true
+}

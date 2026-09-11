@@ -150,12 +150,14 @@ export async function GET(req: NextRequest) {
             : '',
           upgradedFrom: order.upgradedFrom ? String(order.upgradedFrom) : null,
           supersededBy: order.supersededBy ? String(order.supersededBy) : null,
+          refundedAt: order.refundedAt ? new Date(order.refundedAt).toISOString() : null,
           canUpgrade:
             order.status === 'paid' &&
             !(order.tableQuantity || 0) &&
             !order.table &&
             !(order.checkedIn || []).length &&
             !order.supersededBy,
+          canRefund: order.status === 'paid',
           show: show
             ? {
                 id: String(show._id),

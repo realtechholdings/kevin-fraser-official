@@ -12,6 +12,7 @@ import {
   Search,
   Ticket,
   RefreshCw,
+  Undo2,
   X,
 } from 'lucide-react'
 import { formatPrice, formatShowDate } from '@/lib/format'
@@ -24,6 +25,7 @@ const labelClass = 'admin-label'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 const btnPrimary = 'admin-btn-primary disabled:opacity-50'
 const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
+const btnDanger = 'admin-btn-danger disabled:opacity-50'
 
 type TimelineId = 'all' | 'today' | '7d' | '30d' | 'month' | 'custom'
 
@@ -56,7 +58,9 @@ type AdminOrder = {
   confirmationEmailSentAt?: string | null
   upgradedFrom?: string | null
   supersededBy?: string | null
+  refundedAt?: string | null
   canUpgrade?: boolean
+  canRefund?: boolean
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
 }
 
@@ -282,7 +286,7 @@ export default function SalesAdminPanel({
   const [customTo, setCustomTo] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sendEmail, setSendEmail] = useState('')
-  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | 'upgrade' | null>(null)
+  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | 'upgrade' | 'refund' | null>(null)
   const [upgradeTo, setUpgradeTo] = useState('')
   const [upgradeTargets, setUpgradeTargets] = useState<
     { slug: string; name: string; chargeCents: number; currency: string }[]
@@ -512,13 +516,53 @@ export default function SalesAdminPanel({
     }
   }
 
+  async function refundOrder() {
+    if (!selected || busyAction || !selected.canRefund) return
+    const total = formatPrice(selected.amountTotal, selected.currency)
+    const lines = [
+      `Refund ${total} to ${selected.email}?`,
+      '',
+      'This voids the tickets, puts inventory back on sale, and refunds Stripe.',
+    ]
+    if (selected.checkedInCount > 0) {
+      lines.push(
+        '',
+        `${selected.checkedInCount} of ${selected.quantity} ticket${selected.quantity === 1 ? '' : 's'} already scanned.`,
+      )
+    }
+    if (selected.upgradedFrom) {
+      lines.push('', 'This was an upgrade — the original purchase will be refunded too.')
+    }
+    if ((selected.source || 'stripe') === 'manual') {
+      lines.push('', 'This is a comp / manual issue — no Stripe charge to reverse.')
+    }
+    if (!confirm(lines.join('\n'))) return
+
+    setBusyAction('refund')
+    try {
+      const res = await fetch(`/api/admin/orders/${selected.id}/refund`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Refund failed')
+      onMessage(
+        data.already
+          ? 'This order was already refunded.'
+          : `Refunded ${total}. Tickets no longer scan.`,
+      )
+      await load()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Refund failed')
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-white">Sales</h2>
           <p className="mt-1 text-sm text-white/40">
-            Filter by timeline and show, then open an order to send tickets or upgrade
+            Filter by timeline and show, then open an order to send tickets, upgrade, or refund
           </p>
         </div>
         <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
@@ -846,6 +890,32 @@ export default function SalesAdminPanel({
                 </p>
               ) : null}
             </div>
+          ) : null}
+          {selected.canRefund ? (
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <p className="text-sm font-medium text-white">Refund</p>
+              <p className="mt-1 text-xs text-white/40">
+                Sends the money back to the original payment method, voids these
+                tickets at the door, and puts the seats back on sale.
+              </p>
+              <button
+                type="button"
+                className={`${btnDanger} mt-3`}
+                disabled={busyAction !== null}
+                onClick={() => void refundOrder()}
+              >
+                <Undo2 className="mr-1.5 inline h-4 w-4" />
+                {busyAction === 'refund'
+                  ? 'Refunding…'
+                  : `Refund ${formatPrice(selected.amountTotal, selected.currency)}`}
+              </button>
+            </div>
+          ) : selected.status === 'refunded' ? (
+            <p className="mt-5 border-t border-white/10 pt-5 text-sm text-white/50">
+              Refunded
+              {selected.refundedAt ? ` ${orderDateLabel(selected.refundedAt)}` : ''}.
+              These tickets will not scan.
+            </p>
           ) : null}
         </div>
       ) : null}

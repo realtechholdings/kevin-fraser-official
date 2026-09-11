@@ -85,3 +85,55 @@ export async function sendSalesOrderNotification(
 
   return { skipped: false as const, id: result.id, from, to: SALES_NOTIFY_TO }
 }
+
+/** Notify accounts@ that an order was refunded. */
+export async function sendSalesRefundNotification(
+  order: SalesOrderLike,
+  show: ShowDocument & { tour?: TourDocument | unknown },
+  opts?: { host?: string },
+) {
+  if (!emailConfigured()) return { skipped: true as const, reason: 'not_configured' as const }
+
+  const tourTitle = tourTitleOf(show)
+  const date = formatShowDate(toWallIso(show.date) || String(show.date)).full
+  const time = formatShowTimeRange(show.showTime, show.showEndTime) || ''
+  const total = formatPrice(order.amountTotal, order.currency)
+  const orderId = String(order._id)
+  const host = opts?.host || ''
+  const from = salesFromAddress(host)
+  const site = host || appUrl().replace(/^https?:\/\//, '')
+
+  const text = [
+    'A ticket order was refunded.',
+    '',
+    `Order: ${orderId}`,
+    `Buyer: ${order.email}`,
+    `Show: ${tourTitle || show.title}`,
+    `City: ${show.city}`,
+    `Venue: ${show.venue}`,
+    `Date: ${date}${time ? ` · ${time}` : ''}`,
+    `Tier: ${order.tierName || 'General Admission'}`,
+    ...(order.tableNames?.length ? [`Table: ${order.tableNames.join(', ')}`] : []),
+    order.tableQuantity
+      ? `Tables: ${order.tableQuantity} (${order.quantity} tickets)`
+      : `Quantity: ${order.quantity}`,
+    `Refunded: ${total}`,
+    `Site: ${site}`,
+  ].join('\n')
+
+  const html = renderEmailHtml({
+    bodyHtml: textToEmailHtml(text),
+    appUrl: appUrl(),
+  })
+
+  const result = await sendEmail({
+    to: [SALES_NOTIFY_TO],
+    from,
+    subject: `Refund — ${tourTitle || show.title} · ${show.city}`,
+    text,
+    html,
+    replyTo: order.email,
+  })
+
+  return { skipped: false as const, id: result.id, from, to: SALES_NOTIFY_TO }
+}

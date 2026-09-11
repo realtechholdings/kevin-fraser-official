@@ -3,7 +3,10 @@ import type { OrderDocument } from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import TicketTier from '@/lib/models/TicketTier'
 import TicketTable from '@/lib/models/TicketTable'
-import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
+import {
+  maybeMarkShowSoldOut,
+  maybeReopenSoldOutShow,
+} from '@/lib/tickets/maybeMarkShowSoldOut'
 import { nextTableNames } from '@/lib/tickets/tables'
 
 type InventoryOrder = Pick<
@@ -49,6 +52,26 @@ export async function releaseClassInventory(
   await TicketTier.findByIdAndUpdate(order.tier, {
     $inc: { ticketsSold: -qty },
   })
+}
+
+/** Inverse of applyPaidInventory — seats and tables go back on sale. */
+export async function releasePaidInventory(order: InventoryOrder): Promise<void> {
+  const qty = Math.abs(Number(order.quantity) || 0)
+  if (qty) {
+    await Show.findByIdAndUpdate(order.show, { $inc: { ticketsSold: -qty } })
+    if (order.tier) {
+      await TicketTier.findByIdAndUpdate(order.tier, { $inc: { ticketsSold: -qty } })
+    }
+  }
+
+  const tableQty = Math.abs(Number(order.tableQuantity) || 0)
+  if (order.table && tableQty > 0) {
+    await TicketTable.findByIdAndUpdate(order.table, {
+      $inc: { tablesSold: -tableQty },
+    })
+  }
+
+  await maybeReopenSoldOutShow(String(order.show))
 }
 
 /**

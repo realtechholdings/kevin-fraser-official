@@ -46,6 +46,10 @@ const OrderSchema = new Schema(
     supersededBy: { type: Schema.Types.ObjectId, ref: 'Order', default: null },
     /** Set once the post-purchase upgrade-offer email has been sent */
     upgradeOfferEmailSentAt: { type: Date, default: null },
+    /** Set when an admin refunds this order. */
+    refundedAt: { type: Date, default: null },
+    refundedBy: { type: String, default: '' },
+    stripeRefundId: { type: String, default: '' },
     /** Door check-ins: one entry per scanned ticket number (1-based) */
     checkedIn: {
       type: [
