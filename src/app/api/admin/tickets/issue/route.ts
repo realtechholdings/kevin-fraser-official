@@ -6,7 +6,7 @@ import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
-import { isTierSoldOut } from '@/lib/tickets/soldOut'
+import { isTierSoldOut, venueCanTake, venueSeatRemaining } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { applyPaidInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
@@ -61,7 +61,7 @@ export async function GET() {
           currency: t.currency,
           capacity: t.capacity,
           ticketsSold: t.ticketsSold,
-          soldOut: isTierSoldOut(t),
+          soldOut: isTierSoldOut(t, venueSeatRemaining(show)),
           legacy: Boolean(t.legacy),
           kind: t.kind || 'ticket',
           seats: t.seats || 1,
@@ -165,7 +165,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No ticket tier available for this show.' }, { status: 400 })
     }
 
-    if (countAgainstInventory && isTierSoldOut(tier) && !isLegacyTierId(tier.id)) {
+    const venueRemaining = venueSeatRemaining(show)
+    if (
+      countAgainstInventory &&
+      isTierSoldOut(tier, venueRemaining) &&
+      !isLegacyTierId(tier.id)
+    ) {
       return NextResponse.json(
         { success: false, error: `${tier.name} is sold out. Uncheck inventory, or pick another tier.` },
         { status: 400 },
@@ -239,6 +244,13 @@ export async function POST(req: NextRequest) {
           success: false,
           error: `Only ${Math.max(0, tier.capacity - tier.ticketsSold)} left in ${tier.name}.`,
         },
+        { status: 400 },
+      )
+    }
+
+    if (countAgainstInventory && !venueCanTake(show, ticketQty)) {
+      return NextResponse.json(
+        { success: false, error: 'Not enough seats left at this venue.' },
         { status: 400 },
       )
     }

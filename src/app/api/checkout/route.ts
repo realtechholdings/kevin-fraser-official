@@ -6,7 +6,12 @@ import '@/lib/models/Tour'
 import Order from '@/lib/models/Order'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
-import { areAllTiersSoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
+import {
+  areAllTiersSoldOut,
+  isTierSoldOut,
+  venueCanTake,
+  venueSeatRemaining,
+} from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import TicketTable from '@/lib/models/TicketTable'
@@ -55,8 +60,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, url: show.externalTicketUrl, external: true })
     }
 
+    const venueRemaining = venueSeatRemaining(show)
     const tiers = await resolveTiersForShow(show)
-    if (areAllTiersSoldOut(tiers)) {
+    if (areAllTiersSoldOut(tiers, venueRemaining)) {
       return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
     }
 
@@ -75,7 +81,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No ticket tier available.' }, { status: 400 })
     }
 
-    if (isTierSoldOut(selected)) {
+    if (isTierSoldOut(selected, venueRemaining)) {
       return NextResponse.json({ success: false, error: 'This ticket tier is sold out.' }, { status: 400 })
     }
 
@@ -127,6 +133,13 @@ export async function POST(req: NextRequest) {
       underlying = linked
     } else if (selected.capacity > 0 && selected.ticketsSold + quantity > selected.capacity) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
+    }
+
+    if (!venueCanTake(show, ticketQty)) {
+      return NextResponse.json(
+        { success: false, error: 'Not enough seats left at this venue.' },
+        { status: 400 },
+      )
     }
 
     const copy = stripeShowCopy(show)

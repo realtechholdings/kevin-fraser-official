@@ -10,7 +10,7 @@ import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
-import { isShowEffectivelySoldOut, isTierSoldOut } from '@/lib/tickets/soldOut'
+import { isShowEffectivelySoldOut, isTierSoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
 function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
   if (effectivelySoldOut || show.status === 'sold_out') return 'Sold Out'
@@ -23,6 +23,7 @@ function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
 
 export default function ShowDetailClient({ show }: { show: PublicShow }) {
   const d = formatShowDate(show.date)
+  const venueRemaining = venueSeatRemaining(show)
   const soldOut = isShowEffectivelySoldOut(show)
   const unavailable =
     soldOut || show.status === 'cancelled' || show.status === 'coming_soon'
@@ -219,7 +220,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     .slice()
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
                     .map((tier) => {
-                      const tierSoldOut = isTierSoldOut(tier)
+                      const tierSoldOut = isTierSoldOut(tier, venueRemaining)
                       return (
                         <li key={tier.id} className="text-sm">
                           <div className="flex items-center justify-between gap-3">
@@ -275,6 +276,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   <TicketButton
                     showId={show.id}
                     tiers={show.tiers || []}
+                    venueRemaining={venueRemaining}
                     disabled={unavailable}
                     label={soldOut ? 'Sold Out' : badge || 'Buy Tickets'}
                     className="w-full [&_button]:w-full [&_select]:w-full"

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
 import { centsToMetaValue, identifyMetaUser, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
-import { isTierSoldOut } from '@/lib/tickets/soldOut'
+import { isTierSoldOut, remainingOfferingUnits } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 
@@ -13,26 +13,21 @@ const EMAIL_STORAGE_KEY = 'kf_checkout_email'
 type Props = {
   showId: string
   tiers: PublicTicketTier[]
+  venueRemaining?: number | null
   disabled?: boolean
   label?: string
   className?: string
 }
 
-function maxQuantityForTier(tier: PublicTicketTier) {
-  const remaining =
-    tier.capacity > 0
-      ? Math.max(0, tier.capacity - tier.ticketsSold)
-      : MAX_TICKET_QUANTITY
+function maxQuantityForTier(tier: PublicTicketTier, venueRemaining: number | null) {
+  const remaining = remainingOfferingUnits(tier, venueRemaining)
+  const byStock = remaining === null ? MAX_TICKET_QUANTITY : remaining
   if (tier.kind === 'table') {
     const seats = Math.max(1, tier.seats || 1)
     const maxByPdfs = Math.max(1, Math.floor(MAX_TICKET_QUANTITY / seats))
-    const cap = remaining || MAX_TICKET_QUANTITY
-    return Math.max(1, Math.min(cap, maxByPdfs, MAX_TICKET_QUANTITY))
+    return Math.max(1, Math.min(byStock, maxByPdfs, MAX_TICKET_QUANTITY))
   }
-  if (tier.capacity > 0) {
-    return Math.max(1, Math.min(MAX_TICKET_QUANTITY, remaining))
-  }
-  return MAX_TICKET_QUANTITY
+  return Math.max(1, Math.min(MAX_TICKET_QUANTITY, byStock))
 }
 
 function offeringLabel(tier: PublicTicketTier) {
@@ -45,6 +40,7 @@ function offeringLabel(tier: PublicTicketTier) {
 export default function TicketButton({
   showId,
   tiers,
+  venueRemaining = null,
   disabled,
   label = 'Get Tickets',
   className = '',
@@ -55,8 +51,8 @@ export default function TicketButton({
   )
 
   const purchasableTiers = useMemo(
-    () => publishedTiers.filter((tier) => !isTierSoldOut(tier)),
-    [publishedTiers],
+    () => publishedTiers.filter((tier) => !isTierSoldOut(tier, venueRemaining)),
+    [publishedTiers, venueRemaining],
   )
 
   const [tierId, setTierId] = useState(purchasableTiers[0]?.id || '')
@@ -68,7 +64,7 @@ export default function TicketButton({
   const selected =
     purchasableTiers.find((t) => t.id === tierId) || purchasableTiers[0]
 
-  const maxQty = selected ? maxQuantityForTier(selected) : 1
+  const maxQty = selected ? maxQuantityForTier(selected, venueRemaining) : 1
 
   useEffect(() => {
     setQuantity((q) => Math.min(Math.max(1, q), maxQty))
@@ -192,7 +188,7 @@ export default function TicketButton({
             className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
           >
             {publishedTiers.map((tier) => {
-              const soldOut = isTierSoldOut(tier)
+              const soldOut = isTierSoldOut(tier, venueRemaining)
               return (
                 <option key={tier.id} value={tier.id} disabled={soldOut}>
                   {offeringLabel(tier)} —{' '}

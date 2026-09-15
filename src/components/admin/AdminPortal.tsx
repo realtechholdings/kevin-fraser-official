@@ -2156,8 +2156,8 @@ export default function AdminPortal() {
                           onChange={(e) => setShowForm({ ...showForm, capacity: e.target.value })}
                         />
                         <p className="mt-1.5 text-xs text-white/35">
-                          Informational only — sold out is driven by ticket tiers or the status
-                          below.
+                          Hard cap on seats sold at this date, including table packages. Checkout
+                          stops when this number is reached (0 = no venue cap).
                         </p>
                       </div>
                       <div>
@@ -2174,7 +2174,7 @@ export default function AdminPortal() {
                         </select>
                         <p className="mt-1.5 text-xs text-white/35">
                           Choose Sold out to stop ticket sales immediately. Shows also auto-mark
-                          sold out when every tier hits 0 remaining.
+                          sold out when every tier hits 0 remaining, or when venue capacity is full.
                         </p>
                       </div>
                       <div>
