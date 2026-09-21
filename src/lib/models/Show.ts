@@ -30,6 +30,12 @@ const ShowSchema = new Schema(
       default: 'on_sale',
     },
     /**
+     * When set, the show is removed from the public site and checkout.
+     * Orders, tickets, tables, and inventory stay in place.
+     */
+    archivedAt: { type: Date, default: null, index: true },
+    archivedBy: { type: String, default: '' },
+    /**
      * Optional tickets-on-sale date for coming_soon shows.
      * Displayed as e.g. "Tickets on sale 1 September 2026".
      */

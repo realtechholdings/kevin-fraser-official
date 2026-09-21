@@ -5,6 +5,7 @@ import Show from '@/lib/models/Show'
 import { serializeShow, serializeTour } from '@/lib/serialize'
 import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import StagePageClient from '@/components/stage/StagePageClient'
+import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 
 export const metadata: Metadata = {
   title: 'The Stage | Kevin Fraser Official',
@@ -25,6 +26,7 @@ export default async function StagePage({ searchParams }: Props) {
     Tour.find({ published: true }).sort({ featured: -1, startDate: 1 }),
     Show.find({
       published: true,
+      ...ACTIVE_SHOW_FILTER,
       date: { $gte: new Date(Date.now() - 6 * 60 * 60 * 1000) },
     })
       .populate('tour')

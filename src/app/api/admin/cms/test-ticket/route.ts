@@ -5,6 +5,7 @@ import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { sendTicketEmail, sendUpgradeEmail, sendUpgradeOfferEmail } from '@/lib/email/ticket'
+import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 
 /** Send a sample ticket / upgrade email so the admin can preview the template. */
 export async function POST(req: NextRequest) {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     await dbConnect()
     const show = body.showId
       ? await Show.findById(String(body.showId)).populate('tour')
-      : await Show.findOne({ published: true, date: { $gte: new Date() } })
+      : await Show.findOne({ published: true, ...ACTIVE_SHOW_FILTER, date: { $gte: new Date() } })
           .sort({ date: 1 })
           .populate('tour')
 

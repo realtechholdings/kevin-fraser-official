@@ -9,6 +9,7 @@ import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
+import { archiveShowFields, isShowArchived, restoreShowFields } from '@/lib/shows/archive'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -85,6 +86,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       if (parsed) show.set('upgradeOffers', parsed)
     }
 
+    if (body.archived === false) {
+      Object.assign(show, restoreShowFields())
+    }
+
     await show.save()
 
     if (Array.isArray(body.tierConfigs)) {
@@ -120,13 +125,25 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params
     await dbConnect()
-    const show = await Show.findByIdAndDelete(id)
+    const show = await Show.findById(id)
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
-    return NextResponse.json({ success: true })
+    if (isShowArchived(show)) {
+      return NextResponse.json({ success: true, show: serializeShow(show) })
+    }
+
+    const who = admin.emails?.[0] || admin.userId
+    Object.assign(show, archiveShowFields(who))
+    await show.save()
+
+    const fresh = await Show.findById(show._id).populate('tour')
+    return NextResponse.json({
+      success: true,
+      show: serializeShow(fresh || show),
+    })
   } catch (error) {
     console.error('Admin shows DELETE:', error)
-    return NextResponse.json({ success: false, error: 'Failed to delete show.' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to remove show.' }, { status: 500 })
   }
 }

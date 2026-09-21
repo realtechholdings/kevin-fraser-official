@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
 import { parseWallDate } from '@/lib/wallDate'
+import { archiveShowFields } from '@/lib/shows/archive'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -92,7 +93,8 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     if (!tour) {
       return NextResponse.json({ success: false, error: 'Tour not found.' }, { status: 404 })
     }
-    await Show.deleteMany({ tour: id })
+    const who = admin.emails?.[0] || admin.userId
+    await Show.updateMany({ tour: id, archivedAt: null }, { $set: archiveShowFields(who) })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Admin tours DELETE:', error)

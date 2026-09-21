@@ -20,6 +20,7 @@ import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
+import { isShowArchived } from '@/lib/shows/archive'
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect()
     const show = await Show.findById(showId).populate('tour')
-    if (!show || !show.published) {
+    if (!show || !show.published || isShowArchived(show)) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 

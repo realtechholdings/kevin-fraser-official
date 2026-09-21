@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import Show from '@/lib/models/Show'
 import { serializeShow } from '@/lib/serialize'
+import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     const upcoming = searchParams.get('upcoming') !== 'false'
     const featured = searchParams.get('featured') === 'true'
 
-    const filter: Record<string, unknown> = { published: true }
+    const filter: Record<string, unknown> = { published: true, ...ACTIVE_SHOW_FILTER }
     if (tourId) filter.tour = tourId
     if (featured) filter.featured = true
     if (upcoming) filter.date = { $gte: new Date(Date.now() - 6 * 60 * 60 * 1000) }

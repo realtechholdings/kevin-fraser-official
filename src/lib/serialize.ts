@@ -87,6 +87,7 @@ export type PublicShow = {
   venueImage: string
   venueImageKey: string
   description: string
+  archivedAt: string | null
   upgradeOffers?: {
     fromSlug: string
     toSlug: string
@@ -241,6 +242,7 @@ export function serializeShow(
       show.venueImage ||
       (show.venueImageKey ? `/api/shows/${String(show._id)}/venue` : ''),
     description: show.description || '',
+    archivedAt: show.archivedAt ? toWallIso(show.archivedAt) : null,
     upgradeOffers: (show.upgradeOffers || []).map((o) => ({
       fromSlug: o.fromSlug,
       toSlug: o.toSlug,

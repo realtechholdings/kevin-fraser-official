@@ -19,6 +19,7 @@ import {
   isTableOffering,
   nextTableNames,
 } from '@/lib/tickets/tables'
+import { isShowArchived } from '@/lib/shows/archive'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
 
@@ -38,6 +39,7 @@ export async function GET() {
     const options = []
 
     for (const show of shows) {
+      if (isShowArchived(show)) continue
       const tiers = await resolveTiersForShow(show)
       const d = formatShowDate(toWallIso(show.date) || String(show.date))
       const tour =
@@ -149,6 +151,12 @@ export async function POST(req: NextRequest) {
     const show = await Show.findById(showId).populate('tour')
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
+    }
+    if (isShowArchived(show)) {
+      return NextResponse.json(
+        { success: false, error: 'This show has been removed from the site.' },
+        { status: 400 },
+      )
     }
 
     const tiers = await resolveTiersForShow(show)

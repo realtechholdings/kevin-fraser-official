@@ -415,6 +415,11 @@ function StatusBadge({ status }: { status: string }) {
       className: 'text-white/30 bg-white/5',
       icon: XCircle,
     },
+    archived: {
+      label: 'Removed',
+      className: 'text-amber-200/80 bg-amber-500/10',
+      icon: XCircle,
+    },
     published: {
       label: 'Published',
       className: 'text-emerald-400 bg-emerald-400/10',
@@ -454,6 +459,8 @@ export default function AdminPortal() {
   const [editingShowId, setEditingShowId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showFormPanel, setShowFormPanel] = useState(false)
+  const [pendingDeleteShow, setPendingDeleteShow] = useState<PublicShow | null>(null)
+  const [includeArchivedShows, setIncludeArchivedShows] = useState(false)
   const [adminMode, setAdminMode] = useState<'dark' | 'light'>('dark')
   const [siteTheme, setSiteTheme] = useState<ThemeSettings>(DEFAULT_THEME_SETTINGS)
   const prevTabRef = useRef<Tab>('overview')
@@ -559,8 +566,16 @@ export default function AdminPortal() {
   )
 
   const upcomingShows = useMemo(
-    () => shows.filter((s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000),
-    [shows]
+    () =>
+      shows.filter(
+        (s) => !s.archivedAt && new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000,
+      ),
+    [shows],
+  )
+  const archivedShowCount = shows.filter((s) => s.archivedAt).length
+  const visibleShows = useMemo(
+    () => (includeArchivedShows ? shows : shows.filter((s) => !s.archivedAt)),
+    [shows, includeArchivedShows],
   )
   const onSaleCount = upcomingShows.filter((s) => s.status === 'on_sale').length
   const featuredTour = tours.find((t) => t.featured)
@@ -979,7 +994,7 @@ export default function AdminPortal() {
   }
 
   async function removeTour(id: string) {
-    if (!confirm('Delete this tour and all of its shows?')) return
+    if (!confirm('Remove this tour from the site? Its shows will be hidden, but ticket orders stay in Sales.')) return
     setBusy(true)
     try {
       const res = await fetch(`/api/admin/tours/${id}`, { method: 'DELETE' })
@@ -993,16 +1008,44 @@ export default function AdminPortal() {
     }
   }
 
-  async function removeShow(id: string) {
-    if (!confirm('Delete this show?')) return
+  async function confirmRemoveShow() {
+    const show = pendingDeleteShow
+    if (!show) return
     setBusy(true)
+    setError('')
+    setMessage('')
     try {
-      const res = await fetch(`/api/admin/shows/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/shows/${show.id}`, { method: 'DELETE' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Delete failed')
+      if (!res.ok) throw new Error(data.error || 'Remove failed')
+      setPendingDeleteShow(null)
+      setMessage(
+        `${show.city} was removed from the site. Ticket orders, guest lists, and inventory were kept.`,
+      )
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Remove failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function restoreShow(show: PublicShow) {
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch(`/api/admin/shows/${show.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: false }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Restore failed')
+      setMessage(`${show.city} is back on the site.`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Restore failed')
     } finally {
       setBusy(false)
     }
@@ -1221,10 +1264,23 @@ export default function AdminPortal() {
                   <p className="mt-1 text-sm text-white/40">
                     {tab === 'tours'
                       ? `${tours.length} tour${tours.length === 1 ? '' : 's'} on the platform`
-                      : `${shows.length} show${shows.length === 1 ? '' : 's'} scheduled`}
+                      : `${shows.filter((s) => !s.archivedAt).length} show${
+                          shows.filter((s) => !s.archivedAt).length === 1 ? '' : 's'
+                        } scheduled`}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {tab === 'shows' && archivedShowCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setIncludeArchivedShows((v) => !v)}
+                      className={btnGhost}
+                    >
+                      {includeArchivedShows
+                        ? 'Hide removed'
+                        : `Show removed (${archivedShowCount})`}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => openCreate(tab)}
@@ -2472,15 +2528,16 @@ export default function AdminPortal() {
                             </td>
                           </tr>
                         ))
-                      ) : shows.length === 0 ? (
+                      ) : visibleShows.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-5 py-10 text-center text-sm text-white/40">
                             No shows yet. Create one after adding a tour.
                           </td>
                         </tr>
                       ) : (
-                        shows.map((show) => {
+                        visibleShows.map((show) => {
                           const d = formatShowDate(show.date)
+                          const removed = Boolean(show.archivedAt)
                           return (
                             <tr key={show.id} className="transition-colors hover:bg-white/[0.02]">
                               <td className="whitespace-nowrap px-5 py-4">
@@ -2506,37 +2563,50 @@ export default function AdminPortal() {
                                 {displayPrice(show)}
                               </td>
                               <td className="hidden px-5 py-4 md:table-cell">
-                                <StatusBadge status={show.status} />
+                                <StatusBadge status={removed ? 'archived' : show.status} />
                               </td>
                               <td className="px-5 py-4">
                                 <div className="flex justify-end gap-3">
                                   <button type="button" onClick={() => editShow(show)} className={btnGhost}>
                                     Edit
                                   </button>
-                                  <button
-                                    type="button"
-                                    disabled={busy || show.status === 'cancelled'}
-                                    onClick={() => toggleSoldOutShow(show)}
-                                    className={btnGhost}
-                                  >
-                                    {show.status === 'sold_out' ? 'Put on sale' : 'Sold out'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => toggleFeaturedShow(show)}
-                                    className={btnGhost}
-                                  >
-                                    {show.featured ? 'Unfeature' : 'Feature'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() => removeShow(show.id)}
-                                    className={btnDanger}
-                                  >
-                                    Delete
-                                  </button>
+                                  {removed ? (
+                                    <button
+                                      type="button"
+                                      disabled={busy}
+                                      onClick={() => restoreShow(show)}
+                                      className={btnGhost}
+                                    >
+                                      Restore
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        disabled={busy || show.status === 'cancelled'}
+                                        onClick={() => toggleSoldOutShow(show)}
+                                        className={btnGhost}
+                                      >
+                                        {show.status === 'sold_out' ? 'Put on sale' : 'Sold out'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => toggleFeaturedShow(show)}
+                                        className={btnGhost}
+                                      >
+                                        {show.featured ? 'Unfeature' : 'Feature'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => setPendingDeleteShow(show)}
+                                        className={btnDanger}
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -2736,6 +2806,47 @@ export default function AdminPortal() {
           </div>
         </main>
       </div>
+
+      {pendingDeleteShow ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="admin-card w-full max-w-md p-6 sm:p-7">
+            <h3 className="text-lg font-semibold text-white">Remove this show?</h3>
+            <p className="mt-2 text-sm text-white/70">
+              {pendingDeleteShow.city} · {pendingDeleteShow.venue}
+            </p>
+            <p className="mt-1 text-xs text-white/40">
+              {formatShowDate(pendingDeleteShow.date).full}
+              {pendingDeleteShow.ticketsSold
+                ? ` · ${pendingDeleteShow.ticketsSold} ticket${
+                    pendingDeleteShow.ticketsSold === 1 ? '' : 's'
+                  } sold`
+                : ''}
+            </p>
+            <p className="mt-4 text-sm leading-relaxed text-white/55">
+              It will disappear from the public Stage page and checkout. Ticket orders, guest lists,
+              tables, and inventory stay in Sales so nothing is lost.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setPendingDeleteShow(null)}
+                className={btnGhost}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void confirmRemoveShow()}
+                className={btnDanger}
+              >
+                {busy ? 'Removing…' : 'Remove show'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

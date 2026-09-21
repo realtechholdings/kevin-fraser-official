@@ -5,6 +5,7 @@ import Show from '@/lib/models/Show'
 import { serializeShow } from '@/lib/serialize'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import ShowDetailClient from '@/components/stage/ShowDetailClient'
+import { isShowArchived } from '@/lib/shows/archive'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   await dbConnect()
   const show = await Show.findById(id).populate('tour')
-  if (!show || !show.published) {
+  if (!show || !show.published || isShowArchived(show)) {
     return { title: 'Show | Kevin Fraser Official' }
   }
   return {
@@ -29,7 +30,7 @@ export default async function ShowDetailPage({ params }: Props) {
   const { id } = await params
   await dbConnect()
   const show = await Show.findById(id).populate('tour')
-  if (!show || !show.published) notFound()
+  if (!show || !show.published || isShowArchived(show)) notFound()
 
   const tiers = await resolveTiersForShow(show)
   const publicShow = serializeShow(show, tiers)
