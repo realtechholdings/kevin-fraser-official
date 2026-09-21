@@ -2156,8 +2156,9 @@ export default function AdminPortal() {
                           onChange={(e) => setShowForm({ ...showForm, capacity: e.target.value })}
                         />
                         <p className="mt-1.5 text-xs text-white/35">
-                          Hard cap on seats sold at this date, including table packages. Checkout
-                          stops when this number is reached (0 = no venue cap).
+                          Hard cap on GA / individual tickets at this date. Unsold table
+                          packages keep their own inventory, so leftover seats smaller than
+                          a table will not mark remaining tables sold out (0 = no venue cap).
                         </p>
                       </div>
                       <div>
@@ -2174,7 +2175,8 @@ export default function AdminPortal() {
                         </select>
                         <p className="mt-1.5 text-xs text-white/35">
                           Choose Sold out to stop ticket sales immediately. Shows also auto-mark
-                          sold out when every tier hits 0 remaining, or when venue capacity is full.
+                          sold out when every class and table hits 0 remaining. Leftover venue
+                          seats that cannot fit a whole table do not sell out remaining tables.
                         </p>
                       </div>
                       <div>
@@ -2208,7 +2210,8 @@ export default function AdminPortal() {
                           <span>
                             <span className="font-medium text-white">Mark as sold out</span>
                             <span className="mt-0.5 block text-xs text-white/40">
-                              Blocks checkout regardless of venue capacity or remaining tier stock.
+                              Blocks ticket classes regardless of remaining stock. Remaining
+                              table packages stay on sale until you mark those tables sold out.
                             </span>
                           </span>
                         </label>

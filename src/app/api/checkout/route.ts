@@ -8,7 +8,9 @@ import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import {
   areAllTiersSoldOut,
+  hasRemainingTableInventory,
   isTierSoldOut,
+  unsoldTableSeats,
   venueCanTake,
   venueSeatRemaining,
 } from '@/lib/tickets/soldOut'
@@ -43,9 +45,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 
-    if (show.status === 'sold_out') {
-      return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
-    }
     if (show.status === 'cancelled') {
       return NextResponse.json({ success: false, error: 'This show has been cancelled.' }, { status: 400 })
     }
@@ -62,6 +61,9 @@ export async function POST(req: NextRequest) {
 
     const venueRemaining = venueSeatRemaining(show)
     const tiers = await resolveTiersForShow(show)
+    if (show.status === 'sold_out' && !hasRemainingTableInventory(tiers, venueRemaining)) {
+      return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
+    }
     if (areAllTiersSoldOut(tiers, venueRemaining)) {
       return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
     }
@@ -81,11 +83,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No ticket tier available.' }, { status: 400 })
     }
 
-    if (isTierSoldOut(selected, venueRemaining)) {
+    if (isTierSoldOut(selected, venueRemaining, tiers)) {
       return NextResponse.json({ success: false, error: 'This ticket tier is sold out.' }, { status: 400 })
     }
 
     const tablePurchase = isTableOffering(selected)
+    if (show.status === 'sold_out' && !tablePurchase) {
+      return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
+    }
     const seats = tablePurchase ? Math.max(1, selected.seats || 1) : 1
     const tableQty = tablePurchase ? quantity : 0
     const ticketQty = tablePurchase ? tableQty * seats : quantity
@@ -124,7 +129,14 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
-      if (linked.capacity > 0 && linked.ticketsSold + ticketQty > linked.capacity) {
+      const classSoldAsTickets = tiers.some(
+        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableDoc.tierSlug && t.published !== false,
+      )
+      if (
+        classSoldAsTickets &&
+        linked.capacity > 0 &&
+        linked.ticketsSold + ticketQty > linked.capacity
+      ) {
         return NextResponse.json(
           { success: false, error: 'Not enough tickets left in this class.' },
           { status: 400 },
@@ -135,7 +147,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
     }
 
-    if (!venueCanTake(show, ticketQty)) {
+    if (!tablePurchase && !venueCanTake(show, ticketQty, unsoldTableSeats(tiers))) {
       return NextResponse.json(
         { success: false, error: 'Not enough seats left at this venue.' },
         { status: 400 },

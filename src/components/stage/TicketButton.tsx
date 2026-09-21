@@ -19,8 +19,12 @@ type Props = {
   className?: string
 }
 
-function maxQuantityForTier(tier: PublicTicketTier, venueRemaining: number | null) {
-  const remaining = remainingOfferingUnits(tier, venueRemaining)
+function maxQuantityForTier(
+  tier: PublicTicketTier,
+  venueRemaining: number | null,
+  allTiers: PublicTicketTier[],
+) {
+  const remaining = remainingOfferingUnits(tier, venueRemaining, allTiers)
   const byStock = remaining === null ? MAX_TICKET_QUANTITY : remaining
   if (tier.kind === 'table') {
     const seats = Math.max(1, tier.seats || 1)
@@ -51,7 +55,7 @@ export default function TicketButton({
   )
 
   const purchasableTiers = useMemo(
-    () => publishedTiers.filter((tier) => !isTierSoldOut(tier, venueRemaining)),
+    () => publishedTiers.filter((tier) => !isTierSoldOut(tier, venueRemaining, publishedTiers)),
     [publishedTiers, venueRemaining],
   )
 
@@ -64,7 +68,7 @@ export default function TicketButton({
   const selected =
     purchasableTiers.find((t) => t.id === tierId) || purchasableTiers[0]
 
-  const maxQty = selected ? maxQuantityForTier(selected, venueRemaining) : 1
+  const maxQty = selected ? maxQuantityForTier(selected, venueRemaining, publishedTiers) : 1
 
   useEffect(() => {
     setQuantity((q) => Math.min(Math.max(1, q), maxQty))
@@ -188,7 +192,7 @@ export default function TicketButton({
             className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
           >
             {publishedTiers.map((tier) => {
-              const soldOut = isTierSoldOut(tier, venueRemaining)
+              const soldOut = isTierSoldOut(tier, venueRemaining, publishedTiers)
               return (
                 <option key={tier.id} value={tier.id} disabled={soldOut}>
                   {offeringLabel(tier)} —{' '}

@@ -6,7 +6,7 @@ import Order from '@/lib/models/Order'
 import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
-import { isTierSoldOut, venueCanTake, venueSeatRemaining } from '@/lib/tickets/soldOut'
+import { isTierSoldOut, unsoldTableSeats, venueCanTake, venueSeatRemaining } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { applyPaidInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
@@ -61,7 +61,7 @@ export async function GET() {
           currency: t.currency,
           capacity: t.capacity,
           ticketsSold: t.ticketsSold,
-          soldOut: isTierSoldOut(t, venueSeatRemaining(show)),
+          soldOut: isTierSoldOut(t, venueSeatRemaining(show), tiers),
           legacy: Boolean(t.legacy),
           kind: t.kind || 'ticket',
           seats: t.seats || 1,
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
     const venueRemaining = venueSeatRemaining(show)
     if (
       countAgainstInventory &&
-      isTierSoldOut(tier, venueRemaining) &&
+      isTierSoldOut(tier, venueRemaining, tiers) &&
       !isLegacyTierId(tier.id)
     ) {
       return NextResponse.json(
@@ -223,8 +223,12 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
+      const classSoldAsTickets = tiers.some(
+        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableDoc.tierSlug && t.published !== false,
+      )
       if (
         countAgainstInventory &&
+        classSoldAsTickets &&
         linked.capacity > 0 &&
         linked.ticketsSold + ticketQty > linked.capacity
       ) {
@@ -248,7 +252,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (countAgainstInventory && !venueCanTake(show, ticketQty)) {
+    if (
+      countAgainstInventory &&
+      !tablePurchase &&
+      !venueCanTake(show, ticketQty, unsoldTableSeats(tiers))
+    ) {
       return NextResponse.json(
         { success: false, error: 'Not enough seats left at this venue.' },
         { status: 400 },

@@ -13,7 +13,7 @@ import type { PublicShow } from '@/lib/serialize'
 import { isShowEffectivelySoldOut, isTierSoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
 function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
-  if (effectivelySoldOut || show.status === 'sold_out') return 'Sold Out'
+  if (effectivelySoldOut) return 'Sold Out'
   if (show.status === 'cancelled') return 'Cancelled'
   if (show.status === 'coming_soon') {
     return formatTicketsOnSaleLabel(show.ticketsOnSaleAt) || 'Coming Soon'
@@ -220,7 +220,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     .slice()
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
                     .map((tier) => {
-                      const tierSoldOut = isTierSoldOut(tier, venueRemaining)
+                      const tierSoldOut = isTierSoldOut(tier, venueRemaining, show.tiers)
                       return (
                         <li key={tier.id} className="text-sm">
                           <div className="flex items-center justify-between gap-3">

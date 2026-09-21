@@ -19,7 +19,7 @@ type Props = {
 }
 
 function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
-  if (effectivelySoldOut || show.status === 'sold_out') return 'Sold Out'
+  if (effectivelySoldOut) return 'Sold Out'
   if (show.status === 'cancelled') return 'Cancelled'
   if (show.status === 'coming_soon') {
     return formatTicketsOnSaleLabel(show.ticketsOnSaleAt) || 'Coming Soon'

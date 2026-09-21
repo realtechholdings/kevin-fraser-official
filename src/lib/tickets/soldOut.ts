@@ -27,29 +27,56 @@ export function offeringSeats(
 }
 
 /**
+ * Seats held by unsold table packages. Ticket classes cannot sell these —
+ * leftover venue crumbs (e.g. 6 seats left, 10-top tables remaining) must
+ * not wipe table inventory or auto-sell-out the show.
+ */
+export function unsoldTableSeats(tiers: TierLike[] | undefined): number {
+  if (!tiers?.length) return 0
+  let seats = 0
+  for (const tier of tiers) {
+    if (tier.kind !== 'table' || tier.published === false || tier.soldOut) continue
+    const cap = Number(tier.capacity) || 0
+    if (cap <= 0) continue
+    const remaining = Math.max(0, cap - (Number(tier.ticketsSold) || 0))
+    seats += remaining * offeringSeats(tier)
+  }
+  return seats
+}
+
+/**
  * Remaining buyable units (tickets, or tables when kind is table).
  * `null` = unlimited. Venue remaining of `null` means no venue cap.
  */
 export function remainingOfferingUnits(
   tier: Pick<PublicTicketTier, 'kind' | 'seats' | 'capacity' | 'ticketsSold' | 'soldOut'>,
   venueRemaining: number | null = null,
+  allTiers: TierLike[] | undefined = undefined,
 ): number | null {
   if (tier.soldOut) return 0
-  const seats = offeringSeats(tier)
   const byOffering =
     (tier.capacity || 0) > 0
       ? Math.max(0, (tier.capacity || 0) - (tier.ticketsSold || 0))
       : null
+
+  // Table packages keep their own stock. A leftover 6 venue seats cannot
+  // mark a 10-seat Cassette table sold out while 3 of 6 tables remain.
+  if (tier.kind === 'table') return byOffering
+
   if (venueRemaining === null) return byOffering
-  const byVenue = Math.floor(venueRemaining / seats)
+  const byVenue = Math.max(0, venueRemaining - unsoldTableSeats(allTiers))
   if (byOffering === null) return byVenue
   return Math.min(byOffering, byVenue)
 }
 
-export function venueCanTake(show: VenueShow, ticketQty: number): boolean {
+export function venueCanTake(
+  show: VenueShow,
+  ticketQty: number,
+  reservedTableSeats = 0,
+): boolean {
   const remaining = venueSeatRemaining(show)
   if (remaining === null) return true
-  return ticketQty <= remaining
+  return ticketQty <= Math.max(0, remaining - reservedTableSeats)
 }
 
 /**
@@ -60,9 +87,10 @@ export function venueCanTake(show: VenueShow, ticketQty: number): boolean {
 export function isTierSoldOut(
   tier: Pick<PublicTicketTier, 'capacity' | 'ticketsSold' | 'soldOut' | 'kind' | 'seats'>,
   venueRemaining: number | null = null,
+  allTiers: TierLike[] | undefined = undefined,
 ): boolean {
   if (tier.soldOut) return true
-  const remaining = remainingOfferingUnits(tier, venueRemaining)
+  const remaining = remainingOfferingUnits(tier, venueRemaining, allTiers)
   if (remaining === null) return false
   return remaining <= 0
 }
@@ -70,7 +98,8 @@ export function isTierSoldOut(
 /**
  * True when every sellable tier for a show is exhausted.
  * Legacy / no-tier shows are never auto-sold-out by class.
- * Pass venue remaining so leftover tables cannot outrun the room.
+ * Pass venue remaining so leftover tables cannot outrun the room —
+ * except table packages, which keep their reserved inventory.
  */
 export function areAllTiersSoldOut(
   tiers: TierLike[],
@@ -78,7 +107,21 @@ export function areAllTiersSoldOut(
 ): boolean {
   const sellable = tiers.filter((t) => t.published !== false && !t.legacy)
   if (!sellable.length) return false
-  return sellable.every((tier) => isTierSoldOut(tier, venueRemaining))
+  return sellable.every((tier) => isTierSoldOut(tier, venueRemaining, sellable))
+}
+
+export function hasRemainingTableInventory(
+  tiers: TierLike[] | undefined,
+  venueRemaining: number | null = null,
+): boolean {
+  if (!tiers?.length) return false
+  return tiers.some(
+    (tier) =>
+      tier.kind === 'table' &&
+      tier.published !== false &&
+      !tier.legacy &&
+      !isTierSoldOut(tier, venueRemaining, tiers),
+  )
 }
 
 /** Status flag, venue full, or all limited tiers exhausted. */
@@ -88,9 +131,12 @@ export function isShowEffectivelySoldOut(show: {
   ticketsSold?: number
   tiers?: TierLike[]
 }): boolean {
-  if (show.status === 'sold_out') return true
   const venue = venueSeatRemaining(show)
-  if (venue === 0) return true
+  // A sticky sold_out flag from leftover venue crumbs should not hide
+  // remaining table packages. Other leftover classes still respect the flag.
+  if (show.status === 'sold_out') {
+    return !hasRemainingTableInventory(show.tiers, venue)
+  }
   if (show.tiers?.length) return areAllTiersSoldOut(show.tiers, venue)
-  return false
+  return venue === 0
 }

@@ -4,12 +4,15 @@ import { areAllTiersSoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
 function exhausted(show: { capacity?: number; ticketsSold?: number }, tiers: Parameters<typeof areAllTiersSoldOut>[0]) {
   const venue = venueSeatRemaining(show)
-  return venue === 0 || areAllTiersSoldOut(tiers, venue)
+  // Do not treat leftover venue crumbs as "room full" while reserved
+  // table packages still have stock (Pretoria Cassette tables).
+  return areAllTiersSoldOut(tiers, venue)
 }
 
 /**
- * Flip an on-sale show to sold_out when all sellable tiers are gone,
- * or when venue capacity has no seats left.
+ * Flip an on-sale show to sold_out when all sellable tiers are gone.
+ * Unsold table packages keep the show on sale even if leftover venue
+ * seats cannot fit another whole table.
  * Does not overwrite cancelled / coming_soon / already sold_out.
  */
 export async function maybeMarkShowSoldOut(showId: string): Promise<boolean> {
