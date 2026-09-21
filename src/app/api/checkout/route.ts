@@ -16,7 +16,7 @@ import {
 } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
-import TicketTable from '@/lib/models/TicketTable'
+import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
         ? String((show.tour as { _id: unknown })._id)
         : String(show.tour)
 
-    let tableDoc = null
+    let tableDoc: TicketTableDocument | null = null
     let underlying = selected
     if (tablePurchase) {
       tableDoc = await TicketTable.findById(selected.id)
@@ -129,8 +129,9 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
+      const tableTierSlug = tableDoc.tierSlug
       const classSoldAsTickets = tiers.some(
-        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableDoc.tierSlug && t.published !== false,
+        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableTierSlug && t.published !== false,
       )
       if (
         classSoldAsTickets &&

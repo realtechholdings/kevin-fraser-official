@@ -13,7 +13,7 @@ import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { sendTicketEmail } from '@/lib/email/ticket'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
-import TicketTable from '@/lib/models/TicketTable'
+import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import {
   findTierForShowSlug,
   isTableOffering,
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         ? String((show.tour as { _id: unknown })._id)
         : String(show.tour)
 
-    let tableDoc = null
+    let tableDoc: TicketTableDocument | null = null
     let underlying = tier
     if (tablePurchase) {
       tableDoc = await TicketTable.findById(tier.id)
@@ -223,8 +223,9 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
+      const tableTierSlug = tableDoc.tierSlug
       const classSoldAsTickets = tiers.some(
-        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableDoc.tierSlug && t.published !== false,
+        (t) => (t.kind || 'ticket') !== 'table' && t.slug === tableTierSlug && t.published !== false,
       )
       if (
         countAgainstInventory &&
