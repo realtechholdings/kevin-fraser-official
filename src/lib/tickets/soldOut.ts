@@ -88,8 +88,12 @@ export function isTierSoldOut(
   tier: Pick<PublicTicketTier, 'capacity' | 'ticketsSold' | 'soldOut' | 'kind' | 'seats'>,
   venueRemaining: number | null = null,
   allTiers: TierLike[] | undefined = undefined,
+  showStatus?: string,
 ): boolean {
   if (tier.soldOut) return true
+  // A sticky sold_out flag means leftover ticket classes are not for sale
+  // (Joburg Floppy/Polaroid crumbs). Table packages can still sell reserved stock.
+  if (showStatus === 'sold_out' && tier.kind !== 'table') return true
   const remaining = remainingOfferingUnits(tier, venueRemaining, allTiers)
   if (remaining === null) return false
   return remaining <= 0

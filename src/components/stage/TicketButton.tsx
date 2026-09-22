@@ -14,6 +14,7 @@ type Props = {
   showId: string
   tiers: PublicTicketTier[]
   venueRemaining?: number | null
+  showStatus?: string
   disabled?: boolean
   label?: string
   className?: string
@@ -45,6 +46,7 @@ export default function TicketButton({
   showId,
   tiers,
   venueRemaining = null,
+  showStatus,
   disabled,
   label = 'Get Tickets',
   className = '',
@@ -55,8 +57,11 @@ export default function TicketButton({
   )
 
   const purchasableTiers = useMemo(
-    () => publishedTiers.filter((tier) => !isTierSoldOut(tier, venueRemaining, publishedTiers)),
-    [publishedTiers, venueRemaining],
+    () =>
+      publishedTiers.filter(
+        (tier) => !isTierSoldOut(tier, venueRemaining, publishedTiers, showStatus),
+      ),
+    [publishedTiers, venueRemaining, showStatus],
   )
 
   const [tierId, setTierId] = useState(purchasableTiers[0]?.id || '')
@@ -192,7 +197,7 @@ export default function TicketButton({
             className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
           >
             {publishedTiers.map((tier) => {
-              const soldOut = isTierSoldOut(tier, venueRemaining, publishedTiers)
+              const soldOut = isTierSoldOut(tier, venueRemaining, publishedTiers, showStatus)
               return (
                 <option key={tier.id} value={tier.id} disabled={soldOut}>
                   {offeringLabel(tier)} —{' '}

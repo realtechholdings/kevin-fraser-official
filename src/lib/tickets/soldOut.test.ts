@@ -89,10 +89,27 @@ test('venueCanTake subtracts reserved table seats for GA', () => {
 
 test('Johannesburg-style sold_out with leftover ticket classes stays sold out', () => {
   const show = { status: 'sold_out', capacity: 1007, ticketsSold: 991 }
-  const tiers = [
-    { published: true, kind: 'ticket' as const, capacity: 400, ticketsSold: 200, soldOut: false, seats: 1 },
-    { published: true, kind: 'ticket' as const, capacity: 50, ticketsSold: 50, soldOut: false, seats: 1 },
-  ]
-  assert.equal(hasRemainingTableInventory(tiers, venueSeatRemaining(show)), false)
+  const leftoverFloppy = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 400,
+    ticketsSold: 200,
+    soldOut: false,
+    seats: 1,
+  }
+  const soldNokia = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 50,
+    ticketsSold: 50,
+    soldOut: false,
+    seats: 1,
+  }
+  const tiers = [leftoverFloppy, soldNokia]
+  const venue = venueSeatRemaining(show)
+  assert.equal(hasRemainingTableInventory(tiers, venue), false)
   assert.equal(isShowEffectivelySoldOut({ ...show, tiers }), true)
+  assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers), false)
+  assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers, 'sold_out'), true)
+  assert.equal(isTierSoldOut(soldNokia, venue, tiers, 'sold_out'), true)
 })

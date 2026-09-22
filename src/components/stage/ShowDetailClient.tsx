@@ -210,7 +210,9 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   : formatPrice(fromPrice, show.currency)}
               </p>
               <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                Choose your ticket type and quantity, then continue to secure checkout.
+                {soldOut
+                  ? 'This show is sold out.'
+                  : 'Choose your ticket type and quantity, then continue to secure checkout.'}
               </p>
 
               {show.tiers && show.tiers.length > 0 ? (
@@ -220,7 +222,12 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     .slice()
                     .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
                     .map((tier) => {
-                      const tierSoldOut = isTierSoldOut(tier, venueRemaining, show.tiers)
+                      const tierSoldOut = isTierSoldOut(
+                        tier,
+                        venueRemaining,
+                        show.tiers,
+                        show.status,
+                      )
                       return (
                         <li key={tier.id} className="text-sm">
                           <div className="flex items-center justify-between gap-3">
@@ -277,6 +284,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     showId={show.id}
                     tiers={show.tiers || []}
                     venueRemaining={venueRemaining}
+                    showStatus={show.status}
                     disabled={unavailable}
                     label={soldOut ? 'Sold Out' : badge || 'Buy Tickets'}
                     className="w-full [&_button]:w-full [&_select]:w-full"
