@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
-import { isShowId, loadGuestList } from '@/lib/tickets/loadGuestList'
+import { guestListFilterNote, isShowId, loadGuestList, parseGuestListQuery } from '@/lib/tickets/loadGuestList'
 import { generateGuestListPdf } from '@/lib/tickets/guestListPdf'
 
 export async function GET(req: NextRequest) {
@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await loadGuestList(showId)
+    const query = parseGuestListQuery(req.nextUrl.searchParams)
+    const data = await loadGuestList(showId, query)
     if (!data) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 
-    const pdf = await generateGuestListPdf(data.show, data.rows)
+    const pdf = await generateGuestListPdf(data.show, data.rows, guestListFilterNote(query))
     return new NextResponse(Buffer.from(pdf.bytes), {
       status: 200,
       headers: {

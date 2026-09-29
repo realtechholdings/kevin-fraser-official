@@ -11,6 +11,7 @@ const HEADER_FG = rgb(0.96, 0.96, 0.97)
 const ZEBRA = rgb(0.97, 0.97, 0.98)
 
 export type GuestListRow = {
+  orderId: string
   name: string
   email: string
   quantity: number
@@ -19,6 +20,8 @@ export type GuestListRow = {
   source: string
   checkedIn: number
   note: string
+  /** When they first paid, or the issue time for a comp. ISO string. */
+  purchasedAt: string | null
 }
 
 export type GuestListShowInfo = {
@@ -30,6 +33,7 @@ export type GuestListShowInfo = {
 }
 
 type GuestOrder = {
+  id?: string
   email?: string
   holderName?: string
   quantity?: number
@@ -40,6 +44,7 @@ type GuestOrder = {
   note?: string
   checkedIn?: { ticket?: number }[]
   status?: string
+  purchasedAt?: Date | string | null
 }
 
 const COLS = {
@@ -73,7 +78,14 @@ export function buildGuestListRows(orders: GuestOrder[]): GuestListRow[] {
     .map((order) => {
       const email = String(order.email || '').trim().toLowerCase()
       const name = guestName(order)
+      const purchased =
+        order.purchasedAt instanceof Date
+          ? order.purchasedAt
+          : order.purchasedAt
+            ? new Date(order.purchasedAt)
+            : null
       return {
+        orderId: String(order.id || ''),
         name,
         email: email === 'pending@checkout' ? '' : email,
         quantity: Math.max(1, Number(order.quantity) || 1),
@@ -82,6 +94,7 @@ export function buildGuestListRows(orders: GuestOrder[]): GuestListRow[] {
         source: order.source === 'manual' ? 'comp' : 'paid',
         checkedIn: (order.checkedIn || []).length,
         note: String(order.note || '').trim(),
+        purchasedAt: purchased && !Number.isNaN(purchased.getTime()) ? purchased.toISOString() : null,
       }
     })
     .sort((a, b) => {
@@ -112,15 +125,17 @@ function drawText(
   page.drawText(text, { x, y, size, font, color })
 }
 
-function filenameFor(show: GuestListShowInfo) {
+function filenameFor(show: GuestListShowInfo, note?: string) {
   const date = slugify(show.dateLabel) || 'show'
   const city = slugify(show.city) || 'guest-list'
-  return `guest-list-${city}-${date}.pdf`
+  const extra = note ? `-${slugify(note)}` : ''
+  return `guest-list-${city}-${date}${extra}.pdf`
 }
 
 export async function generateGuestListPdf(
   show: GuestListShowInfo,
   rows: GuestListRow[],
+  filenameNote?: string,
 ): Promise<{ bytes: Uint8Array; filename: string }> {
   const doc = await PDFDocument.create()
   const bold = await doc.embedFont(StandardFonts.HelveticaBold)
@@ -298,11 +313,11 @@ export async function generateGuestListPdf(
   })
 
   if (!rows.length && page) {
-    drawText(page, 'No paid guests for this show yet.', MARGIN.left, y - 12, regular, 11, MUTED)
+    drawText(page, 'No guests on this list.', MARGIN.left, y - 12, regular, 11, MUTED)
   }
 
   if (page) drawFooter(page, pageIndex)
 
   const bytes = await doc.save()
-  return { bytes, filename: filenameFor(show) }
+  return { bytes, filename: filenameFor(show, filenameNote) }
 }
