@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { accessFromUser, requireAdmin } from '@/lib/admin'
-import {
-  metadataForAssignment,
-  permissionsForRole,
-  STAFF_ROLES,
-  type StaffRole,
-} from '@/lib/admin/access'
+import type { RoleGrant } from '@/lib/admin/access'
+import { loadRoleGrants } from '@/lib/admin/roles'
 
-function isRole(value: unknown): value is StaffRole {
-  return typeof value === 'string' && (STAFF_ROLES as readonly string[]).includes(value)
-}
-
-function assignmentFromBody(body: { role?: unknown; permissions?: unknown }) {
-  if (!isRole(body.role) || body.role === 'none') {
-    if (body.role === 'none') return { role: 'none' as const, permissions: [] as string[] }
-    return null
-  }
-  const custom = Array.isArray(body.permissions)
-    ? body.permissions.filter((item): item is string => typeof item === 'string')
-    : []
-  const permissions = permissionsForRole(body.role, custom)
-  if (body.role === 'custom' && permissions.length === 0) return null
-  return metadataForAssignment(body.role, custom)
+async function assignmentFromBody(body: { role?: unknown }) {
+  const role = String(body.role || '').trim()
+  if (!role) return null
+  if (role === 'none') return { role: 'none', permissions: [] as string[] }
+  const grants = await loadRoleGrants()
+  if (!grants.some((grant) => grant.slug === role)) return null
+  return { role, permissions: [] as string[] }
 }
 
 function displayName(first: string | null, last: string | null, email: string) {
@@ -30,22 +18,25 @@ function displayName(first: string | null, last: string | null, email: string) {
   return name || email
 }
 
-function serializeUser(user: {
-  id: string
-  firstName: string | null
-  lastName: string | null
-  imageUrl: string
-  lastSignInAt: number | null
-  emailAddresses: { id: string; emailAddress: string }[]
-  primaryEmailAddressId: string | null
-  publicMetadata: unknown
-}) {
+function serializeUser(
+  user: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+    imageUrl: string
+    lastSignInAt: number | null
+    emailAddresses: { id: string; emailAddress: string }[]
+    primaryEmailAddressId: string | null
+    publicMetadata: unknown
+  },
+  grants: readonly RoleGrant[],
+) {
   const emails = user.emailAddresses.map((entry) => entry.emailAddress)
   const primary =
     user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId)?.emailAddress ||
     emails[0] ||
     ''
-  const access = accessFromUser(emails, user.publicMetadata)
+  const access = accessFromUser(emails, user.publicMetadata, grants)
   return {
     id: user.id,
     email: primary,
@@ -68,6 +59,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const client = await clerkClient()
+    const grants = await loadRoleGrants()
     const [users, invitations] = await Promise.all([
       client.users.getUserList({
         limit: 100,
@@ -80,9 +72,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       totalCount: users.totalCount,
-      users: users.data.map(serializeUser),
+      users: users.data.map((user) => serializeUser(user, grants)),
       invitations: invitations.data.map((invite) => {
-        const access = accessFromUser([invite.emailAddress], invite.publicMetadata)
+        const access = accessFromUser([invite.emailAddress], invite.publicMetadata, grants)
         return {
           id: invite.id,
           email: invite.emailAddress,
@@ -111,21 +103,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Enter a valid email address.' }, { status: 400 })
     }
 
-    const assignment = assignmentFromBody(body)
+    const assignment = await assignmentFromBody(body)
     if (!assignment || assignment.role === 'none') {
-      return NextResponse.json(
-        { success: false, error: 'Choose a role. Custom roles need at least one privilege.' },
-        { status: 400 },
-      )
+      return NextResponse.json({ success: false, error: 'Choose a role.' }, { status: 400 })
     }
 
     const client = await clerkClient()
     const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 })
     const found = existing.data[0]
     if (found) {
+      const grants = await loadRoleGrants()
       const current = accessFromUser(
         found.emailAddresses.map((entry) => entry.emailAddress),
         found.publicMetadata,
+        grants,
       )
       if (current.locked) {
         return NextResponse.json(
@@ -134,7 +125,11 @@ export async function POST(req: NextRequest) {
         )
       }
       const updated = await client.users.updateUserMetadata(found.id, { publicMetadata: assignment })
-      return NextResponse.json({ success: true, user: serializeUser(updated), invited: false })
+      return NextResponse.json({
+        success: true,
+        user: serializeUser(updated, grants),
+        invited: false,
+      })
     }
 
     const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim()
@@ -170,19 +165,18 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'userId is required.' }, { status: 400 })
     }
 
-    const assignment = assignmentFromBody(body)
+    const assignment = await assignmentFromBody(body)
     if (!assignment) {
-      return NextResponse.json(
-        { success: false, error: 'Choose a role. Custom roles need at least one privilege.' },
-        { status: 400 },
-      )
+      return NextResponse.json({ success: false, error: 'Choose a role.' }, { status: 400 })
     }
 
     const client = await clerkClient()
+    const grants = await loadRoleGrants()
     const currentUserRecord = await client.users.getUser(userId)
     const current = accessFromUser(
       currentUserRecord.emailAddresses.map((entry) => entry.emailAddress),
       currentUserRecord.publicMetadata,
+      grants,
     )
     if (current.locked) {
       return NextResponse.json(
@@ -192,7 +186,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await client.users.updateUserMetadata(userId, { publicMetadata: assignment })
-    return NextResponse.json({ success: true, user: serializeUser(updated) })
+    return NextResponse.json({ success: true, user: serializeUser(updated, grants) })
   } catch (error) {
     console.error('Admin users PATCH:', error)
     return NextResponse.json({ success: false, error: 'Failed to update that user.' }, { status: 500 })

@@ -20,7 +20,7 @@ export const ADMIN_PERMISSIONS = [
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number]
 
 export const ASSIGNABLE_PERMISSIONS: {
-  id: Exclude<AdminPermission, 'users'>
+  id: AdminPermission
   label: string
   description: string
 }[] = [
@@ -35,6 +35,7 @@ export const ASSIGNABLE_PERMISSIONS: {
   { id: 'cms', label: 'Email CMS', description: 'Ticket emails and broadcasts' },
   { id: 'website', label: 'Website content', description: 'Showreel, Studio, Kevin11, and Connect' },
   { id: 'site', label: 'Site settings', description: 'Theme, legal pages, and AI Kev' },
+  { id: 'users', label: 'Users & roles', description: 'Invite people and edit what each role can do' },
 ]
 
 export const STAFF_ROLES = ['super_admin', 'operations', 'custom', 'none'] as const
@@ -65,8 +66,13 @@ export const ROLE_OPTIONS: { id: StaffRole; label: string; description: string }
 
 const OPERATIONS_PERMISSIONS: AdminPermission[] = ['sales', 'tickets', 'guestlist', 'scanner']
 
+export type RoleGrant = {
+  slug: string
+  permissions: readonly string[]
+}
+
 export type AdminAccess = {
-  role: StaffRole
+  role: string
   permissions: AdminPermission[]
   /** Owner or ADMIN_EMAILS — role cannot be changed in the console. */
   locked: boolean
@@ -78,16 +84,18 @@ export function isAdminPermission(value: string): value is AdminPermission {
   return PERMISSION_SET.has(value)
 }
 
+export function normalizePermissions(values: readonly string[]): AdminPermission[] {
+  const picked = new Set<AdminPermission>()
+  for (const item of values) {
+    if (isAdminPermission(item)) picked.add(item)
+  }
+  return ADMIN_PERMISSIONS.filter((id) => picked.has(id))
+}
+
 export function permissionsForRole(role: StaffRole, custom: readonly string[] = []): AdminPermission[] {
   if (role === 'super_admin') return [...ADMIN_PERMISSIONS]
   if (role === 'operations') return [...OPERATIONS_PERMISSIONS]
-  if (role === 'custom') {
-    const picked = new Set<AdminPermission>()
-    for (const item of custom) {
-      if (isAdminPermission(item) && item !== 'users') picked.add(item)
-    }
-    return ADMIN_PERMISSIONS.filter((id) => picked.has(id) && id !== 'users')
-  }
+  if (role === 'custom') return normalizePermissions(custom)
   return []
 }
 
@@ -108,6 +116,7 @@ export function resolveAccess(
   emails: string[],
   metadata: unknown,
   lockedEmails: readonly string[] = BOOTSTRAP_SUPER_ADMINS,
+  roles: readonly RoleGrant[] = [],
 ): AdminAccess {
   const normalised = emails.map((email) => email.trim().toLowerCase()).filter(Boolean)
   const locked = new Set(lockedEmails.map((email) => email.trim().toLowerCase()).filter(Boolean))
@@ -116,22 +125,34 @@ export function resolveAccess(
   }
 
   const meta = (metadata && typeof metadata === 'object' ? metadata : {}) as MetadataShape
-  const rawRole = typeof meta.role === 'string' ? meta.role : ''
-  const role: StaffRole =
-    rawRole === 'admin' || rawRole === 'super_admin'
-      ? 'super_admin'
-      : rawRole === 'operations' || rawRole === 'custom' || rawRole === 'none'
-        ? rawRole
-        : 'none'
+  const rawRole = typeof meta.role === 'string' ? meta.role.trim() : ''
   const custom = Array.isArray(meta.permissions)
     ? meta.permissions.filter((item): item is string => typeof item === 'string')
     : []
 
-  return {
-    role,
-    permissions: permissionsForRole(role, custom),
-    locked: false,
+  if (!rawRole || rawRole === 'none') {
+    return { role: 'none', permissions: [], locked: false }
   }
+  if (rawRole === 'admin' || rawRole === 'super_admin') {
+    return { role: 'super_admin', permissions: [...ADMIN_PERMISSIONS], locked: false }
+  }
+
+  const match = roles.find((role) => role.slug === rawRole)
+  if (match) {
+    return { role: match.slug, permissions: normalizePermissions(match.permissions), locked: false }
+  }
+
+  // Older accounts stored privileges on the user instead of a saved role.
+  if (rawRole === 'custom') {
+    return { role: 'custom', permissions: normalizePermissions(custom), locked: false }
+  }
+
+  // Built-in operations preset only when the role list could not be loaded.
+  if (rawRole === 'operations' && roles.length === 0) {
+    return { role: 'operations', permissions: permissionsForRole('operations'), locked: false }
+  }
+
+  return { role: rawRole, permissions: [], locked: false }
 }
 
 export function metadataForAssignment(role: StaffRole, custom: readonly string[] = []) {

@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import {
   BadgeDollarSign,
   Bot,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
   Clapperboard,
   Film,
@@ -155,6 +157,12 @@ export default function AdminSidebar({
   onTabChange: (tab: AdminTab) => void
   permissions: readonly AdminPermission[]
 }) {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+
+  function toggleGroup(label: string) {
+    setOpenGroups((current) => ({ ...current, [label]: !current[label] }))
+  }
+
   return (
     <aside className="admin-sidebar hidden h-full w-64 shrink-0 flex-col md:flex">
       <div
@@ -195,25 +203,40 @@ export default function AdminSidebar({
           const items = entry.group.items.filter((item) => tabAllowed(item.id, permissions))
           if (items.length === 0) return null
 
+          const open = openGroups[entry.group.label] === true
+
           return (
-            <div key={entry.group.label} className="pt-4 first:pt-0">
-              <p
-                className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.12em]"
-                style={{ color: 'var(--admin-subtle)' }}
+            <div key={entry.group.label} className="pt-3 first:pt-0">
+              <button
+                type="button"
+                onClick={() => toggleGroup(entry.group.label)}
+                className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
+                aria-expanded={open}
               >
-                {entry.group.label}
-              </p>
-              <div className="space-y-1">
-                {items.map((item) => (
-                  <NavButton
-                    key={item.id}
-                    item={item}
-                    active={tab === item.id}
-                    onTabChange={onTabChange}
-                    nested
-                  />
-                ))}
-              </div>
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+                  style={{ color: 'var(--admin-subtle)' }}
+                >
+                  {entry.group.label}
+                </span>
+                <ChevronDown
+                  className={cn('h-3.5 w-3.5 shrink-0 transition-transform', !open && '-rotate-90')}
+                  style={{ color: 'var(--admin-subtle)' }}
+                />
+              </button>
+              {open ? (
+                <div className="space-y-1">
+                  {items.map((item) => (
+                    <NavButton
+                      key={item.id}
+                      item={item}
+                      active={tab === item.id}
+                      onTabChange={onTabChange}
+                      nested
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           )
         })}

@@ -5,7 +5,9 @@ import {
   resolveAccess,
   type AdminAccess,
   type AdminPermission,
+  type RoleGrant,
 } from '@/lib/admin/access'
+import { loadRoleGrants } from '@/lib/admin/roles'
 
 export type { AdminAccess, AdminPermission }
 
@@ -20,8 +22,19 @@ function lockedEmails() {
 export function accessFromUser(
   emails: string[],
   metadata: unknown,
+  roles: readonly RoleGrant[] = [],
 ): AdminAccess {
-  return resolveAccess(emails, metadata, lockedEmails())
+  return resolveAccess(emails, metadata, lockedEmails(), roles)
+}
+
+export async function resolveUserAccess(emails: string[], metadata: unknown) {
+  try {
+    const roles = await loadRoleGrants()
+    return accessFromUser(emails, metadata, roles)
+  } catch (error) {
+    console.error('Role catalog unavailable:', error)
+    return accessFromUser(emails, metadata, [])
+  }
 }
 
 export async function requireAdmin(permission?: AdminPermission | readonly AdminPermission[]) {
@@ -36,7 +49,7 @@ export async function requireAdmin(permission?: AdminPermission | readonly Admin
   }
 
   const emails = (user.emailAddresses || []).map((entry) => entry.emailAddress.toLowerCase())
-  const access = accessFromUser(emails, user.publicMetadata)
+  const access = await resolveUserAccess(emails, user.publicMetadata)
 
   if (access.permissions.length === 0) {
     return { ok: false as const, status: 403, error: 'Admin access required.' }
