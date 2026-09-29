@@ -7,7 +7,7 @@ import { isR2Configured, publicUrlForKey, studioFilePath } from '@/lib/r2'
 import { getSiteSettings } from '@/lib/settings/getSiteSettings'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('website')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -42,7 +42,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('website')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/admin'
 import { isShowId, loadGuestList } from '@/lib/tickets/loadGuestList'
 
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('guestlist')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

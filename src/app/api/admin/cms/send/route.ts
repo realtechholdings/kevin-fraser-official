@@ -10,7 +10,7 @@ import { sendEmail } from '@/lib/email/resend'
 const MAX_RECIPIENTS = 200
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('cms')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

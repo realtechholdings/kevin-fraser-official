@@ -23,8 +23,8 @@ export default async function AdminPage() {
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0D0D16] px-8 py-10 text-center">
           <h1 className="text-xl font-semibold text-white">Admin access required</h1>
           <p className="mt-3 text-sm leading-relaxed text-white/50">
-            Signed in as <span className="text-white/80">{email}</span>. This account is not on
-            the admin list.
+            Signed in as <span className="text-white/80">{email}</span>. This account does not
+            have access to the admin console.
           </p>
           <Link
             href="/"
@@ -37,5 +37,5 @@ export default async function AdminPage() {
     )
   }
 
-  return <AdminPortal />
+  return <AdminPortal permissions={admin.access.permissions} />
 }

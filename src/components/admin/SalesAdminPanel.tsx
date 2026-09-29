@@ -267,9 +267,13 @@ function dailyTicketBars(orders: AdminOrder[], from: Date | null, to: Date | nul
 export default function SalesAdminPanel({
   onMessage,
   onError,
+  canManageTickets,
+  canRefund,
 }: {
   onMessage: (msg: string) => void
   onError: (msg: string) => void
+  canManageTickets: boolean
+  canRefund: boolean
 }) {
   const audRates = useAudRates()
   const [orders, setOrders] = useState<AdminOrder[]>([])
@@ -383,7 +387,7 @@ export default function SalesAdminPanel({
     setUpgradeTargets([])
     setUpgradeBlocked(null)
     setCheckoutUrl('')
-    if (!selected?.canUpgrade) return
+    if (!canManageTickets || !selected?.canUpgrade) return
     let cancelled = false
     void (async () => {
       try {
@@ -401,7 +405,7 @@ export default function SalesAdminPanel({
     return () => {
       cancelled = true
     }
-  }, [selected?.id, selected?.canUpgrade])
+  }, [canManageTickets, selected?.id, selected?.canUpgrade])
 
   const stats = useMemo(() => {
     const paid = filtered.filter((o) => o.status === 'paid')
@@ -764,7 +768,7 @@ export default function SalesAdminPanel({
               </p>
             </div>
           </div>
-          {selected.status === 'paid' ? (
+          {selected.status === 'paid' && canManageTickets ? (
             <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
               <div>
                 <label className={labelClass}>Send tickets to</label>
@@ -829,7 +833,7 @@ export default function SalesAdminPanel({
               . Old tickets will not scan.
             </p>
           ) : null}
-          {selected.canUpgrade ? (
+          {selected.canUpgrade && canManageTickets ? (
             <div className="mt-5 border-t border-white/10 pt-5">
               <p className="text-sm font-medium text-white">Upgrade tickets</p>
               <p className="mt-1 text-xs text-white/40">
@@ -891,7 +895,7 @@ export default function SalesAdminPanel({
               ) : null}
             </div>
           ) : null}
-          {selected.canRefund ? (
+          {selected.canRefund && canRefund ? (
             <div className="mt-5 border-t border-white/10 pt-5">
               <p className="text-sm font-medium text-white">Refund</p>
               <p className="mt-1 text-xs text-white/40">

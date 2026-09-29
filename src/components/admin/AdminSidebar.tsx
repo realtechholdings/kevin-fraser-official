@@ -17,7 +17,9 @@ import {
   Store,
   Ticket,
   TicketPlus,
+  Users,
 } from 'lucide-react'
+import type { AdminPermission } from '@/lib/admin/access'
 import { cn } from '@/lib/utils'
 
 export type AdminTab =
@@ -37,6 +39,7 @@ export type AdminTab =
   | 'legal'
   | 'theme'
   | 'ai'
+  | 'users'
 
 type NavItem = { id: AdminTab; name: string; icon: typeof LayoutDashboard }
 type NavGroup = { label: string; items: NavItem[] }
@@ -83,7 +86,39 @@ const nav: NavEntry[] = [
       ],
     },
   },
+  {
+    type: 'group',
+    group: {
+      label: 'Access',
+      items: [{ id: 'users', name: 'Users', icon: Users }],
+    },
+  },
 ]
+
+export const ADMIN_TAB_PERMISSION: Partial<Record<AdminTab, AdminPermission>> = {
+  tours: 'tours',
+  shows: 'shows',
+  tiers: 'tiers',
+  tickets: 'tickets',
+  sales: 'sales',
+  guestlist: 'guestlist',
+  cms: 'cms',
+  scanner: 'scanner',
+  bonus: 'website',
+  studio: 'website',
+  kevin11: 'website',
+  connect: 'website',
+  legal: 'site',
+  theme: 'site',
+  ai: 'site',
+  users: 'users',
+}
+
+export function tabAllowed(tab: AdminTab, permissions: readonly AdminPermission[]) {
+  const required = ADMIN_TAB_PERMISSION[tab]
+  if (!required) return true
+  return permissions.includes(required)
+}
 
 function NavButton({
   item,
@@ -114,9 +149,11 @@ function NavButton({
 export default function AdminSidebar({
   tab,
   onTabChange,
+  permissions,
 }: {
   tab: AdminTab
   onTabChange: (tab: AdminTab) => void
+  permissions: readonly AdminPermission[]
 }) {
   return (
     <aside className="admin-sidebar hidden h-full w-64 shrink-0 flex-col md:flex">
@@ -144,6 +181,7 @@ export default function AdminSidebar({
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
         {nav.map((entry) => {
           if (entry.type === 'item') {
+            if (!tabAllowed(entry.item.id, permissions)) return null
             return (
               <NavButton
                 key={entry.item.id}
@@ -154,6 +192,9 @@ export default function AdminSidebar({
             )
           }
 
+          const items = entry.group.items.filter((item) => tabAllowed(item.id, permissions))
+          if (items.length === 0) return null
+
           return (
             <div key={entry.group.label} className="pt-4 first:pt-0">
               <p
@@ -163,7 +204,7 @@ export default function AdminSidebar({
                 {entry.group.label}
               </p>
               <div className="space-y-1">
-                {entry.group.items.map((item) => (
+                {items.map((item) => (
                   <NavButton
                     key={item.id}
                     item={item}

@@ -11,7 +11,7 @@ import { normalizeCheckoutEmail } from '@/lib/email/address'
 type Params = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

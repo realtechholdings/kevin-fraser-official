@@ -8,7 +8,7 @@ import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 type Params = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tiers')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tiers')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

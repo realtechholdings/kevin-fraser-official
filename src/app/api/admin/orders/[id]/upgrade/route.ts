@@ -21,7 +21,7 @@ function hostOf(req: NextRequest) {
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -53,7 +53,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

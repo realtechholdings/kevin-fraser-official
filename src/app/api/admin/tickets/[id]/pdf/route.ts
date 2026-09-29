@@ -10,7 +10,7 @@ import { buildTicketPdfsForOrder } from '@/lib/email/ticket'
 type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

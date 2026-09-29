@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('site')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

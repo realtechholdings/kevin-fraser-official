@@ -21,7 +21,8 @@ import {
   hexToRgba,
   type ThemeSettings,
 } from '@/lib/settings/defaults'
-import AdminSidebar, { type AdminTab } from '@/components/admin/AdminSidebar'
+import AdminSidebar, { tabAllowed, type AdminTab } from '@/components/admin/AdminSidebar'
+import type { AdminPermission } from '@/lib/admin/access'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
 import ShowreelAdminPanel from '@/components/admin/ShowreelAdminPanel'
@@ -37,6 +38,7 @@ import TicketsAdminPanel from '@/components/admin/TicketsAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
 import ConnectAdminPanel from '@/components/admin/ConnectAdminPanel'
+import UsersAdminPanel from '@/components/admin/UsersAdminPanel'
 import ImageCropField from '@/components/admin/ImageCropField'
 import AudHint from '@/components/admin/AudHint'
 import { useAudRates } from '@/components/admin/useAudRates'
@@ -443,7 +445,11 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
-export default function AdminPortal() {
+export default function AdminPortal({
+  permissions,
+}: {
+  permissions: AdminPermission[]
+}) {
   const audRates = useAudRates()
   const [tours, setTours] = useState<PublicTour[]>([])
   const [shows, setShows] = useState<PublicShow[]>([])
@@ -474,6 +480,10 @@ export default function AdminPortal() {
       // Theme is cosmetic — fall back to defaults silently
     }
   }
+
+  useEffect(() => {
+    if (!tabAllowed(tab, permissions)) setTab('overview')
+  }, [tab, permissions])
 
   useEffect(() => {
     const stored = window.localStorage.getItem(ADMIN_MODE_KEY)
@@ -1111,11 +1121,24 @@ export default function AdminPortal() {
                       ? { title: 'Terms & Policies', subtitle: 'Edit Terms, Refund Policy, and Privacy' }
                       : tab === 'theme'
                         ? { title: 'Theme', subtitle: 'Site accent colours for light and dark mode' }
-                        : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
+                        : tab === 'users'
+                          ? {
+                              title: 'Users',
+                              subtitle: 'Roles and privileges for people who help run the site',
+                            }
+                          : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
 
   return (
     <div className={cn('admin-app', adminMode === 'light' && 'admin-light')} style={themeVars}>
-      <AdminSidebar tab={tab} onTabChange={(next) => { setTab(next); setShowFormPanel(false) }} />
+      <AdminSidebar
+        tab={tab}
+        permissions={permissions}
+        onTabChange={(next) => {
+          if (!tabAllowed(next, permissions)) return
+          setTab(next)
+          setShowFormPanel(false)
+        }}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AdminHeader
@@ -1127,8 +1150,10 @@ export default function AdminPortal() {
 
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
-          <div className="mb-5 flex gap-2 md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai'] as Tab[]).map((id) => (
+          <div className="mb-5 flex gap-2 overflow-x-auto md:hidden">
+            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai', 'users'] as Tab[])
+              .filter((id) => tabAllowed(id, permissions))
+              .map((id) => (
               <button
                 key={id}
                 type="button"
@@ -1162,7 +1187,9 @@ export default function AdminPortal() {
                             ? 'Policies'
                             : id === 'ai'
                               ? 'AI Kev'
-                              : id}
+                              : id === 'users'
+                                ? 'Users'
+                                : id}
               </button>
             ))}
           </div>
@@ -1216,9 +1243,11 @@ export default function AdminPortal() {
               <section className="admin-card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-white/5 px-5 py-4">
                   <h3 className="text-sm font-semibold text-white">Next shows</h3>
-                  <button type="button" onClick={() => setTab('shows')} className={btnGhost}>
-                    View all
-                  </button>
+                  {permissions.includes('shows') ? (
+                    <button type="button" onClick={() => setTab('shows')} className={btnGhost}>
+                      View all
+                    </button>
+                  ) : null}
                 </div>
                 {loading ? (
                   <div className="space-y-3 p-5">
@@ -2664,6 +2693,8 @@ export default function AdminPortal() {
 
           {tab === 'sales' ? (
             <SalesAdminPanel
+              canManageTickets={permissions.includes('tickets')}
+              canRefund={permissions.includes('refunds')}
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')
@@ -2793,6 +2824,19 @@ export default function AdminPortal() {
 
           {tab === 'ai' ? (
             <AIKevAdminPanel
+              onMessage={(msg) => {
+                setMessage(msg)
+                setError('')
+              }}
+              onError={(msg) => {
+                setError(msg)
+                setMessage('')
+              }}
+            />
+          ) : null}
+
+          {tab === 'users' ? (
+            <UsersAdminPanel
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

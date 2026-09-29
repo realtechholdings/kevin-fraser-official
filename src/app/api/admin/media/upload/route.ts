@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
+import { hasPermission, type AdminPermission } from '@/lib/admin/access'
 import {
   emailMediaKey,
   isR2Configured,
@@ -40,6 +41,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'folder must be tours, shows, email, showreel, or tiers.' },
         { status: 400 },
+      )
+    }
+    const folderPermission: Record<(typeof FOLDERS)[number], AdminPermission> = {
+      tours: 'tours',
+      shows: 'shows',
+      email: 'cms',
+      showreel: 'website',
+      tiers: 'tiers',
+    }
+    if (!hasPermission(admin.access, folderPermission[folder as (typeof FOLDERS)[number]])) {
+      return NextResponse.json(
+        { success: false, error: 'You do not have permission to do that.' },
+        { status: 403 },
       )
     }
     if (!file.type.startsWith('image/')) {

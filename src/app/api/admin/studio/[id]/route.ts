@@ -18,7 +18,7 @@ async function safeDeleteR2(key: string | undefined | null) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('website')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -109,7 +109,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('website')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

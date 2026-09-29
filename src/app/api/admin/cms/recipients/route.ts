@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/admin'
 import Order from '@/lib/models/Order'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('cms')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

@@ -6,7 +6,7 @@ import Order from '@/lib/models/Order'
 
 /** Live check-in stats for one show: totals and per-tier breakdown. */
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('scanner')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

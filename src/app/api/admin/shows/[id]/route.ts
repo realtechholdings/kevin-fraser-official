@@ -14,7 +14,7 @@ import { archiveShowFields, isShowArchived, restoreShowFields } from '@/lib/show
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('shows')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -117,7 +117,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('shows')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

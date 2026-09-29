@@ -5,7 +5,7 @@ import { createR2UploadUrl, isR2Configured, studioMediaKey } from '@/lib/r2'
 const ALLOWED_PREFIXES = ['video/', 'image/']
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('website')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

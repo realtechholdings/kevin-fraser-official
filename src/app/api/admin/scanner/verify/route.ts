@@ -88,7 +88,7 @@ function serializeScan(order: OrderDocument, ticket: number | null) {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('scanner')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

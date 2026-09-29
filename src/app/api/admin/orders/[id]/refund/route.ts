@@ -15,7 +15,7 @@ function hostOf(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('refunds')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

@@ -28,7 +28,7 @@ function isLegacyTierId(id: string) {
 }
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -118,7 +118,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('tickets')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

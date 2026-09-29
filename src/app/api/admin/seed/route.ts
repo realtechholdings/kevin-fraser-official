@@ -24,7 +24,7 @@ function seedErrorMessage(error: unknown) {
 }
 
 export async function POST() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('site')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

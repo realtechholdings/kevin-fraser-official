@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/admin'
 import { createR2UploadUrl, isR2Configured, settingsMediaKey } from '@/lib/r2'
 
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['website', 'site'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

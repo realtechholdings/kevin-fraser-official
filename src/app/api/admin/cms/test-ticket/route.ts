@@ -9,7 +9,7 @@ import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 
 /** Send a sample ticket / upgrade email so the admin can preview the template. */
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin('cms')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

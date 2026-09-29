@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import SiteSettings from '@/lib/models/SiteSettings'
 import { requireAdmin } from '@/lib/admin'
+import { hasPermission, type AdminPermission } from '@/lib/admin/access'
 import { isR2Configured } from '@/lib/r2'
 import {
   DEFAULT_AI_SETTINGS,
@@ -25,7 +26,7 @@ import { toSiteSettingsData } from '@/lib/models/SiteSettings'
 import StudioContent from '@/lib/models/StudioContent'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['website', 'site'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }
@@ -64,6 +65,24 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json()
+    const sectionPermission: Record<string, AdminPermission> = {
+      theme: 'site',
+      ai: 'site',
+      legal: 'site',
+      showreel: 'website',
+      studio: 'website',
+      connect: 'website',
+      kevin11: 'website',
+    }
+    for (const [section, permission] of Object.entries(sectionPermission)) {
+      if (body[section] && !hasPermission(admin.access, permission)) {
+        return NextResponse.json(
+          { success: false, error: 'You do not have permission to do that.' },
+          { status: 403 },
+        )
+      }
+    }
+
     await dbConnect()
 
     let doc = await SiteSettings.findOne({ key: SITE_SETTINGS_KEY })
