@@ -5,6 +5,7 @@ import Show from '@/lib/models/Show'
 import { serializeShow } from '@/lib/serialize'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import ShowDetailClient from '@/components/stage/ShowDetailClient'
+import EventJsonLd from '@/components/stage/EventJsonLd'
 import { isShowArchived } from '@/lib/shows/archive'
 
 export const dynamic = 'force-dynamic'
@@ -35,5 +36,10 @@ export default async function ShowDetailPage({ params }: Props) {
   const tiers = await resolveTiersForShow(show)
   const publicShow = serializeShow(show, tiers)
 
-  return <ShowDetailClient show={publicShow} />
+  return (
+    <>
+      <EventJsonLd show={publicShow} />
+      <ShowDetailClient show={publicShow} />
+    </>
+  )
 }

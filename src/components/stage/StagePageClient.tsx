@@ -38,7 +38,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
     [shows, activeTour],
   )
   const countries = Array.from(new Set(visibleShows.map((s) => s.country)))
-  const { pending, navigate } = usePendingNav()
+  const { pending, markPending } = usePendingNav()
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[var(--background)] text-[var(--foreground)]">
@@ -269,7 +269,13 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="truncate text-lg font-semibold sm:text-xl">
-                                {show.city}
+                                <Link
+                                  href={`/worlds/stage/${show.id}`}
+                                  onClick={() => markPending()}
+                                  className="hover:underline"
+                                >
+                                  {show.city}
+                                </Link>
                               </h3>
                               {show.featured ? (
                                 <span
@@ -341,11 +347,17 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                 {badge || 'Unavailable'}
                               </span>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/worlds/stage/${show.id}`)}
-                                disabled={pending}
-                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90 disabled:cursor-wait"
+                              <Link
+                                href={`/worlds/stage/${show.id}`}
+                                onClick={(event) => {
+                                  if (pending) {
+                                    event.preventDefault()
+                                    return
+                                  }
+                                  markPending()
+                                }}
+                                aria-disabled={pending}
+                                className="inline-flex min-w-[8.5rem] items-center justify-center rounded-full px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-90"
                                 style={{
                                   background: soldOut ? 'var(--sold-out-bg)' : 'var(--accent)',
                                   color: soldOut
@@ -354,7 +366,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                 }}
                               >
                                 {soldOut ? 'Sold Out' : 'Tickets'}
-                              </button>
+                              </Link>
                             )}
                           </div>
                         </li>
