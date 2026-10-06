@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ExternalLink, Link2, Send, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ExternalLink, Link2, Send, X } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import {
   DEFAULT_CONNECT_SETTINGS,
@@ -294,12 +294,41 @@ export default function ConnectPage() {
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
             {settings.intro}
           </p>
-          <p className="mt-4 text-sm text-[var(--foreground-muted)]">
-            <Link href="/corporate-bookings" className="underline hover:text-[var(--foreground)]">
-              Corporate bookings
-            </Link>{' '}
-            for company events, conferences, and private functions.
-          </p>
+          <Link
+            href="/corporate-bookings"
+            className="group mt-8 flex flex-col gap-5 rounded-[1.75rem] border px-6 py-6 transition-transform hover:-translate-y-0.5 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-7"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--accent) 55%, var(--border))',
+              background:
+                'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)) 0%, var(--surface) 58%)',
+            }}
+          >
+            <span className="min-w-0">
+              <span
+                className="text-[11px] uppercase tracking-[0.3em]"
+                style={{ color: 'var(--accent)' }}
+              >
+                Company events
+              </span>
+              <span
+                className="mt-2 block text-3xl uppercase leading-none sm:text-4xl"
+                style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+              >
+                Corporate bookings
+              </span>
+              <span className="mt-3 block max-w-xl text-sm leading-relaxed text-[var(--foreground-muted)]">
+                Conferences, launches, private functions, and brand work. Send the date, city,
+                audience size, and budget.
+              </span>
+            </span>
+            <span
+              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] sm:self-center"
+              style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+            >
+              Enquire
+              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
         </motion.section>
 
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
@@ -488,9 +517,6 @@ export default function ConnectPage() {
         </div>
 
         <p className="mt-14 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-xs text-[var(--foreground-subtle)]">
-          <Link href="/corporate-bookings" className="hover:text-[var(--foreground)]">
-            Corporate bookings
-          </Link>
           <Link href="/terms" className="hover:text-[var(--foreground)]">
             Terms of Service
           </Link>
