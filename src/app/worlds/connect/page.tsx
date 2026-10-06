@@ -294,6 +294,12 @@ export default function ConnectPage() {
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
             {settings.intro}
           </p>
+          <p className="mt-4 text-sm text-[var(--foreground-muted)]">
+            <Link href="/corporate-bookings" className="underline hover:text-[var(--foreground)]">
+              Corporate bookings
+            </Link>{' '}
+            for company events, conferences, and private functions.
+          </p>
         </motion.section>
 
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
@@ -482,6 +488,9 @@ export default function ConnectPage() {
         </div>
 
         <p className="mt-14 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-xs text-[var(--foreground-subtle)]">
+          <Link href="/corporate-bookings" className="hover:text-[var(--foreground)]">
+            Corporate bookings
+          </Link>
           <Link href="/terms" className="hover:text-[var(--foreground)]">
             Terms of Service
           </Link>
