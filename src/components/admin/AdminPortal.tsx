@@ -463,6 +463,8 @@ export default function AdminPortal({
   const [editingTourId, setEditingTourId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState<ShowForm>(emptyShow())
   const [editingShowId, setEditingShowId] = useState<string | null>(null)
+  /** Set when the create form was pre-filled from an existing show. */
+  const [duplicateSource, setDuplicateSource] = useState<PublicShow | null>(null)
   const [busy, setBusy] = useState(false)
   const [showFormPanel, setShowFormPanel] = useState(false)
   const [pendingDeleteShow, setPendingDeleteShow] = useState<PublicShow | null>(null)
@@ -716,15 +718,20 @@ export default function AdminPortal({
     setMessage('')
     setError('')
     try {
+      // Blob previews never persist. When duplicating, proxy paths that point at
+      // the source show are dropped too so the API re-issues them for the new ID.
+      const sourceProxy = duplicateSource ? `/api/shows/${duplicateSource.id}/` : null
+      const persistedImage = (value: string) =>
+        value.startsWith('blob:') || (sourceProxy && value.startsWith(sourceProxy)) ? '' : value
       const payload = {
         ...showForm,
         date: toWallInput(showForm.date),
         ticketsOnSaleAt: showForm.ticketsOnSaleAt
           ? `${showForm.ticketsOnSaleAt}T00:00`
           : null,
-        artworkImage: showForm.artworkImage.startsWith('blob:') ? '' : showForm.artworkImage,
-        listImage: showForm.listImage.startsWith('blob:') ? '' : showForm.listImage,
-        venueImage: showForm.venueImage.startsWith('blob:') ? '' : showForm.venueImage,
+        artworkImage: persistedImage(showForm.artworkImage),
+        listImage: persistedImage(showForm.listImage),
+        venueImage: persistedImage(showForm.venueImage),
         priceCents: Number(showForm.priceCents) || 0,
         capacity: Number(showForm.capacity) || 0,
         tierConfigs: showForm.tierConfigs.map((c) => ({
@@ -769,9 +776,16 @@ export default function AdminPortal({
       )
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
-      setMessage(editingShowId ? 'Show updated.' : 'Show created.')
+      setMessage(
+        editingShowId
+          ? 'Show updated.'
+          : duplicateSource
+            ? `Show created from ${duplicateSource.city}.`
+            : 'Show created.',
+      )
       setShowForm(emptyShow(showForm.tourId || tours[0]?.id || ''))
       setEditingShowId(null)
+      setDuplicateSource(null)
       setShowFormPanel(false)
       await load()
     } catch (err) {
@@ -806,10 +820,8 @@ export default function AdminPortal({
     setShowFormPanel(true)
   }
 
-  async function editShow(show: PublicShow) {
-    const latest = await refreshTiers()
-    setEditingShowId(show.id)
-    setShowForm({
+  function showToForm(show: PublicShow, latestTiers: PublicTicketTier[]): ShowForm {
+    return {
       tourId: show.tour.id,
       title: show.title,
       date: toWallInput(show.date),
@@ -836,7 +848,7 @@ export default function AdminPortal({
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
-      tierConfigs: buildTierConfigsFrom(latest, show.tour.id, show.id),
+      tierConfigs: buildTierConfigsFrom(latestTiers, show.tour.id, show.id),
       tableConfigs: tableConfigsFrom(tables, show.id),
       upgradeOffers: (show.upgradeOffers || []).map((o) => ({
         fromSlug: o.fromSlug,
@@ -844,9 +856,45 @@ export default function AdminPortal({
         enabled: o.enabled !== false,
         discountCents: String(o.discountCents || 0),
       })),
+    }
+  }
+
+  async function editShow(show: PublicShow) {
+    const latest = await refreshTiers()
+    setDuplicateSource(null)
+    setEditingShowId(show.id)
+    setShowForm(showToForm(show, latest))
+    setTab('shows')
+    setShowFormPanel(true)
+  }
+
+  /**
+   * Open the create form pre-filled from an existing show. Venue, artwork,
+   * blurb, class allocations, tables, and upgrade offers carry over; sold
+   * counts, sold-out flags, and table IDs are reset so the copy starts fresh.
+   */
+  async function duplicateShow(show: PublicShow) {
+    const latest = await refreshTiers()
+    const base = showToForm(show, latest)
+    setEditingShowId(null)
+    setDuplicateSource(show)
+    setShowForm({
+      ...base,
+      status: show.status === 'sold_out' ? 'on_sale' : show.status,
+      featured: false,
+      tierConfigs: base.tierConfigs.map((c) => ({ ...c, sold: 0, soldOut: false })),
+      tableConfigs: base.tableConfigs.map((c, i) => ({
+        ...c,
+        key: `dup-${Date.now()}-${i}`,
+        id: '',
+        sold: 0,
+        soldOut: false,
+      })),
     })
     setTab('shows')
     setShowFormPanel(true)
+    setMessage(`Duplicating ${show.city} — set the new date, then press Create show.`)
+    setError('')
   }
 
   async function onTourImageChange(kind: 'cover' | 'banner' | 'ticket', file: File | null) {
@@ -1070,6 +1118,7 @@ export default function AdminPortal({
       return
     }
     setEditingShowId(null)
+    setDuplicateSource(null)
     const tourId = tours[0]?.id || ''
     const latest = await refreshTiers()
     setShowForm({
@@ -1083,6 +1132,7 @@ export default function AdminPortal({
     setShowFormPanel(false)
     setEditingTourId(null)
     setEditingShowId(null)
+    setDuplicateSource(null)
     setTourForm(emptyTour)
     setShowForm(emptyShow(tours[0]?.id || ''))
   }
@@ -1331,7 +1381,9 @@ export default function AdminPortal({
                           : 'Create tour'
                         : editingShowId
                           ? 'Edit show'
-                          : 'Create show'}
+                          : duplicateSource
+                            ? `Create show (copy of ${duplicateSource.city})`
+                            : 'Create show'}
                     </h3>
                     <button type="button" onClick={closeForm} className="text-sm text-white/40 hover:text-white/70">
                       Close
@@ -2598,6 +2650,15 @@ export default function AdminPortal({
                                 <div className="flex justify-end gap-3">
                                   <button type="button" onClick={() => editShow(show)} className={btnGhost}>
                                     Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => duplicateShow(show)}
+                                    className={btnGhost}
+                                    title="Open a new show pre-filled from this one"
+                                  >
+                                    Duplicate
                                   </button>
                                   {removed ? (
                                     <button
