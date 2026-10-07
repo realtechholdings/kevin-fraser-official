@@ -143,6 +143,12 @@ export default async function StageSuccessPage({ searchParams }: Props) {
         >
           Back to shows
         </Link>
+        <p className="mt-5 text-xs text-[var(--foreground-subtle)]">
+          Questions about refunds, transfers, or the venue?{' '}
+          <Link href="/ticket-help" className="underline hover:text-[var(--foreground)]">
+            Ticket help
+          </Link>
+        </p>
       </div>
     </div>
   )

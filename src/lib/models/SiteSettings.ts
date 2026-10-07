@@ -69,6 +69,10 @@ const LegalSchema = new Schema(
       default: () => ({ ...DEFAULT_LEGAL_SETTINGS.refundPolicy }),
     },
     privacy: { type: LegalDocumentSchema, default: () => ({ ...DEFAULT_LEGAL_SETTINGS.privacy }) },
+    ticketHelp: {
+      type: LegalDocumentSchema,
+      default: () => ({ ...DEFAULT_LEGAL_SETTINGS.ticketHelp }),
+    },
   },
   { _id: false },
 )

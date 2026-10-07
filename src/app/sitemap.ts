@@ -57,6 +57,12 @@ function staticEntries(base: string, now: Date): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
+      url: `${base}/ticket-help`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
       url: `${base}/terms`,
       lastModified: now,
       changeFrequency: 'yearly',

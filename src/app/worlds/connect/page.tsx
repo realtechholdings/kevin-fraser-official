@@ -540,6 +540,9 @@ export default function ConnectPage() {
         </div>
 
         <p className="mt-14 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center text-xs text-[var(--foreground-subtle)]">
+          <Link href="/ticket-help" className="hover:text-[var(--foreground)]">
+            Ticket Help
+          </Link>
           <Link href="/terms" className="hover:text-[var(--foreground)]">
             Terms of Service
           </Link>

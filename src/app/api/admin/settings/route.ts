@@ -148,6 +148,9 @@ export async function PUT(req: NextRequest) {
         privacy: body.legal.privacy
           ? { ...current.privacy, ...body.legal.privacy }
           : current.privacy,
+        ticketHelp: body.legal.ticketHelp
+          ? { ...current.ticketHelp, ...body.legal.ticketHelp }
+          : current.ticketHelp,
       })
       doc.markModified('legal')
     }

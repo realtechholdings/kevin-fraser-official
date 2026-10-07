@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import { SUPPORT_EMAIL, TICKET_HELP_PATH } from '@/lib/support'
 
 const LEGAL_LINKS = [
+  { href: TICKET_HELP_PATH, label: 'Ticket Help' },
   { href: '/terms', label: 'Terms of Service' },
   { href: '/refund-policy', label: 'Refund Policy' },
   { href: '/privacy', label: 'Privacy Statement' },
@@ -77,8 +79,8 @@ export default function LegalDocument({
 
         <p className="mt-14 text-xs text-[var(--foreground-subtle)]">
           Questions?{' '}
-          <a className="underline hover:text-[var(--foreground)]" href="mailto:letsplay@creamkulture.com">
-            letsplay@creamkulture.com
+          <a className="underline hover:text-[var(--foreground)]" href={`mailto:${SUPPORT_EMAIL}`}>
+            {SUPPORT_EMAIL}
           </a>
         </p>
       </main>

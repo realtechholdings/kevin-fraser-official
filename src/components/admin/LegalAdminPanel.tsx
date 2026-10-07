@@ -8,6 +8,7 @@ import {
   DEFAULT_PRIVACY_DOCUMENT,
   DEFAULT_REFUND_DOCUMENT,
   DEFAULT_TERMS_DOCUMENT,
+  DEFAULT_TICKET_HELP_DOCUMENT,
 } from '@/lib/settings/legalDefaults'
 
 const inputClass = 'admin-input'
@@ -27,6 +28,12 @@ const DOCS: { id: DocKey; label: string; href: string; defaults: LegalDocumentSe
     defaults: DEFAULT_REFUND_DOCUMENT,
   },
   { id: 'privacy', label: 'Privacy', href: '/privacy', defaults: DEFAULT_PRIVACY_DOCUMENT },
+  {
+    id: 'ticketHelp',
+    label: 'Ticket Help',
+    href: '/ticket-help',
+    defaults: DEFAULT_TICKET_HELP_DOCUMENT,
+  },
 ]
 
 export default function LegalAdminPanel({
@@ -117,7 +124,7 @@ export default function LegalAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Terms & Policies</h2>
           <p className="mt-1 text-sm text-white/40">
-            Edit Terms of Service, Refund Policy, and Privacy. Use markdown headings (
+            Edit Terms of Service, Refund Policy, Privacy, and Ticket Help. Use markdown headings (
             <code className="text-white/60">## Section</code>), lists (
             <code className="text-white/60">- item</code>), links, and{' '}
             <code className="text-white/60">**bold**</code>.

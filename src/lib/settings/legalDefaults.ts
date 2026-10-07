@@ -1,3 +1,5 @@
+import { SUPPORT_EMAIL } from '@/lib/support'
+
 export type LegalDocumentSettings = {
   title: string
   subtitle: string
@@ -8,6 +10,7 @@ export type LegalSettings = {
   terms: LegalDocumentSettings
   refundPolicy: LegalDocumentSettings
   privacy: LegalDocumentSettings
+  ticketHelp: LegalDocumentSettings
 }
 
 export const DEFAULT_TERMS_BODY = `## Overview
@@ -268,6 +271,72 @@ If you would like to access, correct, amend, or delete any personal information 
 Kevin Fraser Official  
 [Re: Privacy Compliance Officer]`
 
+export const DEFAULT_TICKET_HELP_BODY = `Most ticket questions are answered below. If yours isn't, email [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}) with your **order email address** and the **show** you booked, and we'll get back to you.
+
+## Your tickets
+
+**Where are my tickets?**
+Tickets are emailed as a PDF to the address you entered at checkout, usually within a couple of minutes. Check your spam or promotions folder first. If they're still missing after 30 minutes, email us with the address you used and we'll resend them.
+
+**Do I need to print them?**
+No. Your phone is fine — each ticket has a QR code that's scanned at the door. Screenshots work too, as long as the code is clear.
+
+**Can I buy tickets at the door?**
+Only if the show hasn't sold out. Booking online is the safest way to lock in your spot, and some venues are cash-free.
+
+## Refunds
+
+**Can I get a refund if I can't make it?**
+Tickets are generally non-refundable, in line with our [Refund Policy](/refund-policy). If you can't attend, the fastest option is to transfer your tickets to someone else (see below).
+
+**What if the show is cancelled or moved?**
+If a show is cancelled you'll receive a full refund to your original payment method. If it's postponed, your tickets stay valid for the new date — or you can ask for a refund within 48 hours of the announcement.
+
+**How long do refunds take?**
+Approved refunds are returned to the card you paid with within 5–10 business days, depending on your bank.
+
+## Transferring tickets
+
+**Can someone else use my ticket?**
+Yes. Tickets aren't locked to the buyer's name, so you can simply forward the PDF to whoever is attending. Each QR code scans once, so make sure you only send it to one person.
+
+**Can I move to a different show or date?**
+Email us with your order details and the show you'd like to move to. Swaps are subject to availability and any price difference, and need to be requested at least 48 hours before the original show.
+
+## Age limits
+
+**Is the show suitable for kids?**
+Kevin's live shows contain adult themes and strong language. Unless the show listing says otherwise, they're recommended for ages **16+**. Anyone under 18 should be accompanied by a parent or guardian.
+
+**Do I need ID?**
+Venues with a licensed bar may ask for ID at the door. If a specific show is 18+, it will say so on the show page.
+
+## Seating
+
+**Is seating allocated?**
+Most shows are general admission — seats are first come, first served within your ticket class. If a show has reserved seating or table bookings, it'll be shown on the show page and on your ticket.
+
+**What time should I arrive?**
+Doors usually open 30–60 minutes before the start time printed on your ticket. Arriving early gives you the best choice of seats. Latecomers may be seated at the venue's discretion.
+
+**What's the difference between ticket classes?**
+Some shows offer premium or VIP classes with better positioning or extras. The details for each class are listed on the show page before you buy.
+
+## Accessibility
+
+**Is the venue accessible?**
+We aim to book venues with step-free access, accessible toilets, and companion seating. Because venues vary, email us before you book and we'll confirm the details for your show and reserve accessible seating where needed.
+
+**Do companion or carer tickets apply?**
+Companion Card and equivalent carer schemes are honoured wherever the venue supports them. Email us with your card details and we'll arrange it.
+
+**Hearing or vision assistance**
+Let us know when you book and we'll do our best to seat you where it works for you.
+
+## Still stuck?
+
+Email [${SUPPORT_EMAIL}](mailto:${SUPPORT_EMAIL}) with the email address you booked with and the show name. We reply to every message, usually within one business day.`
+
 export const DEFAULT_TERMS_DOCUMENT: LegalDocumentSettings = {
   title: 'Terms of Service',
   subtitle: 'Operated by Kevin Fraser Official',
@@ -286,10 +355,17 @@ export const DEFAULT_PRIVACY_DOCUMENT: LegalDocumentSettings = {
   body: DEFAULT_PRIVACY_BODY,
 }
 
+export const DEFAULT_TICKET_HELP_DOCUMENT: LegalDocumentSettings = {
+  title: 'Ticket Help',
+  subtitle: 'Refunds, transfers, age limits, seating, and accessibility',
+  body: DEFAULT_TICKET_HELP_BODY,
+}
+
 export const DEFAULT_LEGAL_SETTINGS: LegalSettings = {
   terms: DEFAULT_TERMS_DOCUMENT,
   refundPolicy: DEFAULT_REFUND_DOCUMENT,
   privacy: DEFAULT_PRIVACY_DOCUMENT,
+  ticketHelp: DEFAULT_TICKET_HELP_DOCUMENT,
 }
 
 export function normalizeLegalDocument(
@@ -310,5 +386,6 @@ export function normalizeLegalSettings(
     terms: normalizeLegalDocument(value?.terms, DEFAULT_TERMS_DOCUMENT),
     refundPolicy: normalizeLegalDocument(value?.refundPolicy, DEFAULT_REFUND_DOCUMENT),
     privacy: normalizeLegalDocument(value?.privacy, DEFAULT_PRIVACY_DOCUMENT),
+    ticketHelp: normalizeLegalDocument(value?.ticketHelp, DEFAULT_TICKET_HELP_DOCUMENT),
   }
 }
