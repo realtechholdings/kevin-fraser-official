@@ -485,6 +485,7 @@ function LegalNav({ sticky }: { sticky?: boolean }) {
         }}
       >
         {[
+          { href: '/ticket-help', label: 'Ticket Help' },
           { href: '/terms', label: 'Terms of Service' },
           { href: '/refund-policy', label: 'Refund Policy' },
           { href: '/privacy', label: 'Privacy' },
