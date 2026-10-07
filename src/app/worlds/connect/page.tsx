@@ -10,6 +10,25 @@ import {
   type ConnectSettings,
 } from '@/lib/settings/defaults'
 
+const ENQUIRY_CARDS = [
+  {
+    href: '/corporate-bookings',
+    eyebrow: 'Company events',
+    title: 'Corporate bookings',
+    blurb:
+      'Conferences, launches, private functions, and brand work. Send the date, city, audience size, and budget.',
+    cta: 'Enquire',
+  },
+  {
+    href: '/brand-partnerships',
+    eyebrow: 'Work with Kevin',
+    title: 'Brands & partnerships',
+    blurb:
+      'Sponsored content, ambassador deals, product placement, and collabs. Send the brief, channels, timeline, and budget.',
+    cta: 'Send a brief',
+  },
+] as const
+
 /**
  * Full-screen intro that plays the (black-background) contact video as an
  * overlay above the page, then fades away when it finishes.
@@ -294,41 +313,45 @@ export default function ConnectPage() {
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[var(--foreground-muted)]">
             {settings.intro}
           </p>
-          <Link
-            href="/corporate-bookings"
-            className="group mt-8 flex flex-col gap-5 rounded-[1.75rem] border px-6 py-6 transition-transform hover:-translate-y-0.5 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-7"
-            style={{
-              borderColor: 'color-mix(in srgb, var(--accent) 55%, var(--border))',
-              background:
-                'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)) 0%, var(--surface) 58%)',
-            }}
-          >
-            <span className="min-w-0">
-              <span
-                className="text-[11px] uppercase tracking-[0.3em]"
-                style={{ color: 'var(--accent)' }}
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {ENQUIRY_CARDS.map((card) => (
+              <Link
+                key={card.href}
+                href={card.href}
+                className="group flex flex-col justify-between gap-6 rounded-[1.75rem] border px-6 py-6 transition-transform hover:-translate-y-0.5 sm:px-8 sm:py-7"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--accent) 55%, var(--border))',
+                  background:
+                    'linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)) 0%, var(--surface) 58%)',
+                }}
               >
-                Company events
-              </span>
-              <span
-                className="mt-2 block text-3xl uppercase leading-none sm:text-4xl"
-                style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
-              >
-                Corporate bookings
-              </span>
-              <span className="mt-3 block max-w-xl text-sm leading-relaxed text-[var(--foreground-muted)]">
-                Conferences, launches, private functions, and brand work. Send the date, city,
-                audience size, and budget.
-              </span>
-            </span>
-            <span
-              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] sm:self-center"
-              style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
-            >
-              Enquire
-              <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
+                <span className="min-w-0">
+                  <span
+                    className="text-[11px] uppercase tracking-[0.3em]"
+                    style={{ color: 'var(--accent)' }}
+                  >
+                    {card.eyebrow}
+                  </span>
+                  <span
+                    className="mt-2 block text-3xl uppercase leading-none sm:text-4xl"
+                    style={{ fontFamily: "'Franklin Gothic Extra Condensed', sans-serif" }}
+                  >
+                    {card.title}
+                  </span>
+                  <span className="mt-3 block max-w-xl text-sm leading-relaxed text-[var(--foreground-muted)]">
+                    {card.blurb}
+                  </span>
+                </span>
+                <span
+                  className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-full px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em]"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                >
+                  {card.cta}
+                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
         </motion.section>
 
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
