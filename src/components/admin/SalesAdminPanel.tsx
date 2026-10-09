@@ -19,6 +19,7 @@ import { formatPrice, formatShowDate } from '@/lib/format'
 import { formatPriceWithAud, foreignToAudCents } from '@/lib/fx'
 import { parseWallParts } from '@/lib/wallDate'
 import { useAudRates } from '@/components/admin/useAudRates'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -308,6 +309,7 @@ export default function SalesAdminPanel({
   >([])
   const [upgradeBlocked, setUpgradeBlocked] = useState<string | null>(null)
   const [checkoutUrl, setCheckoutUrl] = useState('')
+  const [reverseOpen, setReverseOpen] = useState(false)
 
   const range = useMemo(
     () => timelineRange(timeline, customFrom, customTo),
@@ -535,31 +537,6 @@ export default function SalesAdminPanel({
     if (!selected || busyAction || !selected.canRefund) return
     const comp = isCompOrder(selected)
     const total = formatPrice(selected.amountTotal, selected.currency)
-    const lines = comp
-      ? [
-          `Void ${purchaseQtyLabel(selected)} for ${selected.holderName || selected.email}?`,
-          '',
-          'The tickets stop scanning and any seats or tables go back on sale.',
-          'Nothing is charged or refunded — this was a complimentary issue.',
-        ]
-      : [
-          `Refund ${total} to ${selected.email}?`,
-          '',
-          'This voids the tickets, puts inventory back on sale, and refunds Stripe.',
-        ]
-    if (selected.checkedInCount > 0) {
-      lines.push(
-        '',
-        `${selected.checkedInCount} of ${selected.quantity} ticket${selected.quantity === 1 ? '' : 's'} already scanned.`,
-      )
-    }
-    if (selected.upgradedFrom) {
-      lines.push('', 'This was an upgrade — the original purchase will be refunded too.')
-    }
-    if (!comp && (selected.source || 'stripe') === 'manual') {
-      lines.push('', 'This is a manual issue — no Stripe charge to reverse.')
-    }
-    if (!confirm(lines.join('\n'))) return
 
     setBusyAction('refund')
     try {
@@ -578,6 +555,7 @@ export default function SalesAdminPanel({
             ? 'Voided. Tickets no longer scan and inventory is back on sale.'
             : `Refunded ${total}. Tickets no longer scan.`,
       )
+      setReverseOpen(false)
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : comp ? 'Void failed' : 'Refund failed')
@@ -591,6 +569,49 @@ export default function SalesAdminPanel({
   const canReverseSelected = Boolean(
     selected?.canRefund && (canRefund || (selectedIsComp && canManageTickets)),
   )
+
+  const reverseDialog = (() => {
+    if (!selected) return { title: '', lines: [] as string[], warnings: [] as string[], confirmLabel: '' }
+    const total = formatPrice(selected.amountTotal, selected.currency)
+    const who = selected.holderName || selected.email
+    const where = selected.show ? ` for ${selected.show.city} · ${selected.show.venue}` : ''
+    const warnings: string[] = []
+    if (selected.checkedInCount > 0) {
+      warnings.push(
+        `${selected.checkedInCount} of ${selected.quantity} ticket${selected.quantity === 1 ? '' : 's'} already scanned in at the door.`,
+      )
+    }
+    if (selected.upgradedFrom) {
+      warnings.push('This was an upgrade — the original purchase will be refunded too.')
+    }
+    if (selected.confirmationEmailSentAt) {
+      warnings.push('The holder already has the PDFs by email — let them know they are no longer valid.')
+    }
+    if (selectedIsComp) {
+      return {
+        title: `Void ${purchaseQtyLabel(selected)}?`,
+        lines: [
+          `Issued to ${who}${where}.`,
+          'The tickets stop scanning at the door and any seats or tables go back on sale.',
+          'Nothing is charged or refunded — this was a complimentary issue.',
+        ],
+        warnings,
+        confirmLabel: 'Yes, void tickets',
+      }
+    }
+    const manual = (selected.source || 'stripe') === 'manual'
+    return {
+      title: `Refund ${total} to ${who}?`,
+      lines: [
+        `${purchaseQtyLabel(selected)}${where}.`,
+        manual
+          ? 'This is a manual issue — no Stripe charge to reverse. The tickets stop scanning and the seats go back on sale.'
+          : 'Sends the money back to the original payment method, voids the tickets at the door, and puts the seats back on sale.',
+      ],
+      warnings,
+      confirmLabel: `Yes, refund ${total}`,
+    }
+  })()
 
   return (
     <div className="space-y-6">
@@ -941,7 +962,7 @@ export default function SalesAdminPanel({
                 type="button"
                 className={`${btnDanger} mt-3`}
                 disabled={busyAction !== null}
-                onClick={() => void refundOrder()}
+                onClick={() => setReverseOpen(true)}
               >
                 <Undo2 className="mr-1.5 inline h-4 w-4" />
                 {busyAction === 'refund'
@@ -962,6 +983,18 @@ export default function SalesAdminPanel({
           ) : null}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={reverseOpen && selected !== null && canReverseSelected}
+        title={reverseDialog.title}
+        lines={reverseDialog.lines}
+        warnings={reverseDialog.warnings}
+        confirmLabel={reverseDialog.confirmLabel}
+        cancelLabel="Keep tickets"
+        busy={busyAction === 'refund'}
+        onConfirm={() => void refundOrder()}
+        onCancel={() => setReverseOpen(false)}
+      />
 
       <div className="admin-card overflow-x-auto">
         <table className="admin-table w-full">

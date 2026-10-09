@@ -13,6 +13,7 @@ import { formatShowDate } from '@/lib/format'
 import { formatPriceWithAud } from '@/lib/fx'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { useAudRates } from '@/components/admin/useAudRates'
+import ConfirmDialog from '@/components/admin/ConfirmDialog'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -97,6 +98,7 @@ export default function TicketsAdminPanel({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [voidTarget, setVoidTarget] = useState<RecentManual | null>(null)
 
   const [showId, setShowId] = useState('')
   const [tierId, setTierId] = useState('')
@@ -169,20 +171,6 @@ export default function TicketsAdminPanel({
   }
 
   async function voidIssue(row: RecentManual) {
-    const lines = [
-      `Void ${issuedQtyLabel(row)} for ${row.holderName || row.email}?`,
-      '',
-      'The tickets stop scanning at the door and any seats or tables go back on sale.',
-      'Nothing is charged or refunded — this was a complimentary issue.',
-    ]
-    if (row.checkedInCount) {
-      lines.push('', `${row.checkedInCount} of ${row.quantity} already scanned in.`)
-    }
-    if (row.confirmationEmailSentAt) {
-      lines.push('', 'The holder already has the PDFs — let them know they are no longer valid.')
-    }
-    if (!confirm(lines.join('\n'))) return
-
     setBusyId(row.id)
     try {
       const res = await fetch(`/api/admin/tickets/${row.id}/void`, { method: 'POST' })
@@ -193,12 +181,23 @@ export default function TicketsAdminPanel({
           ? 'Those tickets were already voided.'
           : `Voided ${issuedQtyLabel(row)}. Inventory is back on sale.`,
       )
+      setVoidTarget(null)
       await load()
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Void failed')
     } finally {
       setBusyId(null)
     }
+  }
+
+  const voidWarnings: string[] = []
+  if (voidTarget?.checkedInCount) {
+    voidWarnings.push(
+      `${voidTarget.checkedInCount} of ${voidTarget.quantity} ticket${voidTarget.quantity === 1 ? '' : 's'} already scanned in at the door.`,
+    )
+  }
+  if (voidTarget?.confirmationEmailSentAt) {
+    voidWarnings.push('The holder already has the PDFs by email — let them know they are no longer valid.')
   }
 
   async function issueTickets(e: React.FormEvent) {
@@ -546,7 +545,7 @@ export default function TicketsAdminPanel({
                                 className={btnDanger}
                                 disabled={busyId === row.id}
                                 title="Undo this issue — tickets stop scanning, seats go back on sale"
-                                onClick={() => void voidIssue(row)}
+                                onClick={() => setVoidTarget(row)}
                               >
                                 <Undo2 className="mr-1.5 inline h-3.5 w-3.5" />
                                 Void
@@ -567,6 +566,30 @@ export default function TicketsAdminPanel({
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={voidTarget !== null}
+        title={voidTarget ? `Void ${issuedQtyLabel(voidTarget)}?` : ''}
+        lines={
+          voidTarget
+            ? [
+                `Issued to ${voidTarget.holderName || voidTarget.email}${
+                  voidTarget.show ? ` for ${voidTarget.show.city} · ${voidTarget.show.venue}` : ''
+                }.`,
+                'The tickets stop scanning at the door and any seats or tables go back on sale.',
+                'Nothing is charged or refunded — this was a complimentary issue.',
+              ]
+            : []
+        }
+        warnings={voidWarnings}
+        confirmLabel="Yes, void tickets"
+        cancelLabel="Keep tickets"
+        busy={voidTarget !== null && busyId === voidTarget.id}
+        onConfirm={() => {
+          if (voidTarget) void voidIssue(voidTarget)
+        }}
+        onCancel={() => setVoidTarget(null)}
+      />
     </div>
   )
 }
