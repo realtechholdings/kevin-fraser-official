@@ -20,6 +20,7 @@ import {
   nextTableNames,
 } from '@/lib/tickets/tables'
 import { isShowArchived } from '@/lib/shows/archive'
+import { isCompOrder } from '@/lib/tickets/refundOrder'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
 
@@ -95,7 +96,13 @@ export async function GET() {
           holderName: order.holderName || '',
           quantity: order.quantity,
           tierName: order.tierName || 'General Admission',
+          tableQuantity: order.tableQuantity || 0,
+          tableNames: order.tableNames || [],
           note: order.note || '',
+          status: order.status,
+          canVoid: order.status === 'paid' && isCompOrder(order),
+          checkedInCount: (order.checkedIn || []).length,
+          voidedAt: order.refundedAt ? new Date(order.refundedAt).toISOString() : null,
           confirmationEmailSentAt: order.confirmationEmailSentAt
             ? new Date(order.confirmationEmailSentAt).toISOString()
             : null,
@@ -297,6 +304,7 @@ export async function POST(req: NextRequest) {
       source: 'manual',
       issuedBy: String(issuedBy),
       note,
+      inventoryCounted: countAgainstInventory,
       confirmationEmailSentAt: null,
       salesNotifyEmailSentAt: null,
       checkedIn: [],
@@ -323,8 +331,11 @@ export async function POST(req: NextRequest) {
             currency: order.currency,
             tierName: order.tierName,
             tier: order.tier,
+            table: order.table,
             tableNames: order.tableNames || [],
             tableSeats: order.tableSeats || 0,
+            unitAmountCents: order.unitAmountCents,
+            source: order.source,
           },
           show,
         )

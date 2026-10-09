@@ -6,6 +6,7 @@ import {
   Mail,
   RefreshCw,
   Ticket,
+  Undo2,
   UserPlus,
 } from 'lucide-react'
 import { formatShowDate } from '@/lib/format'
@@ -18,6 +19,7 @@ const labelClass = 'admin-label'
 const btnPrimary = 'admin-btn-primary disabled:opacity-50'
 const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
 const btnGhost = 'admin-btn-ghost disabled:opacity-50'
+const btnDanger = 'admin-btn-danger disabled:opacity-50'
 
 type ShowOption = {
   id: string
@@ -48,9 +50,23 @@ type RecentManual = {
   holderName: string
   quantity: number
   tierName: string
+  tableQuantity?: number
+  tableNames?: string[]
   note: string
+  status?: string
+  canVoid?: boolean
+  checkedInCount?: number
+  voidedAt?: string | null
   confirmationEmailSentAt: string | null
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
+}
+
+function issuedQtyLabel(row: RecentManual) {
+  const tables = row.tableQuantity || 0
+  if (tables > 0) {
+    return `${tables} × ${row.tierName} (${tables === 1 ? 'table' : 'tables'}, ${row.quantity} tickets)`
+  }
+  return `${row.quantity} × ${row.tierName}`
 }
 
 function downloadBase64Pdf(filename: string, base64: string) {
@@ -150,6 +166,39 @@ export default function TicketsAdminPanel({
     const res = await fetch(`/api/admin/tickets/${orderId}/send`, { method: 'POST' })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to send email')
+  }
+
+  async function voidIssue(row: RecentManual) {
+    const lines = [
+      `Void ${issuedQtyLabel(row)} for ${row.holderName || row.email}?`,
+      '',
+      'The tickets stop scanning at the door and any seats or tables go back on sale.',
+      'Nothing is charged or refunded — this was a complimentary issue.',
+    ]
+    if (row.checkedInCount) {
+      lines.push('', `${row.checkedInCount} of ${row.quantity} already scanned in.`)
+    }
+    if (row.confirmationEmailSentAt) {
+      lines.push('', 'The holder already has the PDFs — let them know they are no longer valid.')
+    }
+    if (!confirm(lines.join('\n'))) return
+
+    setBusyId(row.id)
+    try {
+      const res = await fetch(`/api/admin/tickets/${row.id}/void`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Void failed')
+      onMessage(
+        data.already
+          ? 'Those tickets were already voided.'
+          : `Voided ${issuedQtyLabel(row)}. Inventory is back on sale.`,
+      )
+      await load()
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Void failed')
+    } finally {
+      setBusyId(null)
+    }
   }
 
   async function issueTickets(e: React.FormEvent) {
@@ -363,7 +412,9 @@ export default function TicketsAdminPanel({
         >
           <div>
             <h2 className="text-base font-semibold text-white">Recently issued</h2>
-            <p className="text-xs text-white/40">Manual / complimentary tickets</p>
+            <p className="text-xs text-white/40">
+              Manual / complimentary tickets. Issued by mistake? Void it and the seats go back on sale.
+            </p>
           </div>
         </div>
 
@@ -387,9 +438,12 @@ export default function TicketsAdminPanel({
               <tbody>
                 {recent.map((row) => {
                   const d = row.show?.date ? formatShowDate(row.show.date) : null
+                  const voided = row.status === 'refunded'
+                  const live = !row.status || row.status === 'paid'
                   return (
                     <tr
                       key={row.id}
+                      className={voided ? 'opacity-60' : ''}
                       style={{ borderTop: '1px solid var(--admin-border-soft)' }}
                     >
                       <td className="px-5 py-3 text-white/55">
@@ -419,53 +473,91 @@ export default function TicketsAdminPanel({
                           : '—'}
                       </td>
                       <td className="px-5 py-3 text-white/70">
-                        {row.quantity} × {row.tierName}
+                        <div className={voided ? 'line-through' : ''}>{issuedQtyLabel(row)}</div>
+                        {row.tableNames?.length ? (
+                          <div className="mt-0.5 text-xs text-white/40">
+                            {row.tableNames.join(', ')}
+                          </div>
+                        ) : null}
+                        {voided ? (
+                          <div className="mt-0.5 text-xs font-medium text-sky-300">
+                            Voided
+                            {row.voidedAt
+                              ? ` ${new Date(row.voidedAt).toLocaleString([], {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}`
+                              : ''}
+                          </div>
+                        ) : !live ? (
+                          <div className="mt-0.5 text-xs capitalize text-white/40">{row.status}</div>
+                        ) : null}
                       </td>
                       <td className="px-5 py-3 text-xs text-white/45">
                         {row.confirmationEmailSentAt ? 'Sent' : 'Not sent'}
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            className={btnSecondary}
-                            disabled={busyId === row.id}
-                            onClick={async () => {
-                              setBusyId(row.id)
-                              try {
-                                await sendOrderEmail(row.id)
-                                onMessage(`Ticket email sent to ${row.email}`)
-                                await load()
-                              } catch (err) {
-                                onError(err instanceof Error ? err.message : 'Send failed')
-                              } finally {
-                                setBusyId(null)
-                              }
-                            }}
-                          >
-                            <Mail className="mr-1.5 inline h-3.5 w-3.5" />
-                            Send
-                          </button>
-                          <button
-                            type="button"
-                            className={btnGhost}
-                            disabled={busyId === row.id}
-                            onClick={async () => {
-                              setBusyId(row.id)
-                              try {
-                                const n = await downloadOrderPdfs(row.id)
-                                onMessage(`Downloaded ${n} PDF${n === 1 ? '' : 's'}`)
-                              } catch (err) {
-                                onError(err instanceof Error ? err.message : 'Download failed')
-                              } finally {
-                                setBusyId(null)
-                              }
-                            }}
-                          >
-                            <Download className="mr-1.5 inline h-3.5 w-3.5" />
-                            Download
-                          </button>
-                        </div>
+                        {live ? (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              className={btnSecondary}
+                              disabled={busyId === row.id}
+                              onClick={async () => {
+                                setBusyId(row.id)
+                                try {
+                                  await sendOrderEmail(row.id)
+                                  onMessage(`Ticket email sent to ${row.email}`)
+                                  await load()
+                                } catch (err) {
+                                  onError(err instanceof Error ? err.message : 'Send failed')
+                                } finally {
+                                  setBusyId(null)
+                                }
+                              }}
+                            >
+                              <Mail className="mr-1.5 inline h-3.5 w-3.5" />
+                              Send
+                            </button>
+                            <button
+                              type="button"
+                              className={btnGhost}
+                              disabled={busyId === row.id}
+                              onClick={async () => {
+                                setBusyId(row.id)
+                                try {
+                                  const n = await downloadOrderPdfs(row.id)
+                                  onMessage(`Downloaded ${n} PDF${n === 1 ? '' : 's'}`)
+                                } catch (err) {
+                                  onError(err instanceof Error ? err.message : 'Download failed')
+                                } finally {
+                                  setBusyId(null)
+                                }
+                              }}
+                            >
+                              <Download className="mr-1.5 inline h-3.5 w-3.5" />
+                              Download
+                            </button>
+                            {row.canVoid ? (
+                              <button
+                                type="button"
+                                className={btnDanger}
+                                disabled={busyId === row.id}
+                                title="Undo this issue — tickets stop scanning, seats go back on sale"
+                                onClick={() => void voidIssue(row)}
+                              >
+                                <Undo2 className="mr-1.5 inline h-3.5 w-3.5" />
+                                Void
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <p className="text-right text-xs text-white/35">
+                            {voided ? 'Will not scan' : '—'}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   )

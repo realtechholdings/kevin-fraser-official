@@ -111,6 +111,17 @@ function tableCount(order: AdminOrder) {
   return order.tableNames?.length || 0
 }
 
+/** Manual issue with nothing charged — reversing it is a void, not a refund. */
+function isCompOrder(order: AdminOrder) {
+  return (order.source || 'stripe') === 'manual' && !(order.amountTotal > 0) && !order.upgradedFrom
+}
+
+/** "refunded" is the stored status; a comp that was reversed reads better as voided. */
+function statusLabel(order: AdminOrder) {
+  if (order.status === 'refunded' && isCompOrder(order)) return 'voided'
+  return order.status
+}
+
 function purchaseQtyLabel(order: AdminOrder) {
   const tables = tableCount(order)
   if (tables > 0) {
@@ -522,12 +533,20 @@ export default function SalesAdminPanel({
 
   async function refundOrder() {
     if (!selected || busyAction || !selected.canRefund) return
+    const comp = isCompOrder(selected)
     const total = formatPrice(selected.amountTotal, selected.currency)
-    const lines = [
-      `Refund ${total} to ${selected.email}?`,
-      '',
-      'This voids the tickets, puts inventory back on sale, and refunds Stripe.',
-    ]
+    const lines = comp
+      ? [
+          `Void ${purchaseQtyLabel(selected)} for ${selected.holderName || selected.email}?`,
+          '',
+          'The tickets stop scanning and any seats or tables go back on sale.',
+          'Nothing is charged or refunded — this was a complimentary issue.',
+        ]
+      : [
+          `Refund ${total} to ${selected.email}?`,
+          '',
+          'This voids the tickets, puts inventory back on sale, and refunds Stripe.',
+        ]
     if (selected.checkedInCount > 0) {
       lines.push(
         '',
@@ -537,28 +556,41 @@ export default function SalesAdminPanel({
     if (selected.upgradedFrom) {
       lines.push('', 'This was an upgrade — the original purchase will be refunded too.')
     }
-    if ((selected.source || 'stripe') === 'manual') {
-      lines.push('', 'This is a comp / manual issue — no Stripe charge to reverse.')
+    if (!comp && (selected.source || 'stripe') === 'manual') {
+      lines.push('', 'This is a manual issue — no Stripe charge to reverse.')
     }
     if (!confirm(lines.join('\n'))) return
 
     setBusyAction('refund')
     try {
-      const res = await fetch(`/api/admin/orders/${selected.id}/refund`, { method: 'POST' })
+      const endpoint = comp
+        ? `/api/admin/tickets/${selected.id}/void`
+        : `/api/admin/orders/${selected.id}/refund`
+      const res = await fetch(endpoint, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Refund failed')
+      if (!res.ok) throw new Error(data.error || (comp ? 'Void failed' : 'Refund failed'))
       onMessage(
         data.already
-          ? 'This order was already refunded.'
-          : `Refunded ${total}. Tickets no longer scan.`,
+          ? comp
+            ? 'Those tickets were already voided.'
+            : 'This order was already refunded.'
+          : comp
+            ? 'Voided. Tickets no longer scan and inventory is back on sale.'
+            : `Refunded ${total}. Tickets no longer scan.`,
       )
       await load()
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Refund failed')
+      onError(err instanceof Error ? err.message : comp ? 'Void failed' : 'Refund failed')
     } finally {
       setBusyAction(null)
     }
   }
+
+  // Voiding a comp needs no money to move, so the tickets permission is enough.
+  const selectedIsComp = selected ? isCompOrder(selected) : false
+  const canReverseSelected = Boolean(
+    selected?.canRefund && (canRefund || (selectedIsComp && canManageTickets)),
+  )
 
   return (
     <div className="space-y-6">
@@ -757,7 +789,7 @@ export default function SalesAdminPanel({
             </div>
             <div>
               <p className="text-xs text-white/40">Status</p>
-              <p className="mt-0.5 capitalize text-white/80">{selected.status}</p>
+              <p className="mt-0.5 capitalize text-white/80">{statusLabel(selected)}</p>
             </div>
             <div>
               <p className="text-xs text-white/40">Last emailed</p>
@@ -895,12 +927,15 @@ export default function SalesAdminPanel({
               ) : null}
             </div>
           ) : null}
-          {selected.canRefund && canRefund ? (
+          {canReverseSelected ? (
             <div className="mt-5 border-t border-white/10 pt-5">
-              <p className="text-sm font-medium text-white">Refund</p>
+              <p className="text-sm font-medium text-white">
+                {selectedIsComp ? 'Void comp tickets' : 'Refund'}
+              </p>
               <p className="mt-1 text-xs text-white/40">
-                Sends the money back to the original payment method, voids these
-                tickets at the door, and puts the seats back on sale.
+                {selectedIsComp
+                  ? 'Undoes this complimentary issue: the tickets stop scanning at the door and the seats or tables go back on sale. Nothing to refund.'
+                  : 'Sends the money back to the original payment method, voids these tickets at the door, and puts the seats back on sale.'}
               </p>
               <button
                 type="button"
@@ -910,13 +945,17 @@ export default function SalesAdminPanel({
               >
                 <Undo2 className="mr-1.5 inline h-4 w-4" />
                 {busyAction === 'refund'
-                  ? 'Refunding…'
-                  : `Refund ${formatPrice(selected.amountTotal, selected.currency)}`}
+                  ? selectedIsComp
+                    ? 'Voiding…'
+                    : 'Refunding…'
+                  : selectedIsComp
+                    ? 'Void tickets'
+                    : `Refund ${formatPrice(selected.amountTotal, selected.currency)}`}
               </button>
             </div>
           ) : selected.status === 'refunded' ? (
             <p className="mt-5 border-t border-white/10 pt-5 text-sm text-white/50">
-              Refunded
+              {selectedIsComp ? 'Voided' : 'Refunded'}
               {selected.refundedAt ? ` ${orderDateLabel(selected.refundedAt)}` : ''}.
               These tickets will not scan.
             </p>
@@ -1016,7 +1055,7 @@ export default function SalesAdminPanel({
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STATUS_STYLES[order.status] || STATUS_STYLES.cancelled}`}
                     >
-                      {order.status}
+                      {statusLabel(order)}
                     </span>
                   </td>
                   <td className="px-5 py-4">

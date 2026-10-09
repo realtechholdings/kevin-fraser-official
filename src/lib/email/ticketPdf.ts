@@ -26,6 +26,10 @@ export type TicketPdfInput = {
   tableSeats?: number
   /** Assigned table name for this ticket (e.g. "Table 3"). */
   tableName?: string
+  /** Face value of this one ticket, already formatted (e.g. "$150"). */
+  priceLabel?: string
+  /** Issued free of charge — printed alongside the face value. */
+  complimentary?: boolean
   /** Hex accent for header + tier badge (e.g. #FF6600) */
   accentHex?: string
   /** Optional PNG/JPEG bytes for left-side artwork */
@@ -306,6 +310,38 @@ async function drawTicketPage(
     font: bold,
     color: accentInk,
   })
+
+  // Face value sits beside the class so the ticket reads "VIP · $150".
+  const priceText = (input.priceLabel || '').trim()
+  const compText = input.complimentary ? 'COMPLIMENTARY' : ''
+  if (priceText || compText) {
+    const gap = 10
+    const priceSize = 12
+    const compSize = 9
+    const priceWidth = priceText ? bold.widthOfTextAtSize(priceText, priceSize) : 0
+    const compWidth = compText ? regular.widthOfTextAtSize(compText, compSize) : 0
+    const needed = priceWidth + (priceText && compText ? gap : 0) + compWidth
+    const roomBeside = textMax - tierWidth - gap
+    let x = leftX + tierWidth + gap
+    if (needed > roomBeside) {
+      // Long class name — drop the price onto its own line under the badge.
+      cursorY -= 20
+      x = leftX
+    }
+    if (priceText) {
+      page.drawText(priceText, { x, y: cursorY, size: priceSize, font: bold, color: LIGHT })
+      x += priceWidth + gap
+    }
+    if (compText) {
+      page.drawText(compText, {
+        x,
+        y: cursorY + 1,
+        size: compSize,
+        font: regular,
+        color: MUTED,
+      })
+    }
+  }
 
   if (input.tableName) {
     cursorY -= 22

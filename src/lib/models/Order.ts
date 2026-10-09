@@ -28,6 +28,11 @@ const OrderSchema = new Schema(
     },
     issuedBy: { type: String, default: '' },
     note: { type: String, default: '' },
+    /**
+     * False when a manual issue was created with "count against inventory"
+     * unchecked, so voiding it must not put seats back a second time.
+     */
+    inventoryCounted: { type: Boolean, default: true },
     /** Set once the ticket confirmation email (with PDF) has been sent */
     confirmationEmailSentAt: { type: Date, default: null },
     /** Set once accounts@ has been notified of this paid order */

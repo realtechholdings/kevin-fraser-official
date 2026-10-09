@@ -124,8 +124,39 @@ export async function refundPaidOrder(
     { $set: { status: 'cancelled' } },
   )
 
-  await releasePaidInventory(claimed)
+  if (claimed.inventoryCounted !== false) {
+    await releasePaidInventory(claimed)
+  }
   return { ok: true as const, already: false as const, order: claimed }
+}
+
+/** A manual issue with nothing charged — reversing it is a void, not a refund. */
+export function isCompOrder(
+  order: Pick<OrderDocument, 'source' | 'amountTotal' | 'upgradedFrom'>,
+) {
+  return (
+    (order.source || 'stripe') === 'manual' &&
+    !(Number(order.amountTotal) > 0) &&
+    !order.upgradedFrom
+  )
+}
+
+/**
+ * Undo a complimentary / manual issue: tickets stop scanning and any
+ * seats or tables it took go back on sale. Never touches Stripe.
+ */
+export async function voidCompOrder(
+  order: HydratedDocument<OrderDocument>,
+  opts?: { voidedBy?: string },
+) {
+  if (!isCompOrder(order)) {
+    return {
+      ok: false as const,
+      status: 400,
+      error: 'Only complimentary / manual tickets can be voided. Use Refund for paid orders.',
+    }
+  }
+  return refundPaidOrder(order, { refundedBy: opts?.voidedBy })
 }
 
 export async function showForOrder(order: OrderDocument) {

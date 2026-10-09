@@ -3,6 +3,8 @@ import type { ShowDocument } from '@/lib/models/Show'
 import type { TourDocument } from '@/lib/models/Tour'
 import type { TicketTierDocument } from '@/lib/models/TicketTier'
 import TicketTier from '@/lib/models/TicketTier'
+import TicketTable from '@/lib/models/TicketTable'
+import { findTierForShowSlug } from '@/lib/tickets/tables'
 import {
   DEFAULT_UPGRADE_BODY,
   DEFAULT_UPGRADE_OFFER_BODY,
@@ -35,9 +37,96 @@ export type TicketOrderLike = Pick<
 > & {
   _id: unknown
   tier?: unknown
+  table?: unknown
   holderName?: string
   tableNames?: string[]
   tableSeats?: number
+  unitAmountCents?: number
+  source?: string
+  upgradedFrom?: unknown
+}
+
+export type TicketPricing = {
+  /** Face value of one ticket in this class, as printed on the PDF. */
+  unitCents: number
+  currency: string
+  /** Manual issue with nothing charged. */
+  complimentary: boolean
+}
+
+function isComp(order: TicketOrderLike) {
+  return (
+    (order.source || 'stripe') === 'manual' &&
+    !(Number(order.amountTotal) > 0) &&
+    !order.upgradedFrom
+  )
+}
+
+/**
+ * Work out what one ticket in this order is worth so the PDF can print
+ * "VIP · $150". Paid orders store it; comps are issued at $0, so fall back
+ * to the current class / table price.
+ */
+export async function resolveTicketPricing(
+  show: ShowDocument & { tour?: TourDocument | unknown },
+  order: TicketOrderLike,
+): Promise<TicketPricing> {
+  const complimentary = isComp(order)
+  const unit = Number(order.unitAmountCents) || 0
+  if (unit > 0) return { unitCents: unit, currency: order.currency, complimentary }
+
+  const qty = Math.max(1, Number(order.quantity) || 1)
+  if (Number(order.amountTotal) > 0) {
+    return {
+      unitCents: Math.round(Number(order.amountTotal) / qty),
+      currency: order.currency,
+      complimentary,
+    }
+  }
+
+  const empty = { unitCents: 0, currency: order.currency, complimentary }
+  try {
+    if (order.table) {
+      const table = await TicketTable.findById(String(order.table))
+      if (table && table.inheritPrice === false && table.priceCents > 0) {
+        const seats = Math.max(1, table.seats || 1)
+        return {
+          unitCents: Math.round(table.priceCents / seats),
+          currency: table.currency || order.currency,
+          complimentary,
+        }
+      }
+    }
+
+    if (order.tier) {
+      const tier = await TicketTier.findById(String(order.tier))
+      if (tier) {
+        const tour = tourOf(show)
+        const tourId = tour ? String(tour._id) : String(show.tour)
+        const resolved = await findTierForShowSlug(String(show._id), tourId, tier.slug)
+        if (resolved && resolved.priceCents > 0) {
+          return { unitCents: resolved.priceCents, currency: resolved.currency, complimentary }
+        }
+        if (tier.priceCents > 0) {
+          return { unitCents: tier.priceCents, currency: tier.currency, complimentary }
+        }
+      }
+    }
+
+    if (Number(show.priceCents) > 0) {
+      return { unitCents: Number(show.priceCents), currency: show.currency, complimentary }
+    }
+  } catch {
+    // Price is decoration on the ticket — never block issuing over it.
+  }
+  return empty
+}
+
+function pricingToPdf(pricing: TicketPricing) {
+  return {
+    priceLabel: pricing.unitCents > 0 ? formatPrice(pricing.unitCents, pricing.currency) : '',
+    complimentary: pricing.complimentary,
+  }
 }
 
 export type UpgradeEmailVars = {
@@ -212,7 +301,10 @@ export async function sendTicketEmail(
     appUrl: appUrl(),
   })
 
-  const branding = await resolveTicketBranding(show, order)
+  const [branding, pricing] = await Promise.all([
+    resolveTicketBranding(show, order),
+    resolveTicketPricing(show, order),
+  ])
   const pdfs = await generateTicketPdfs({
     orderId: String(order._id),
     buyerEmail: order.email,
@@ -230,6 +322,7 @@ export async function sendTicketEmail(
     tableSeats: order.tableSeats || 0,
     accentHex: branding.accentHex,
     artworkBytes: branding.artworkBytes,
+    ...pricingToPdf(pricing),
   })
 
   const from = fromAddress(opts?.host)
@@ -254,7 +347,10 @@ export async function buildTicketPdfsForOrder(
   show: ShowDocument & { tour?: TourDocument | unknown },
 ) {
   const vars = ticketTemplateVars(show, order)
-  const branding = await resolveTicketBranding(show, order)
+  const [branding, pricing] = await Promise.all([
+    resolveTicketBranding(show, order),
+    resolveTicketPricing(show, order),
+  ])
   return generateTicketPdfs({
     orderId: String(order._id),
     buyerEmail: order.email,
@@ -272,6 +368,7 @@ export async function buildTicketPdfsForOrder(
     tableSeats: order.tableSeats || 0,
     accentHex: branding.accentHex,
     artworkBytes: branding.artworkBytes,
+    ...pricingToPdf(pricing),
   })
 }
 
@@ -320,7 +417,10 @@ export async function sendUpgradeEmail(
     vars,
   )
   const text = substituteTemplate(settings.upgradeEmailBody || DEFAULT_UPGRADE_BODY, vars)
-  const branding = await resolveTicketBranding(show, order)
+  const [branding, pricing] = await Promise.all([
+    resolveTicketBranding(show, order),
+    resolveTicketPricing(show, order),
+  ])
   const pdfs = await generateTicketPdfs({
     orderId: String(order._id),
     buyerEmail: order.email,
@@ -338,6 +438,7 @@ export async function sendUpgradeEmail(
     tableSeats: order.tableSeats || 0,
     accentHex: branding.accentHex,
     artworkBytes: branding.artworkBytes,
+    ...pricingToPdf(pricing),
   })
 
   const result = await sendTemplatedEmail({
