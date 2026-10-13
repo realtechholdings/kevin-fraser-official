@@ -13,6 +13,7 @@ import {
   serializeUpgradeTarget,
   startUpgradeCheckout,
 } from '@/lib/tickets/upgrades'
+import { refundableTicketNumbers } from '@/lib/tickets/ticketNumbers'
 
 function hostOf(req: NextRequest) {
   return (
@@ -55,6 +56,7 @@ export async function GET(req: NextRequest) {
         id: String(order._id),
         email: order.email,
         quantity: order.quantity,
+        upgradeableQuantity: refundableTicketNumbers(order).length,
         tierName: listed.from?.name || order.tierName,
         status: order.status,
       },
@@ -83,6 +85,7 @@ export async function POST(req: NextRequest) {
     const orderId = String(body.order || body.orderId || '')
     const token = String(body.token || '')
     const toSlug = String(body.toSlug || '').trim().toLowerCase()
+    const quantity = Math.floor(Number(body.quantity) || 0)
 
     if (!toSlug) {
       return NextResponse.json({ success: false, error: 'Pick a class to upgrade to.' }, { status: 400 })
@@ -94,7 +97,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'This upgrade link is not valid.' }, { status: 404 })
     }
 
-    const quoted = await quoteUpgrade(order, toSlug, { publicOnly: true })
+    const quoted = await quoteUpgrade(order, toSlug, {
+      publicOnly: true,
+      ...(quantity > 0 ? { quantity } : {}),
+    })
     if ('error' in quoted) {
       return NextResponse.json({ success: false, error: quoted.error }, { status: quoted.status })
     }

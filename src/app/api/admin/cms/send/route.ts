@@ -7,7 +7,7 @@ import { appUrl } from '@/lib/stripe'
 import { renderEmailHtml, substituteTemplate, textToEmailHtml } from '@/lib/email/branding'
 import { sendEmail } from '@/lib/email/resend'
 
-const MAX_RECIPIENTS = 200
+const MAX_RECIPIENTS = 500
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin('cms')
@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const subject = String(body.subject || '').trim()
     const message = String(body.body || '').trim()
-    const audience = body.audience === 'buyers' ? 'buyers' : 'custom'
+    const audience =
+      body.audience === 'buyers' || body.audience === 'holders' ? body.audience : 'custom'
     const includeSignature = body.includeSignature !== false
 
     if (!subject || !message) {
@@ -34,16 +35,34 @@ export async function POST(req: NextRequest) {
     let recipients: string[] = []
     if (audience === 'buyers') {
       recipients = (await Order.distinct('email', { status: 'paid' })) as string[]
+    } else if (audience === 'holders') {
+      const showId = String(body.showId || '').trim()
+      const tierName = String(body.tierName || '').trim()
+      if (!showId) {
+        return NextResponse.json({ success: false, error: 'Select a show.' }, { status: 400 })
+      }
+      const filter: Record<string, unknown> = { status: 'paid', show: showId }
+      if (tierName) filter.tierName = tierName
+      recipients = (await Order.distinct('email', filter)) as string[]
     } else {
       recipients = String(body.to || '')
         .split(/[,;\s]+/)
         .map((e) => e.trim().toLowerCase())
         .filter((e) => e.includes('@'))
     }
-    recipients = Array.from(new Set(recipients)).slice(0, MAX_RECIPIENTS)
+    recipients = Array.from(new Set(recipients))
 
     if (!recipients.length) {
       return NextResponse.json({ success: false, error: 'No recipients.' }, { status: 400 })
+    }
+    if (recipients.length > MAX_RECIPIENTS) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `That group has ${recipients.length} people. Narrow it to ${MAX_RECIPIENTS} or fewer, or send in batches.`,
+        },
+        { status: 400 },
+      )
     }
 
     const settings = await getEmailSettings()

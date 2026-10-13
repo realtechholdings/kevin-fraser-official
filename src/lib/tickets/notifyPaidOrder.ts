@@ -42,6 +42,7 @@ export async function notifyPaidOrderEmails(
         : await sendTicketEmail(order, show, { host: opts?.host })
       if (!sent.skipped) {
         order.confirmationEmailSentAt = new Date()
+        if (sent.id) order.confirmationEmailId = sent.id
         ticketSent = true
         dirty = true
       }

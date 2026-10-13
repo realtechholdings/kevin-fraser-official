@@ -10,6 +10,7 @@ import {
   type GuestListRow,
   type GuestListShowInfo,
 } from '@/lib/tickets/guestListPdf'
+import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
 
 const PURCHASE_ZONE = 'Australia/Sydney'
 
@@ -119,6 +120,7 @@ type ChainOrder = {
   source?: string
   note?: string
   checkedIn?: { ticket?: number }[]
+  voidedTickets?: { ticket?: number }[]
 }
 
 function originalPurchasedAt(order: ChainOrder, byId: Map<string, ChainOrder>) {
@@ -165,20 +167,32 @@ export async function loadGuestList(showId: string, query: GuestListQuery = pars
   }
 
   const rows = buildGuestListRows(
-    paid.map((order) => ({
-      id: String(order._id),
-      email: order.email,
-      holderName: order.holderName,
-      quantity: order.quantity,
-      tierName: order.tierName,
-      tableNames: order.tableNames,
-      tableQuantity: order.tableQuantity,
-      source: order.source,
-      note: order.note,
-      checkedIn: order.checkedIn,
-      status: order.status,
-      purchasedAt: originalPurchasedAt(order, byId),
-    })),
+    paid.flatMap((order) => {
+      const live = new Set(
+        liveTicketNumbers({
+          quantity: order.quantity || 0,
+          voidedTickets: order.voidedTickets,
+          checkedIn: order.checkedIn,
+        }),
+      )
+      if (!live.size) return []
+      return [
+        {
+          id: String(order._id),
+          email: order.email,
+          holderName: order.holderName,
+          quantity: live.size,
+          tierName: order.tierName,
+          tableNames: order.tableNames,
+          tableQuantity: order.tableQuantity,
+          source: order.source,
+          note: order.note,
+          checkedIn: (order.checkedIn || []).filter((row) => live.has(Number(row.ticket))),
+          status: order.status,
+          purchasedAt: originalPurchasedAt(order, byId),
+        },
+      ]
+    }),
   )
   const filtered = filterGuestListRows(rows, query)
 

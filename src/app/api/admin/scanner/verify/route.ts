@@ -143,6 +143,15 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const voided = (order.voidedTickets || []).find((row) => row.ticket === ticket)
+    if (voided) {
+      return NextResponse.json({
+        success: true,
+        verdict: (voided.reason === 'upgraded' ? 'upgraded' : 'refunded') as ScanVerdict,
+        scan: serializeScan(order, ticket),
+      })
+    }
+
     if (action === 'undo') {
       const idx = order.checkedIn.findIndex((c) => c.ticket === ticket)
       if (idx >= 0) order.checkedIn.splice(idx, 1)

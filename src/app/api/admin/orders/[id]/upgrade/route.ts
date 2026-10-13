@@ -66,6 +66,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const body = await req.json()
     const toSlug = String(body.toSlug || '').trim().toLowerCase()
     const comp = Boolean(body.comp)
+    const quantity = Math.floor(Number(body.quantity) || 0)
     if (!toSlug) {
       return NextResponse.json({ success: false, error: 'Pick a class to upgrade to.' }, { status: 400 })
     }
@@ -76,7 +77,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ success: false, error: 'Order not found.' }, { status: 404 })
     }
 
-    const quoted = await quoteUpgrade(order, toSlug, { bypassSoldOut: true })
+    const quoted = await quoteUpgrade(order, toSlug, {
+      bypassSoldOut: true,
+      ...(quantity > 0 ? { quantity } : {}),
+    })
     if ('error' in quoted) {
       return NextResponse.json({ success: false, error: quoted.error }, { status: quoted.status })
     }

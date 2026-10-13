@@ -44,6 +44,8 @@ type AdminOrder = {
   createdAt: string | null
   email: string
   quantity: number
+  liveQuantity?: number
+  refundableQuantity?: number
   tierName: string
   tableQuantity?: number
   tableSeats?: number
@@ -57,6 +59,7 @@ type AdminOrder = {
   source?: string
   holderName?: string
   confirmationEmailSentAt?: string | null
+  confirmationEmailId?: string
   upgradedFrom?: string | null
   supersededBy?: string | null
   refundedAt?: string | null
@@ -121,6 +124,14 @@ function isCompOrder(order: AdminOrder) {
 function statusLabel(order: AdminOrder) {
   if (order.status === 'refunded' && isCompOrder(order)) return 'voided'
   return order.status
+}
+
+function liveCount(order: AdminOrder) {
+  return order.liveQuantity ?? order.quantity
+}
+
+function refundableCount(order: AdminOrder) {
+  return order.refundableQuantity ?? liveCount(order)
 }
 
 function purchaseQtyLabel(order: AdminOrder) {
@@ -302,11 +313,14 @@ export default function SalesAdminPanel({
   const [customTo, setCustomTo] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sendEmail, setSendEmail] = useState('')
-  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | 'upgrade' | 'refund' | null>(null)
+  const [busyAction, setBusyAction] = useState<'send' | 'pdf' | 'upgrade' | 'refund' | 'delivery' | null>(null)
   const [upgradeTo, setUpgradeTo] = useState('')
   const [upgradeTargets, setUpgradeTargets] = useState<
-    { slug: string; name: string; chargeCents: number; currency: string }[]
+    { slug: string; name: string; chargeCents: number; unitChargeCents?: number; currency: string }[]
   >([])
+  const [upgradeQty, setUpgradeQty] = useState(1)
+  const [refundQty, setRefundQty] = useState(1)
+  const [deliveryEvent, setDeliveryEvent] = useState('')
   const [upgradeBlocked, setUpgradeBlocked] = useState<string | null>(null)
   const [checkoutUrl, setCheckoutUrl] = useState('')
   const [reverseOpen, setReverseOpen] = useState(false)
@@ -392,7 +406,11 @@ export default function SalesAdminPanel({
   )
 
   useEffect(() => {
-    if (selected) setSendEmail(selected.email === 'pending@checkout' ? '' : selected.email)
+    if (!selected) return
+    setSendEmail(selected.email === 'pending@checkout' ? '' : selected.email)
+    setUpgradeQty(Math.max(1, refundableCount(selected)))
+    setRefundQty(Math.max(1, refundableCount(selected)))
+    setDeliveryEvent('')
   }, [selected])
 
   useEffect(() => {
@@ -514,7 +532,7 @@ export default function SalesAdminPanel({
       const res = await fetch(`/api/admin/orders/${selected.id}/upgrade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toSlug: upgradeTo, comp }),
+        body: JSON.stringify({ toSlug: upgradeTo, comp, quantity: upgradeQty }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upgrade failed')
@@ -536,14 +554,24 @@ export default function SalesAdminPanel({
   async function refundOrder() {
     if (!selected || busyAction || !selected.canRefund) return
     const comp = isCompOrder(selected)
-    const total = formatPrice(selected.amountTotal, selected.currency)
+    const qty = Math.max(1, Math.min(refundQty, refundableCount(selected) || liveCount(selected)))
+    const entire = qty >= liveCount(selected)
+    const cents = entire
+      ? selected.amountTotal
+      : Math.round((selected.amountTotal * qty) / Math.max(1, selected.quantity))
+    const total = formatPrice(cents, selected.currency)
 
     setBusyAction('refund')
     try {
-      const endpoint = comp
-        ? `/api/admin/tickets/${selected.id}/void`
-        : `/api/admin/orders/${selected.id}/refund`
-      const res = await fetch(endpoint, { method: 'POST' })
+      const endpoint =
+        comp && entire
+          ? `/api/admin/tickets/${selected.id}/void`
+          : `/api/admin/orders/${selected.id}/refund`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entire ? {} : { quantity: qty }),
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || (comp ? 'Void failed' : 'Refund failed'))
       onMessage(
@@ -551,9 +579,13 @@ export default function SalesAdminPanel({
           ? comp
             ? 'Those tickets were already voided.'
             : 'This order was already refunded.'
-          : comp
-            ? 'Voided. Tickets no longer scan and inventory is back on sale.'
-            : `Refunded ${total}. Tickets no longer scan.`,
+          : data.partial
+            ? `${comp ? 'Voided' : 'Refunded'} ${qty} ticket${qty === 1 ? '' : 's'}${
+                comp ? '' : ` (${total})`
+              }. The rest of the order still scans.`
+            : comp
+              ? 'Voided. Tickets no longer scan and inventory is back on sale.'
+              : `Refunded ${total}. Tickets no longer scan.`,
       )
       setReverseOpen(false)
       await load()
@@ -572,7 +604,12 @@ export default function SalesAdminPanel({
 
   const reverseDialog = (() => {
     if (!selected) return { title: '', lines: [] as string[], warnings: [] as string[], confirmLabel: '' }
-    const total = formatPrice(selected.amountTotal, selected.currency)
+    const qty = Math.max(1, Math.min(refundQty, refundableCount(selected) || liveCount(selected)))
+    const entire = qty >= liveCount(selected)
+    const cents = entire
+      ? selected.amountTotal
+      : Math.round((selected.amountTotal * qty) / Math.max(1, selected.quantity))
+    const total = formatPrice(cents, selected.currency)
     const who = selected.holderName || selected.email
     const where = selected.show ? ` for ${selected.show.city} · ${selected.show.venue}` : ''
     const warnings: string[] = []
@@ -589,24 +626,28 @@ export default function SalesAdminPanel({
     }
     if (selectedIsComp) {
       return {
-        title: `Void ${purchaseQtyLabel(selected)}?`,
+        title: entire ? `Void ${purchaseQtyLabel(selected)}?` : `Void ${qty} ticket${qty === 1 ? '' : 's'}?`,
         lines: [
           `Issued to ${who}${where}.`,
-          'The tickets stop scanning at the door and any seats or tables go back on sale.',
+          entire
+            ? 'The tickets stop scanning at the door and any seats or tables go back on sale.'
+            : 'Those tickets stop scanning. The rest of the order stays valid.',
           'Nothing is charged or refunded — this was a complimentary issue.',
         ],
         warnings,
-        confirmLabel: 'Yes, void tickets',
+        confirmLabel: entire ? 'Yes, void tickets' : `Yes, void ${qty}`,
       }
     }
     const manual = (selected.source || 'stripe') === 'manual'
     return {
       title: `Refund ${total} to ${who}?`,
       lines: [
-        `${purchaseQtyLabel(selected)}${where}.`,
+        `${entire ? purchaseQtyLabel(selected) : `${qty} of ${liveCount(selected)} × ${selected.tierName}`}${where}.`,
         manual
-          ? 'This is a manual issue — no Stripe charge to reverse. The tickets stop scanning and the seats go back on sale.'
-          : 'Sends the money back to the original payment method, voids the tickets at the door, and puts the seats back on sale.',
+          ? 'This is a manual issue — no Stripe charge to reverse. Those tickets stop scanning and the seats go back on sale.'
+          : entire
+            ? 'Sends the money back to the original payment method, voids the tickets at the door, and puts the seats back on sale.'
+            : 'Sends this share back to the original payment method. The other tickets in the order keep scanning.',
       ],
       warnings,
       confirmLabel: `Yes, refund ${total}`,
@@ -819,6 +860,35 @@ export default function SalesAdminPanel({
                   ? orderDateLabel(selected.confirmationEmailSentAt)
                   : 'Not sent'}
               </p>
+              {selected.status === 'paid' && canManageTickets ? (
+                <button
+                  type="button"
+                  className="mt-1 text-xs text-violet-300 hover:text-violet-200 disabled:opacity-50"
+                  disabled={busyAction !== null}
+                  onClick={() => {
+                    setBusyAction('delivery')
+                    void fetch(`/api/admin/orders/${selected.id}/email`)
+                      .then(async (res) => {
+                        const data = await res.json()
+                        if (!res.ok) throw new Error(data.error || 'Could not check delivery')
+                        const event = String(data.lastEvent || 'sent').replace(/_/g, ' ')
+                        setDeliveryEvent(event)
+                        onMessage(
+                          data.lastEvent === 'not_sent'
+                            ? 'No ticket email has been sent for this order yet.'
+                            : `Ticket email to ${data.email || selected.email}: ${event}.`,
+                        )
+                      })
+                      .catch((err) => {
+                        onError(err instanceof Error ? err.message : 'Could not check delivery')
+                      })
+                      .finally(() => setBusyAction(null))
+                  }}
+                >
+                  {busyAction === 'delivery' ? 'Checking…' : 'Check delivery'}
+                  {deliveryEvent ? ` · ${deliveryEvent}` : ''}
+                </button>
+              ) : null}
             </div>
           </div>
           {selected.status === 'paid' && canManageTickets ? (
@@ -890,10 +960,10 @@ export default function SalesAdminPanel({
             <div className="mt-5 border-t border-white/10 pt-5">
               <p className="text-sm font-medium text-white">Upgrade tickets</p>
               <p className="mt-1 text-xs text-white/40">
-                Replaces this order. Old PDFs stop scanning; inventory moves to the new class.
+                Upgrade some or all of the tickets. The ones you leave stay on this order and keep scanning.
               </p>
               {upgradeTargets.length ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+                <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_6rem_auto_auto] sm:items-end">
                   <div>
                     <label className={labelClass}>New class</label>
                     <select
@@ -901,12 +971,30 @@ export default function SalesAdminPanel({
                       value={upgradeTo}
                       onChange={(e) => setUpgradeTo(e.target.value)}
                     >
-                      {upgradeTargets.map((t) => (
-                        <option key={t.slug} value={t.slug} className="bg-[#141420]">
-                          {t.name} — {formatPrice(t.chargeCents, t.currency)}
-                        </option>
-                      ))}
+                      {upgradeTargets.map((t) => {
+                        const unit = t.unitChargeCents ?? t.chargeCents
+                        return (
+                          <option key={t.slug} value={t.slug} className="bg-[#141420]">
+                            {t.name} — {formatPrice(unit * upgradeQty, t.currency)}
+                          </option>
+                        )
+                      })}
                     </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Qty</label>
+                    <input
+                      className={inputClass}
+                      type="number"
+                      min={1}
+                      max={Math.max(1, refundableCount(selected))}
+                      value={upgradeQty}
+                      onChange={(e) =>
+                        setUpgradeQty(
+                          Math.max(1, Math.min(refundableCount(selected), Number(e.target.value) || 1)),
+                        )
+                      }
+                    />
                   </div>
                   <button
                     type="button"
@@ -955,9 +1043,26 @@ export default function SalesAdminPanel({
               </p>
               <p className="mt-1 text-xs text-white/40">
                 {selectedIsComp
-                  ? 'Undoes this complimentary issue: the tickets stop scanning at the door and the seats or tables go back on sale. Nothing to refund.'
-                  : 'Sends the money back to the original payment method, voids these tickets at the door, and puts the seats back on sale.'}
+                  ? 'Undo some or all of this complimentary issue. Voided tickets stop scanning and those seats go back on sale.'
+                  : 'Refund individual tickets or the whole order. Remaining tickets keep scanning.'}
               </p>
+              {refundableCount(selected) > 0 && liveCount(selected) > 1 && !(selected.tableQuantity || selected.tableNames?.length) ? (
+                <div className="mt-3 max-w-[8rem]">
+                  <label className={labelClass}>Tickets</label>
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min={1}
+                    max={refundableCount(selected)}
+                    value={refundQty}
+                    onChange={(e) =>
+                      setRefundQty(
+                        Math.max(1, Math.min(refundableCount(selected), Number(e.target.value) || 1)),
+                      )
+                    }
+                  />
+                </div>
+              ) : null}
               <button
                 type="button"
                 className={`${btnDanger} mt-3`}
@@ -970,8 +1075,17 @@ export default function SalesAdminPanel({
                     ? 'Voiding…'
                     : 'Refunding…'
                   : selectedIsComp
-                    ? 'Void tickets'
-                    : `Refund ${formatPrice(selected.amountTotal, selected.currency)}`}
+                    ? refundQty < liveCount(selected)
+                      ? `Void ${refundQty}`
+                      : 'Void tickets'
+                    : `Refund ${formatPrice(
+                        refundQty >= liveCount(selected)
+                          ? selected.amountTotal
+                          : Math.round(
+                              (selected.amountTotal * refundQty) / Math.max(1, selected.quantity),
+                            ),
+                        selected.currency,
+                      )}`}
               </button>
             </div>
           ) : selected.status === 'refunded' ? (

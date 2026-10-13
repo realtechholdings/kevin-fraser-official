@@ -3,7 +3,8 @@ import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
 import Order from '@/lib/models/Order'
-import { refundPaidOrder, showForOrder } from '@/lib/tickets/refundOrder'
+import { refundOrderTickets, refundPaidOrder, showForOrder } from '@/lib/tickets/refundOrder'
+import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
 import { sendSalesRefundNotification } from '@/lib/email/salesNotify'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -32,16 +33,35 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ success: false, error: 'Order not found.' }, { status: 404 })
     }
 
-    const result = await refundPaidOrder(order, {
-      refundedBy: admin.emails?.[0] || admin.userId,
-    })
+    const raw = await req.text()
+    let requested = 0
+    if (raw) {
+      try {
+        requested = Math.floor(Number(JSON.parse(raw)?.quantity) || 0)
+      } catch {
+        requested = 0
+      }
+    }
+    const live = liveTicketNumbers(order).length
+    const partial = requested > 0 && requested < live
+    const refundedBy = admin.emails?.[0] || admin.userId
+    const result = partial
+      ? await refundOrderTickets(order, requested, { refundedBy })
+      : await refundPaidOrder(order, { refundedBy })
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.status })
     }
 
     const show = await showForOrder(result.order)
+    const refundedQuantity = partial ? requested : result.order.quantity
+    const refundedCents = partial
+      ? Math.round((order.amountTotal * requested) / Math.max(1, order.quantity))
+      : undefined
     if (show && !result.already) {
-      await sendSalesRefundNotification(result.order, show, { host: hostOf(req) }).catch((error) => {
+      await sendSalesRefundNotification(result.order, show, {
+        host: hostOf(req),
+        ...(partial ? { amountCents: refundedCents, quantity: refundedQuantity } : {}),
+      }).catch((error) => {
         console.error('Refund notify failed:', error)
       })
     }
@@ -49,6 +69,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({
       success: true,
       already: result.already,
+      partial,
+      quantity: refundedQuantity,
       orderId: String(result.order._id),
       status: result.order.status,
     })

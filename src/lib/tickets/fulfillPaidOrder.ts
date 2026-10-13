@@ -45,18 +45,26 @@ export async function applyPaidInventory(order: InventoryOrder): Promise<void> {
 /** Put class seats back (upgrade / void). Does not change show.ticketsSold. */
 export async function releaseClassInventory(
   order: Pick<OrderDocument, 'tier' | 'quantity'>,
+  quantity?: number,
 ): Promise<void> {
   if (!order.tier) return
-  const qty = Math.abs(Number(order.quantity) || 0)
+  const qty = Math.abs(quantity ?? (Number(order.quantity) || 0))
   if (!qty) return
   await TicketTier.findByIdAndUpdate(order.tier, {
     $inc: { ticketsSold: -qty },
   })
 }
 
-/** Inverse of applyPaidInventory — seats and tables go back on sale. */
-export async function releasePaidInventory(order: InventoryOrder): Promise<void> {
-  const qty = Math.abs(Number(order.quantity) || 0)
+/**
+ * Inverse of applyPaidInventory — seats and tables go back on sale.
+ * Pass `quantity` to release some seats only (a partial refund). Table
+ * packages are only released when the whole order is undone.
+ */
+export async function releasePaidInventory(
+  order: InventoryOrder,
+  opts?: { quantity?: number },
+): Promise<void> {
+  const qty = Math.abs(opts?.quantity ?? (Number(order.quantity) || 0))
   if (qty) {
     await Show.findByIdAndUpdate(order.show, { $inc: { ticketsSold: -qty } })
     if (order.tier) {
@@ -65,7 +73,7 @@ export async function releasePaidInventory(order: InventoryOrder): Promise<void>
   }
 
   const tableQty = Math.abs(Number(order.tableQuantity) || 0)
-  if (order.table && tableQty > 0) {
+  if (opts?.quantity == null && order.table && tableQty > 0) {
     await TicketTable.findByIdAndUpdate(order.table, {
       $inc: { tablesSold: -tableQty },
     })

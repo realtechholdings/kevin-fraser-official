@@ -107,14 +107,19 @@ export default function CmsAdminPanel({
   const [settings, setSettings] = useState<Settings | null>(null)
   const [templates, setTemplates] = useState<Template[]>([])
   const [buyerCount, setBuyerCount] = useState(0)
+  const [holderShows, setHolderShows] = useState<
+    { id: string; label: string; holderCount: number; tiers: { name: string; count: number }[] }[]
+  >([])
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const [testEmail, setTestEmail] = useState('')
 
   const [compose, setCompose] = useState({
-    audience: 'custom' as 'custom' | 'buyers',
+    audience: 'custom' as 'custom' | 'buyers' | 'holders',
     to: '',
+    showId: '',
+    tierName: '',
     subject: '',
     body: '',
     includeSignature: true,
@@ -137,6 +142,7 @@ export default function CmsAdminPanel({
       setSettings(sData.settings)
       setTemplates(tRes.ok ? tData.templates || [] : [])
       setBuyerCount(rRes.ok ? rData.count || 0 : 0)
+      setHolderShows(rRes.ok ? rData.shows || [] : [])
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load CMS')
     } finally {
@@ -584,13 +590,52 @@ export default function CmsAdminPanel({
                 className={inputClass}
                 value={compose.audience}
                 onChange={(e) =>
-                  setCompose({ ...compose, audience: e.target.value as 'custom' | 'buyers' })
+                  setCompose({
+                    ...compose,
+                    audience: e.target.value as 'custom' | 'buyers' | 'holders',
+                  })
                 }
               >
                 <option value="custom">Specific addresses</option>
+                <option value="holders">Ticket holders for a show</option>
                 <option value="buyers">All ticket buyers ({buyerCount})</option>
               </select>
             </div>
+            {compose.audience === 'holders' ? (
+              <>
+                <div>
+                  <label className={labelClass}>Show</label>
+                  <select
+                    className={inputClass}
+                    value={compose.showId}
+                    onChange={(e) => setCompose({ ...compose, showId: e.target.value, tierName: '' })}
+                  >
+                    <option value="">Select a show…</option>
+                    {holderShows.map((show) => (
+                      <option key={show.id} value={show.id}>
+                        {show.label} ({show.holderCount})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Ticket tier</label>
+                  <select
+                    className={inputClass}
+                    value={compose.tierName}
+                    onChange={(e) => setCompose({ ...compose, tierName: e.target.value })}
+                    disabled={!compose.showId}
+                  >
+                    <option value="">All tiers for this show</option>
+                    {(holderShows.find((show) => show.id === compose.showId)?.tiers || []).map((tier) => (
+                      <option key={tier.name} value={tier.name}>
+                        {tier.name} ({tier.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : null}
             {compose.audience === 'custom' ? (
               <div>
                 <label className={labelClass}>To (comma separated)</label>

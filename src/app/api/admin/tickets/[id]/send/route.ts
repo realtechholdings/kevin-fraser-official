@@ -123,6 +123,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     order.confirmationEmailSentAt = new Date()
+    order.confirmationEmailId = result.id || order.confirmationEmailId || ''
     await order.save()
 
     return NextResponse.json({ success: true, id: result.id, email: to })

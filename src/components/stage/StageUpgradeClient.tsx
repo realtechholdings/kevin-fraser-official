@@ -8,7 +8,14 @@ import type { PublicUpgradeOffer } from '@/components/stage/UpgradeOffersCard'
 
 type Payload = {
   blocked: string | null
-  order: { id: string; email: string; quantity: number; tierName: string; status: string }
+  order: {
+    id: string
+    email: string
+    quantity: number
+    upgradeableQuantity?: number
+    tierName: string
+    status: string
+  }
   show: { city: string; venue: string; date: string; tour: string } | null
   offers: PublicUpgradeOffer[]
 }
@@ -27,6 +34,7 @@ export default function StageUpgradeClient({
   const [loading, setLoading] = useState(true)
   const [busySlug, setBusySlug] = useState('')
   const [done, setDone] = useState(false)
+  const [qty, setQty] = useState(1)
 
   useEffect(() => {
     let cancelledFetch = false
@@ -37,7 +45,10 @@ export default function StageUpgradeClient({
         )
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || 'Could not load this upgrade.')
-        if (!cancelledFetch) setData(json)
+        if (!cancelledFetch) {
+          setData(json)
+          setQty(json.order?.upgradeableQuantity || json.order?.quantity || 1)
+        }
       } catch (err) {
         if (!cancelledFetch) {
           setError(err instanceof Error ? err.message : 'Could not load this upgrade.')
@@ -58,7 +69,7 @@ export default function StageUpgradeClient({
       const res = await fetch('/api/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: orderId, token, toSlug }),
+        body: JSON.stringify({ order: orderId, token, toSlug, quantity: qty }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Upgrade failed')
@@ -90,7 +101,8 @@ export default function StageUpgradeClient({
               Upgraded
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-[var(--foreground-muted)]">
-              Your new tickets are on the way. Previous PDFs will not scan at the door.
+              Your new tickets are on the way. Upgraded PDFs stop scanning. Any tickets you left
+              on the original order stay valid.
             </p>
             <Link
               href="/worlds/stage"
@@ -125,6 +137,25 @@ export default function StageUpgradeClient({
                     ? ` · ${data.show.city}${data.show.date ? ` · ${data.show.date}` : ''}`
                     : ''}
                 </p>
+                {(data.order.upgradeableQuantity || data.order.quantity) > 1 ? (
+                  <label className="mt-4 flex items-center justify-center gap-3 text-sm text-[var(--foreground)]">
+                    <span className="text-[var(--foreground-muted)]">Tickets to upgrade</span>
+                    <select
+                      value={qty}
+                      onChange={(e) => setQty(Number(e.target.value) || 1)}
+                      className="rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5"
+                    >
+                      {Array.from(
+                        { length: data.order.upgradeableQuantity || data.order.quantity },
+                        (_, i) => i + 1,
+                      ).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 {data.blocked || !data.offers.length ? (
                   <p className="mt-6 text-center text-sm text-[var(--foreground-muted)]">
                     There isn’t an upgrade available for these tickets right now.
@@ -147,8 +178,12 @@ export default function StageUpgradeClient({
                               </p>
                             ) : null}
                             <p className="mt-2 text-sm text-[var(--foreground)]">
-                              {offer.chargeCents > 0
-                                ? `${formatPrice(offer.chargeCents, offer.currency)} more`
+                              {(offer.unitChargeCents ?? offer.chargeCents) > 0
+                                ? `${formatPrice(
+                                    (offer.unitChargeCents ?? Math.round(offer.chargeCents / Math.max(1, data.order.quantity))) *
+                                      qty,
+                                    offer.currency,
+                                  )} more`
                                 : 'No extra charge'}
                             </p>
                           </div>

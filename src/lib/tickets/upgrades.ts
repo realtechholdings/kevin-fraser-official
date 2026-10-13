@@ -12,6 +12,11 @@ import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { releaseClassInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
 import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
+import {
+  liveTicketNumbers,
+  pickTicketNumbers,
+  refundableTicketNumbers,
+} from '@/lib/tickets/ticketNumbers'
 
 export type UpgradeBlockReason =
   | 'not_paid'
@@ -30,6 +35,9 @@ export type UpgradeTarget = {
   unitPriceCents: number
   deltaCents: number
   discountCents: number
+  /** Difference due for one ticket, after any offer discount. */
+  unitChargeCents: number
+  /** unitChargeCents × the quantity this quote is for. */
   chargeCents: number
   remaining: number | null
   soldOut: boolean
@@ -74,7 +82,9 @@ export function upgradeBlockReason(order: OrderDocument): UpgradeBlockReason | n
   if (order.status === 'upgraded' || order.supersededBy) return 'already_upgraded'
   if (order.status !== 'paid') return 'not_paid'
   if ((order.tableQuantity || 0) > 0 || order.table) return 'table'
-  if ((order.checkedIn || []).length > 0) return 'checked_in'
+  if (!refundableTicketNumbers(order).length) {
+    return liveTicketNumbers(order).length ? 'checked_in' : 'already_upgraded'
+  }
   return null
 }
 
@@ -117,6 +127,8 @@ function toTarget(
   const baseUnit = paidUnit > 0 ? paidUnit : from.priceCents
   const delta = Math.max(0, to.priceCents - baseUnit)
   const discount = Math.min(delta, offerDiscount(show, from.slug, to.slug))
+  const unitChargeCents = Math.max(0, delta - discount)
+  const quantity = Math.max(1, refundableTicketNumbers(order).length)
   const remaining = remainingOf(to)
   return {
     slug: to.slug,
@@ -126,7 +138,8 @@ function toTarget(
     unitPriceCents: to.priceCents,
     deltaCents: delta,
     discountCents: discount,
-    chargeCents: Math.max(0, delta - discount) * order.quantity,
+    unitChargeCents,
+    chargeCents: unitChargeCents * quantity,
     remaining,
     soldOut: isTierSoldOut(to),
     offered: to.offered !== false,
@@ -172,8 +185,8 @@ export async function listUpgradeTargets(
     const target = toTarget(from, tier, order, show)
     if (!target) continue
     if (opts?.publicOnly && !offerEnabled(show, from.slug, target.slug)) continue
-    if (!opts?.bypassSoldOut && !canTakeQuantity(target, order.quantity)) continue
-    if (opts?.bypassSoldOut && target.remaining !== null && target.remaining < order.quantity) {
+    if (!opts?.bypassSoldOut && !canTakeQuantity(target, 1)) continue
+    if (opts?.bypassSoldOut && target.remaining !== null && target.remaining < 1) {
       continue
     }
     targets.push(target)
@@ -185,7 +198,7 @@ export async function listUpgradeTargets(
 export async function quoteUpgrade(
   order: OrderDocument,
   toSlug: string,
-  opts?: { publicOnly?: boolean; bypassSoldOut?: boolean },
+  opts?: { publicOnly?: boolean; bypassSoldOut?: boolean; quantity?: number },
 ): Promise<{ quote: UpgradeQuote; show: ShowWithTour } | { error: string; status: number }> {
   const listed = await listUpgradeTargets(order, opts)
   if (listed.blocked) {
@@ -204,6 +217,22 @@ export async function quoteUpgrade(
   if (!target || !listed.from || !listed.show) {
     return { error: 'That upgrade is not available.', status: 400 }
   }
+  const open = refundableTicketNumbers(order).length
+  const quantity = Math.floor(Number(opts?.quantity) || open)
+  if (quantity < 1 || quantity > open) {
+    return {
+      error: open
+        ? `Choose between 1 and ${open} ticket${open === 1 ? '' : 's'} to upgrade.`
+        : 'No tickets on this order can be upgraded.',
+      status: 400,
+    }
+  }
+  if (!opts?.bypassSoldOut && !canTakeQuantity(target, quantity)) {
+    return { error: 'Not enough seats left in that class.', status: 400 }
+  }
+  if (opts?.bypassSoldOut && target.remaining !== null && target.remaining < quantity) {
+    return { error: 'Not enough seats left in that class.', status: 400 }
+  }
   return {
     quote: {
       from: {
@@ -212,8 +241,11 @@ export async function quoteUpgrade(
         unitPriceCents: listed.from.priceCents,
         currency: listed.from.currency,
       },
-      quantity: order.quantity,
-      target,
+      quantity,
+      target: {
+        ...target,
+        chargeCents: target.unitChargeCents * quantity,
+      },
     },
     show: listed.show,
   }
@@ -232,7 +264,7 @@ async function moveClassInventory(
   quantity: number,
   showId: mongoose.Types.ObjectId,
 ) {
-  await releaseClassInventory(fromOrder)
+  await releaseClassInventory(fromOrder, quantity)
   if (toTierId) {
     await TicketTier.findByIdAndUpdate(toTierId, { $inc: { ticketsSold: quantity } })
   }
@@ -240,28 +272,55 @@ async function moveClassInventory(
 }
 
 /**
- * Replace a paid order with a new paid class. Old QR stops working.
- * Caller is responsible for creating `next` as pending (or passing a new doc).
+ * Move `next.quantity` tickets from a paid order onto `next`.
+ * When every remaining ticket moves, the original order is marked upgraded
+ * and its QR codes stop working. A partial upgrade voids only those numbers.
  */
 export async function completeUpgradeOrder(
   original: HydratedDocument<OrderDocument>,
   next: HydratedDocument<OrderDocument>,
   session?: import('stripe').Stripe.Checkout.Session | null,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (next.status === 'paid' && original.status === 'upgraded') {
-    return { ok: true }
+  if (next.status === 'paid') return { ok: true }
+
+  const fresh = await Order.findById(original._id)
+  if (!fresh || fresh.status !== 'paid' || fresh.supersededBy) {
+    next.status = 'cancelled'
+    await next.save()
+    return { ok: false, error: 'This ticket has already been upgraded.' }
   }
 
+  const open = refundableTicketNumbers(fresh)
+  if (next.quantity > open.length) {
+    next.status = 'cancelled'
+    await next.save()
+    return { ok: false, error: 'Not enough tickets left on this order to upgrade.' }
+  }
+
+  const picked = pickTicketNumbers(open, next.quantity)
+  const entries = picked.map((ticket) => ({
+    ticket,
+    reason: 'upgraded' as const,
+    at: new Date(),
+    stripeRefundId: '',
+  }))
+  const liveAfter = liveTicketNumbers({
+    quantity: fresh.quantity,
+    voidedTickets: [...(fresh.voidedTickets || []), ...entries],
+  })
   const claimed = await Order.findOneAndUpdate(
-    { _id: original._id, status: 'paid', supersededBy: null },
-    { $set: { status: 'upgraded', supersededBy: next._id } },
+    { _id: fresh._id, status: 'paid', supersededBy: null },
+    liveAfter.length
+      ? { $push: { voidedTickets: { $each: entries } } }
+      : {
+          $set: { status: 'upgraded', supersededBy: next._id },
+          $push: { voidedTickets: { $each: entries } },
+        },
     { new: true },
   )
   if (!claimed) {
-    if (next.status !== 'paid') {
-      next.status = 'cancelled'
-      await next.save()
-    }
+    next.status = 'cancelled'
+    await next.save()
     return { ok: false, error: 'This ticket has already been upgraded.' }
   }
 
@@ -308,6 +367,7 @@ export async function createPaidUpgradeOrder(opts: {
   show: ShowWithTour
   target: UpgradeTarget
   chargeCents: number
+  quantity?: number
   source: 'stripe' | 'manual'
   issuedBy?: string
   note?: string
@@ -328,7 +388,9 @@ export async function createPaidUpgradeOrder(opts: {
     stripeSessionId: opts.stripeSessionId,
     email: opts.original.email,
     holderName: opts.original.holderName || '',
-    quantity: opts.original.quantity,
+    quantity:
+      opts.quantity ??
+      (refundableTicketNumbers(opts.original).length || opts.original.quantity),
     amountTotal: opts.chargeCents,
     currency: selected.currency,
     status: opts.status,
@@ -357,6 +419,7 @@ export async function startUpgradeCheckout(opts: {
       show: opts.show,
       target: opts.quote.target,
       chargeCents: 0,
+      quantity: opts.quote.quantity,
       source: 'manual',
       issuedBy: opts.issuedBy || '',
       note: opts.note || 'Complimentary / zero-balance upgrade',
@@ -395,7 +458,7 @@ export async function startUpgradeCheckout(opts: {
             unit_amount: opts.quote.target.chargeCents,
             product_data: {
               name: upgradeName,
-              description: `Replaces ${opts.quote.quantity} × ${fromName} · ${copy.lineDescription}`,
+              description: `Upgrades ${opts.quote.quantity} × ${fromName} · ${copy.lineDescription}`,
             },
           },
         },
@@ -418,6 +481,7 @@ export async function startUpgradeCheckout(opts: {
     show: opts.show,
     target: opts.quote.target,
     chargeCents: opts.quote.target.chargeCents,
+    quantity: opts.quote.quantity,
     source: 'stripe',
     issuedBy: opts.issuedBy || '',
     note: opts.note || '',
@@ -472,6 +536,7 @@ export function serializeUpgradeTarget(target: UpgradeTarget) {
     unitPriceCents: target.unitPriceCents,
     deltaCents: target.deltaCents,
     discountCents: target.discountCents,
+    unitChargeCents: target.unitChargeCents,
     chargeCents: target.chargeCents,
     remaining: target.remaining,
   }

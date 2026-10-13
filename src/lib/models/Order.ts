@@ -35,6 +35,8 @@ const OrderSchema = new Schema(
     inventoryCounted: { type: Boolean, default: true },
     /** Set once the ticket confirmation email (with PDF) has been sent */
     confirmationEmailSentAt: { type: Date, default: null },
+    /** Resend email id for the last ticket send, used to look up delivery. */
+    confirmationEmailId: { type: String, default: '' },
     /** Set once accounts@ has been notified of this paid order */
     salesNotifyEmailSentAt: { type: Date, default: null },
     /** Table package this order bought (null for regular class sales). */
@@ -55,6 +57,26 @@ const OrderSchema = new Schema(
     refundedAt: { type: Date, default: null },
     refundedBy: { type: String, default: '' },
     stripeRefundId: { type: String, default: '' },
+    /** Integration-currency cents already sent back for this order's own charge. */
+    refundedCents: { type: Number, default: 0, min: 0 },
+    /**
+     * Individual ticket numbers (1-based, matching the PDF) that no longer scan.
+     * The order quantity stays put so the remaining QR codes keep their numbers.
+     */
+    voidedTickets: {
+      type: [
+        new Schema(
+          {
+            ticket: { type: Number, required: true },
+            reason: { type: String, enum: ['refunded', 'upgraded'], required: true },
+            at: { type: Date, default: Date.now },
+            stripeRefundId: { type: String, default: '' },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     /** Door check-ins: one entry per scanned ticket number (1-based) */
     checkedIn: {
       type: [

@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
 import Order from '@/lib/models/Order'
+import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
 
 /** Live check-in stats for one show: totals and per-tier breakdown. */
 export async function GET(req: NextRequest) {
@@ -27,11 +28,13 @@ export async function GET(req: NextRequest) {
     for (const order of orders) {
       const tierName = order.tierName || 'General Admission'
       const entry = tiers.get(tierName) || { sold: 0, checkedIn: 0 }
-      entry.sold += order.quantity
-      entry.checkedIn += (order.checkedIn || []).length
+      const live = new Set(liveTicketNumbers(order))
+      const inCount = (order.checkedIn || []).filter((row) => live.has(row.ticket)).length
+      entry.sold += live.size
+      entry.checkedIn += inCount
       tiers.set(tierName, entry)
-      sold += order.quantity
-      checkedIn += (order.checkedIn || []).length
+      sold += live.size
+      checkedIn += inCount
     }
 
     return NextResponse.json({

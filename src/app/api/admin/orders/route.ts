@@ -10,6 +10,7 @@ import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
+import { liveTicketNumbers, refundableTicketNumbers } from '@/lib/tickets/ticketNumbers'
 
 const MAX_ORDERS_DEFAULT = 500
 const MAX_ORDERS_FILTERED = 2000
@@ -131,6 +132,8 @@ export async function GET(req: NextRequest) {
           createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
           email: order.email,
           quantity: order.quantity,
+          liveQuantity: liveTicketNumbers(order).length,
+          refundableQuantity: refundableTicketNumbers(order).length,
           tierName: order.tierName || 'General Admission',
           tableQuantity: order.tableQuantity || 0,
           tableSeats: order.tableSeats || 0,
@@ -144,6 +147,7 @@ export async function GET(req: NextRequest) {
           confirmationEmailSentAt: order.confirmationEmailSentAt
             ? new Date(order.confirmationEmailSentAt).toISOString()
             : null,
+          confirmationEmailId: order.confirmationEmailId || '',
           stripePaymentIntentId: order.stripePaymentIntentId || '',
           stripeUrl: order.stripePaymentIntentId
             ? `${base}/payments/${order.stripePaymentIntentId}`
@@ -155,7 +159,7 @@ export async function GET(req: NextRequest) {
             order.status === 'paid' &&
             !(order.tableQuantity || 0) &&
             !order.table &&
-            !(order.checkedIn || []).length &&
+            refundableTicketNumbers(order).length > 0 &&
             !order.supersededBy,
           canRefund: order.status === 'paid',
           show: show

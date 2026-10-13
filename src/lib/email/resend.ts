@@ -117,3 +117,21 @@ export async function sendEmail(input: SendEmailInput): Promise<{ id: string }> 
   }
   return { id: String(body.id || '') }
 }
+
+/** Last delivery event Resend recorded for a sent message. */
+export async function getEmailDelivery(id: string): Promise<{ id: string; lastEvent: string }> {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) throw new Error('RESEND_API_KEY is not set.')
+  const emailId = String(id || '').trim()
+  if (!emailId) throw new Error('No email id.')
+
+  const res = await fetch(`${RESEND_API}/emails/${encodeURIComponent(emailId)}`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: 'no-store',
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(body?.message || `Resend error (${res.status})`)
+  }
+  return { id: emailId, lastEvent: String(body.last_event || 'sent') }
+}

@@ -10,7 +10,7 @@ import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
-import { isShowEffectivelySoldOut, isTierSoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
+import { isShowEffectivelySoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
 function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
   if (effectivelySoldOut) return 'Sold Out'
@@ -215,57 +215,7 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   : 'Choose your ticket type and quantity, then continue to secure checkout.'}
               </p>
 
-              {show.tiers && show.tiers.length > 0 ? (
-                <ul className="mt-5 space-y-4 border-t border-[var(--border)] pt-5">
-                  {show.tiers
-                    .filter((t) => t.published)
-                    .slice()
-                    .sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)
-                    .map((tier) => {
-                      const tierSoldOut = isTierSoldOut(
-                        tier,
-                        venueRemaining,
-                        show.tiers,
-                        show.status,
-                      )
-                      return (
-                        <li key={tier.id} className="text-sm">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="font-medium text-[var(--foreground)]">
-                              {tier.name}
-                              {tier.kind === 'table' && tier.seats
-                                ? ` · ${tier.seats} tickets`
-                                : ''}
-                            </span>
-                            <span className="shrink-0 text-[var(--foreground-muted)]">
-                              {tierSoldOut ? (
-                                <span
-                                  className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
-                                  style={{
-                                    background: 'var(--danger)',
-                                    color: '#fff',
-                                  }}
-                                >
-                                  Sold Out
-                                </span>
-                              ) : (
-                                formatPrice(tier.priceCents, tier.currency)
-                              )}
-                            </span>
-                          </div>
-                          {tier.description ? (
-                            <FormattedText
-                              text={tier.description}
-                              className="mt-1 text-xs leading-relaxed text-[var(--foreground-subtle)]"
-                            />
-                          ) : null}
-                        </li>
-                      )
-                    })}
-                </ul>
-              ) : null}
-
-              <div className="mt-6">
+              <div className="mt-6 border-t border-[var(--border)] pt-5">
                 {show.externalTicketUrl ? (
                   <a
                     href={show.externalTicketUrl}
@@ -287,7 +237,8 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                     showStatus={show.status}
                     disabled={unavailable}
                     label={soldOut ? 'Sold Out' : badge || 'Buy Tickets'}
-                    className="w-full [&_button]:w-full [&_select]:w-full"
+                    layout="rows"
+                    className="w-full [&_button[type=submit]]:w-full"
                   />
                 )}
               </div>

@@ -9,6 +9,7 @@ export type PublicUpgradeOffer = {
   description: string
   currency: string
   chargeCents: number
+  unitChargeCents?: number
 }
 
 export default function UpgradeOffersCard({
@@ -26,6 +27,7 @@ export default function UpgradeOffersCard({
 }) {
   const [busySlug, setBusySlug] = useState('')
   const [error, setError] = useState('')
+  const [qty, setQty] = useState(quantity)
 
   if (!offers.length) return null
 
@@ -36,7 +38,7 @@ export default function UpgradeOffersCard({
       const res = await fetch('/api/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: orderId, token, toSlug }),
+        body: JSON.stringify({ order: orderId, token, toSlug, quantity: qty }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Upgrade failed')
@@ -64,9 +66,25 @@ export default function UpgradeOffersCard({
         Upgrade these tickets
       </p>
       <p className="mt-2 text-sm leading-relaxed text-[var(--foreground-muted)]">
-        You’re holding {quantity} × {currentTier}. Pay the difference and your old PDFs stop
-        scanning — new tickets are emailed straight away.
+        You’re holding {quantity} × {currentTier}. Upgrade as many as you like — the rest stay
+        as they are. New tickets are emailed straight away.
       </p>
+      {quantity > 1 ? (
+        <label className="mt-3 flex items-center gap-3 text-sm text-[var(--foreground)]">
+          <span className="text-[var(--foreground-muted)]">How many</span>
+          <select
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value) || 1)}
+            className="rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-1.5"
+          >
+            {Array.from({ length: quantity }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <ul className="mt-4 space-y-3">
         {offers.map((offer) => (
           <li
@@ -79,8 +97,12 @@ export default function UpgradeOffersCard({
                 <p className="mt-0.5 text-xs text-[var(--foreground-muted)]">{offer.description}</p>
               ) : null}
               <p className="mt-1 text-xs text-[var(--foreground-muted)]">
-                {offer.chargeCents > 0
-                  ? `${formatPrice(offer.chargeCents, offer.currency)} more`
+                {(offer.unitChargeCents ?? offer.chargeCents) > 0
+                  ? `${formatPrice(
+                      (offer.unitChargeCents ??
+                        Math.round(offer.chargeCents / Math.max(1, quantity))) * qty,
+                      offer.currency,
+                    )} more`
                   : 'No extra charge'}
               </p>
             </div>

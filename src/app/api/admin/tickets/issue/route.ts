@@ -279,6 +279,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const priceMode =
+      body.priceMode === 'listed' || body.priceMode === 'custom' ? body.priceMode : 'comp'
+    let unitAmountCents = 0
+    if (priceMode === 'listed') {
+      unitAmountCents = Math.max(0, Math.round(Number(tier.priceCents) || 0))
+    } else if (priceMode === 'custom') {
+      unitAmountCents = Math.round(Number(body.unitAmountCents))
+      if (!Number.isFinite(unitAmountCents) || unitAmountCents < 0 || unitAmountCents > 10_000_000) {
+        return NextResponse.json(
+          { success: false, error: 'Enter a custom price of 0 or more.' },
+          { status: 400 },
+        )
+      }
+    }
+    const pricedUnits = tablePurchase ? tableQty : quantity
+    const amountTotal = unitAmountCents * pricedUnits
+
     const realTierId = await ensureShowScopedTierId(String(show._id), underlying)
 
     const orderId = new mongoose.Types.ObjectId()
@@ -292,13 +309,13 @@ export async function POST(req: NextRequest) {
       show: show._id,
       tier: realTierId,
       tierName: tier.name,
-      unitAmountCents: 0,
+      unitAmountCents,
       stripeSessionId: `manual_${orderId.toString()}_${Date.now()}`,
       stripePaymentIntentId: '',
       email,
       holderName,
       quantity: ticketQty,
-      amountTotal: 0,
+      amountTotal,
       currency: (tier.currency || show.currency || 'AUD').toUpperCase(),
       status: 'paid',
       source: 'manual',
@@ -343,6 +360,7 @@ export async function POST(req: NextRequest) {
           emailResult = { sent: false, skipped: true }
         } else {
           order.confirmationEmailSentAt = new Date()
+          order.confirmationEmailId = result.id || ''
           await order.save()
           emailResult = { sent: true }
         }

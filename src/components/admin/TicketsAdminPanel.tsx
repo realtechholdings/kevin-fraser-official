@@ -109,6 +109,8 @@ export default function TicketsAdminPanel({
   const [sendEmail, setSendEmail] = useState(true)
   const [downloadAfter, setDownloadAfter] = useState(true)
   const [countAgainstInventory, setCountAgainstInventory] = useState(true)
+  const [priceMode, setPriceMode] = useState<'comp' | 'listed' | 'custom'>('comp')
+  const [customPrice, setCustomPrice] = useState('')
 
   const selectedShow = useMemo(
     () => shows.find((s) => s.id === showId) || null,
@@ -220,6 +222,11 @@ export default function TicketsAdminPanel({
           note: note.trim(),
           sendEmail,
           countAgainstInventory,
+          priceMode,
+          unitAmountCents:
+            priceMode === 'custom'
+              ? Math.round((Number(customPrice.replace(/[^0-9.]/g, '')) || 0) * 100)
+              : 0,
         }),
       })
       const data = await res.json()
@@ -264,8 +271,8 @@ export default function TicketsAdminPanel({
           <div>
             <h2 className="text-base font-semibold text-white">Issue tickets</h2>
             <p className="mt-1 text-sm text-white/50">
-              Create complimentary / manual tickets for a holder, then email and/or download the PDFs.
-              Issued tickets are scannable at the door.
+              Create complimentary, listed-price, or custom-priced tickets for any show. They email as
+              normal PDFs and scan at the door.
             </p>
           </div>
         </div>
@@ -348,6 +355,46 @@ export default function TicketsAdminPanel({
               required
               disabled={submitting}
             />
+          </div>
+
+          <div>
+            <label className={labelClass}>Price</label>
+            <select
+              className={inputClass}
+              value={priceMode}
+              onChange={(e) => setPriceMode(e.target.value as 'comp' | 'listed' | 'custom')}
+              disabled={submitting}
+            >
+              <option value="comp">Complimentary</option>
+              <option value="listed">Listed tier price</option>
+              <option value="custom">Custom price</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>
+              {priceMode === 'custom'
+                ? issuingTable
+                  ? 'Custom price per table'
+                  : 'Custom price per ticket'
+                : 'Recorded price'}
+            </label>
+            {priceMode === 'custom' ? (
+              <input
+                className={inputClass}
+                inputMode="decimal"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                placeholder="0.00"
+                disabled={submitting}
+                required
+              />
+            ) : (
+              <p className="admin-input flex items-center text-white/70">
+                {priceMode === 'listed' && selectedTier
+                  ? formatPriceWithAud(selectedTier.priceCents, selectedTier.currency, audRates)
+                  : 'No charge'}
+              </p>
+            )}
           </div>
 
           <div className="sm:col-span-2">

@@ -7,6 +7,7 @@ import { centsToMetaValue, identifyMetaUser, savePendingCheckout, trackMeta } fr
 import { isTierSoldOut, remainingOfferingUnits } from '@/lib/tickets/soldOut'
 import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
+import FormattedText from '@/components/FormattedText'
 
 const EMAIL_STORAGE_KEY = 'kf_checkout_email'
 
@@ -18,6 +19,8 @@ type Props = {
   disabled?: boolean
   label?: string
   className?: string
+  /** Tier rows are the selector. Clicking one opens the quantity control. */
+  layout?: 'compact' | 'rows'
 }
 
 function maxQuantityForTier(
@@ -50,6 +53,7 @@ export default function TicketButton({
   disabled,
   label = 'Get Tickets',
   className = '',
+  layout = 'compact',
 }: Props) {
   const publishedTiers = useMemo(
     () => tiers.filter((tier) => tier.published),
@@ -139,17 +143,78 @@ export default function TicketButton({
     }
   }
 
+  function tierRow(tier: PublicTicketTier, selectable: boolean) {
+    const soldOut = isTierSoldOut(tier, venueRemaining, publishedTiers, showStatus)
+    const active = selectable && !soldOut && selected?.id === tier.id
+    return (
+      <li key={tier.id}>
+        <button
+          type="button"
+          disabled={!selectable || soldOut || disabled || loading}
+          onClick={() => setTierId(tier.id)}
+          aria-pressed={active}
+          className="flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left text-sm disabled:cursor-default"
+          style={{
+            borderColor: active ? 'var(--accent)' : 'var(--border)',
+            background: active ? 'var(--accent-soft)' : 'transparent',
+          }}
+        >
+          <span className="font-medium text-[var(--foreground)]">{offeringLabel(tier)}</span>
+          <span className="flex shrink-0 items-center gap-2 text-[var(--foreground-muted)]">
+            <span>{formatPrice(tier.priceCents, tier.currency)}</span>
+            {soldOut ? (
+              <span
+                className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+                style={{ background: 'var(--danger)', color: '#fff' }}
+              >
+                Sold Out
+              </span>
+            ) : null}
+          </span>
+        </button>
+        {tier.description ? (
+          <FormattedText
+            text={tier.description}
+            className="mt-1 px-1 text-xs leading-relaxed text-[var(--foreground-subtle)]"
+          />
+        ) : null}
+        {active ? (
+          <label className="mt-2 flex w-fit items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)]">
+            <span className="uppercase tracking-[0.14em] text-[var(--foreground-subtle)]">
+              {tier.kind === 'table' ? 'Tables' : 'Qty'}
+            </span>
+            <select
+              value={quantity}
+              onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+              disabled={disabled || loading}
+              className="bg-transparent outline-none"
+              aria-label={tier.kind === 'table' ? 'Number of tables' : 'Ticket quantity'}
+            >
+              {Array.from({ length: maxQty }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </li>
+    )
+  }
+
   if (!purchasableTiers.length) {
     return (
       <div className={className}>
-        {publishedTiers.length > 1 ? (
+        {layout === 'rows' && publishedTiers.length ? (
+          <ul className="mb-4 space-y-3">{publishedTiers.map((tier) => tierRow(tier, false))}</ul>
+        ) : publishedTiers.length > 1 ? (
           <select
             disabled
             className="mb-2 w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none opacity-60"
           >
             {publishedTiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
-                {offeringLabel(tier)} — Sold Out
+                {offeringLabel(tier)} — {formatPrice(tier.priceCents, tier.currency)} — Sold Out
               </option>
             ))}
           </select>
@@ -188,6 +253,9 @@ export default function TicketButton({
           className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
         />
       </label>
+      {layout === 'rows' ? (
+        <ul className="mb-4 space-y-3">{publishedTiers.map((tier) => tierRow(tier, true))}</ul>
+      ) : (
       <div className="mb-2 grid gap-2 sm:grid-cols-[1fr_auto]">
         {publishedTiers.length > 1 ? (
           <select
@@ -200,8 +268,8 @@ export default function TicketButton({
               const soldOut = isTierSoldOut(tier, venueRemaining, publishedTiers, showStatus)
               return (
                 <option key={tier.id} value={tier.id} disabled={soldOut}>
-                  {offeringLabel(tier)} —{' '}
-                  {soldOut ? 'Sold Out' : formatPrice(tier.priceCents, tier.currency)}
+                  {offeringLabel(tier)} — {formatPrice(tier.priceCents, tier.currency)}
+                  {soldOut ? ' — Sold Out' : ''}
                 </option>
               )
             })}
@@ -232,6 +300,7 @@ export default function TicketButton({
           </select>
         </label>
       </div>
+      )}
       <button
         type="submit"
         disabled={disabled || loading || !selected}
