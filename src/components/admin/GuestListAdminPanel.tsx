@@ -29,7 +29,7 @@ function showOptionLabel(show: PublicShow) {
   const d = formatShowDate(show.date)
   return `${show.city} · ${show.venue}${d.day ? ` · ${d.day} ${d.month}` : ''}${
     show.tour?.title ? ` (${show.tour.title})` : ''
-  }`
+  }${show.archivedAt ? ' · Removed' : ''}`
 }
 
 function daysUntilShow(iso: string | null | undefined) {
@@ -215,8 +215,10 @@ export default function GuestListAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Guest List</h2>
           <p className="mt-1 max-w-xl text-sm text-white/40">
-            Pick a show, filter who bought and when, then export that list. Purchase dates use the
-            first sale, so an upgrade later still counts as the original purchase.
+            Pick a show, filter who bought and when, then export that list. Removing a show
+            takes it off the public site and keeps the guest list here. Tick Include past and
+            removed shows to open those nights. Purchase dates use the first sale, so an upgrade later still
+            counts as the original purchase.
           </p>
         </div>
         <button
@@ -390,7 +392,7 @@ export default function GuestListAdminPanel({
               checked={includePast}
               onChange={(e) => setIncludePast(e.target.checked)}
             />
-            Include past shows
+            Include past and removed shows
           </label>
         </div>
         {filtersActive() ? (
