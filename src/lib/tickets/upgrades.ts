@@ -11,7 +11,7 @@ import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { releaseClassInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { checkoutReturnUrl, getStripe, stripeRequestOptions } from '@/lib/stripe'
-import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
+import { stripeChargeName, stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
 import {
   liveTicketNumbers,
   pickTicketNumbers,
@@ -434,7 +434,7 @@ export async function startUpgradeCheckout(opts: {
   const copy = stripeShowCopy(opts.show)
   const fromName = stripContactNumbers(opts.quote.from.name)
   const toName = stripContactNumbers(opts.quote.target.name)
-  const upgradeName = `Upgrade to ${toName} — ${copy.tourTitle} · ${copy.city}`
+  const upgradeName = stripeChargeName(copy, `Upgrade to ${toName}`)
 
   const stripe = getStripe()
   const returnBase = checkoutReturnUrl(opts.req)

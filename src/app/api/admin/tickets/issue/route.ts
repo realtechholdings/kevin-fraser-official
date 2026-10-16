@@ -7,7 +7,7 @@ import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { isTierSoldOut, unsoldTableSeats, venueCanTake, venueSeatRemaining } from '@/lib/tickets/soldOut'
-import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
+import { MAX_TABLE_SEATS, MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { applyPaidInventory } from '@/lib/tickets/fulfillPaidOrder'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import { sendTicketEmail } from '@/lib/email/ticket'
@@ -23,6 +23,7 @@ import { isShowArchived } from '@/lib/shows/archive'
 import { isCompOrder } from '@/lib/tickets/refundOrder'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
+const MAX_TABLE_QTY = MAX_TABLE_SEATS
 
 function isLegacyTierId(id: string) {
   return id.startsWith('legacy-')
@@ -196,9 +197,15 @@ export async function POST(req: NextRequest) {
     const seats = tablePurchase ? Math.max(1, tier.seats || 1) : 1
     const tableQty = tablePurchase ? quantity : 0
     const ticketQty = tablePurchase ? tableQty * seats : quantity
-    if (ticketQty > MAX_QTY) {
+    const seatCap = tablePurchase ? MAX_TABLE_QTY : MAX_QTY
+    if (ticketQty > seatCap) {
       return NextResponse.json(
-        { success: false, error: `A table issue cannot exceed ${MAX_QTY} tickets.` },
+        {
+          success: false,
+          error: tablePurchase
+            ? `A table issue cannot exceed ${MAX_TABLE_QTY} tickets.`
+            : `Cannot issue more than ${MAX_QTY} tickets at once.`,
+        },
         { status: 400 },
       )
     }

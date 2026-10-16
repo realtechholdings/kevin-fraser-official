@@ -5,7 +5,7 @@ import type { PublicTicketTier } from '@/lib/serialize'
 import { formatPrice } from '@/lib/format'
 import { centsToMetaValue, identifyMetaUser, savePendingCheckout, trackMeta } from '@/lib/metaPixel'
 import { isTierSoldOut, remainingOfferingUnits } from '@/lib/tickets/soldOut'
-import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
+import { MAX_TICKET_QUANTITY, maxTablesPerOrder } from '@/lib/tickets/limits'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import FormattedText from '@/components/FormattedText'
 
@@ -29,12 +29,8 @@ function maxQuantityForTier(
   allTiers: PublicTicketTier[],
 ) {
   const remaining = remainingOfferingUnits(tier, venueRemaining, allTiers)
+  if (tier.kind === 'table') return maxTablesPerOrder(tier.seats || 1, remaining)
   const byStock = remaining === null ? MAX_TICKET_QUANTITY : remaining
-  if (tier.kind === 'table') {
-    const seats = Math.max(1, tier.seats || 1)
-    const maxByPdfs = Math.max(1, Math.floor(MAX_TICKET_QUANTITY / seats))
-    return Math.max(1, Math.min(byStock, maxByPdfs, MAX_TICKET_QUANTITY))
-  }
   return Math.max(1, Math.min(MAX_TICKET_QUANTITY, byStock))
 }
 

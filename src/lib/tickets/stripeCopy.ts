@@ -42,3 +42,14 @@ export function stripeShowCopy(show: {
     lineDescription: [city, when].filter(Boolean).join(' · '),
   }
 }
+
+/** Payment title. Date is included so two nights in the same city stay distinct in Stripe. */
+export function stripeChargeName(
+  copy: { tourTitle: string; city: string; when: string },
+  detail: string,
+) {
+  const place = [copy.city, copy.when].filter(Boolean).join(' · ')
+  const head = [copy.tourTitle, place].filter(Boolean).join(' — ')
+  const tail = stripContactNumbers(detail)
+  return tail ? `${head} (${tail})` : head
+}

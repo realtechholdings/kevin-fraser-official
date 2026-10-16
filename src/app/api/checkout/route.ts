@@ -14,12 +14,12 @@ import {
   venueCanTake,
   venueSeatRemaining,
 } from '@/lib/tickets/soldOut'
-import { MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
+import { MAX_TABLE_SEATS, MAX_TICKET_QUANTITY } from '@/lib/tickets/limits'
 import { ensureShowScopedTierId } from '@/lib/tickets/applyTierConfigs'
 import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
-import { stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
+import { stripeChargeName, stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
 import { isShowArchived } from '@/lib/shows/archive'
 
 export async function POST(req: NextRequest) {
@@ -95,9 +95,9 @@ export async function POST(req: NextRequest) {
     const seats = tablePurchase ? Math.max(1, selected.seats || 1) : 1
     const tableQty = tablePurchase ? quantity : 0
     const ticketQty = tablePurchase ? tableQty * seats : quantity
-    if (ticketQty > MAX_TICKET_QUANTITY) {
+    if (tablePurchase && ticketQty > MAX_TABLE_SEATS) {
       return NextResponse.json(
-        { success: false, error: `A table purchase cannot exceed ${MAX_TICKET_QUANTITY} tickets.` },
+        { success: false, error: `A table purchase cannot exceed ${MAX_TABLE_SEATS} tickets.` },
         { status: 400 },
       )
     }
@@ -160,9 +160,10 @@ export async function POST(req: NextRequest) {
     const className = stripContactNumbers(selected.name)
     const stripeQuantity = tablePurchase ? tableQty : quantity
     const unitAmount = selected.priceCents
-    const lineName = tablePurchase
-      ? `${copy.tourTitle} — ${copy.city} (${className}, ${seats} tickets)`
-      : `${copy.tourTitle} — ${copy.city} (${className})`
+    const lineName = stripeChargeName(
+      copy,
+      tablePurchase ? `${className}, ${seats} tickets` : className,
+    )
 
     if (process.env.STRIPE_SECRET_KEY?.startsWith('sk_org_') && !process.env.STRIPE_CONTEXT && !process.env.STRIPE_ACCOUNT_ID) {
       return NextResponse.json(
