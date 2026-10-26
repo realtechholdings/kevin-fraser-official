@@ -44,6 +44,8 @@ export type TicketOrderLike = Pick<
   unitAmountCents?: number
   source?: string
   upgradedFrom?: unknown
+  transferFrom?: unknown
+  tableQuantity?: number
 }
 
 export type TicketPricing = {
@@ -289,6 +291,11 @@ export async function sendTicketEmail(
   let text = substituteTemplate(settings.ticketEmailBody, vars)
   if (extra.url && !settings.ticketEmailBody.includes('{{upgradeUrl}}')) {
     text = `${text.trim()}\n\nWant to upgrade these tickets? ${extra.url}`
+  }
+  if (!order.table && !(order.tableQuantity && order.tableQuantity > 0) && !order.transferFrom) {
+    const { transferManageUrl } = await import('@/lib/tickets/upgradeToken')
+    const transferUrl = transferManageUrl(String(order._id), order.email, opts?.host)
+    text = `${text.trim()}\n\nNeed a different show? Move these tickets here: ${transferUrl}`
   }
   const html = renderEmailHtml({
     bodyHtml: textToEmailHtml(text),

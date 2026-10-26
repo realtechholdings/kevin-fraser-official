@@ -155,6 +155,8 @@ export async function GET(req: NextRequest) {
           upgradedFrom: order.upgradedFrom ? String(order.upgradedFrom) : null,
           supersededBy: order.supersededBy ? String(order.supersededBy) : null,
           refundedAt: order.refundedAt ? new Date(order.refundedAt).toISOString() : null,
+          refundedCents: order.refundedCents || (order.status === 'refunded' ? order.amountTotal || 0 : 0),
+          transferFrom: order.transferFrom ? String(order.transferFrom) : null,
           canUpgrade:
             order.status === 'paid' &&
             !(order.tableQuantity || 0) &&

@@ -66,7 +66,7 @@ export default function GuestListAdminPanel({
   const [source, setSource] = useState<'all' | 'paid' | 'comp'>('all')
   const [guestQuery, setGuestQuery] = useState('')
   const [debouncedGuestQuery, setDebouncedGuestQuery] = useState('')
-  const [includePast, setIncludePast] = useState(false)
+  const [includePast, setIncludePast] = useState(true)
   const [exportingCsv, setExportingCsv] = useState(false)
 
   const [query, setQuery] = useState('')
@@ -93,18 +93,17 @@ export default function GuestListAdminPanel({
       const res = await fetch('/api/admin/shows')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load shows')
-      const list = ((data.shows || []) as PublicShow[]).filter(isGuestListActive)
-      setShows((data.shows || []) as PublicShow[])
-      if (!showId && list.length) {
-        const next = [...list].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        )[0]
+      const all = (data.shows || []) as PublicShow[]
+      const list = includePast ? all : all.filter(isGuestListActive)
+      setShows(all)
+      const sorted = [...list].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )
+      if (!showId && sorted.length) {
+        const next = sorted[0]
         if (next) setShowId(next.id)
-      } else if (showId && !list.some((s) => s.id === showId)) {
-        const next = [...list].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-        )[0]
-        setShowId(next?.id || '')
+      } else if (showId && !sorted.some((s) => s.id === showId)) {
+        setShowId(sorted[0]?.id || '')
       }
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to load shows')
@@ -192,16 +191,29 @@ export default function GuestListAdminPanel({
       }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
       const header = res.headers.get('Content-Disposition') || ''
       const match = header.match(/filename="([^"]+)"/)
-      a.href = url
-      a.download = match?.[1] || (kind === 'csv' ? 'guest-list.csv' : 'guest-list.pdf')
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      onMessage(kind === 'csv' ? 'Guest list spreadsheet downloaded' : 'Guest list PDF downloaded')
+      if (kind === 'pdf') {
+        const popup = window.open(url, 'guest-list-print')
+        if (!popup) {
+          const a = document.createElement('a')
+          a.href = url
+          a.download = match?.[1] || 'guest-list.pdf'
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+        }
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      } else {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = match?.[1] || 'guest-list.csv'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      }
+      onMessage(kind === 'csv' ? 'Guest list spreadsheet downloaded' : 'Guest list opened for printing')
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Failed to download the list')
     } finally {

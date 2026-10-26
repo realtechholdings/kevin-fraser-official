@@ -1,6 +1,6 @@
 export type VoidedTicket = {
   ticket: number
-  reason: 'refunded' | 'upgraded'
+  reason: 'refunded' | 'upgraded' | 'transferred'
 }
 
 type NumberedOrder = {

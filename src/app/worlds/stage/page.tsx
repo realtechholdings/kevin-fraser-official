@@ -6,6 +6,7 @@ import { serializeShow, serializeTour } from '@/lib/serialize'
 import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import StagePageClient from '@/components/stage/StagePageClient'
 import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
+import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
 
 export const metadata: Metadata = {
   title: 'The Stage | Kevin Fraser Official',
@@ -34,7 +35,14 @@ export default async function StagePage({ searchParams }: Props) {
   ])
 
   const tiersByShow = await resolveTiersForShows(shows)
-  const publicShows = shows.map((show) => serializeShow(show, tiersByShow[String(show._id)] || []))
+  const transferHolds = await loadOpenTransferHolds(shows.map((show) => String(show._id)))
+  const publicShows = shows.map((show) => {
+    const id = String(show._id)
+    const held = applyTransferHolds(tiersByShow[id] || [], transferHolds.get(id))
+    const serialized = serializeShow(show, held.tiers)
+    serialized.ticketsSold += held.heldSeats
+    return serialized
+  })
 
   return (
     <StagePageClient

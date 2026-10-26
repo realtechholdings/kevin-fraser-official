@@ -83,7 +83,9 @@ export async function refundOrderTickets(
       error:
         order.status === 'upgraded'
           ? 'This order was upgraded. Refund the replacement tickets instead.'
-          : 'Only paid orders can be refunded.',
+          : order.status === 'transferred'
+            ? 'This order was transferred. Refund the replacement tickets instead.'
+            : 'Only paid orders can be refunded.',
     }
   }
   if ((order.tableQuantity || 0) > 0 || order.table) {
@@ -200,7 +202,9 @@ export async function refundPaidOrder(
       error:
         order.status === 'upgraded'
           ? 'This order was upgraded. Refund the replacement tickets instead.'
-          : 'Only paid orders can be refunded.',
+          : order.status === 'transferred'
+            ? 'This order was transferred. Refund the replacement tickets instead.'
+            : 'Only paid orders can be refunded.',
     }
   }
 
@@ -221,12 +225,34 @@ export async function refundPaidOrder(
       original.refundedAt = new Date()
       original.refundedBy = opts?.refundedBy || original.refundedBy || ''
       original.stripeRefundId = originalRefund.id || original.stripeRefundId || ''
+      original.refundedCents = Math.max(original.amountTotal || 0, original.refundedCents || 0)
       await original.save()
     } catch (error) {
       return {
         ok: false as const,
         status: 502,
         error: `Upgrade charge was refunded, but the original purchase failed: ${stripeErrorMessage(error)}`,
+      }
+    }
+  }
+
+  const credit = Math.max(0, Number(order.transferCreditCents) || 0)
+  if (credit && order.transferFrom) {
+    const transferred = await Order.findById(order.transferFrom)
+    if (transferred) {
+      try {
+        const creditRefund = await refundStripeIfNeeded(transferred, credit)
+        transferred.refundedCents = Math.max(0, Number(transferred.refundedCents) || 0) + credit
+        transferred.refundedAt = transferred.refundedAt || new Date()
+        transferred.refundedBy = opts?.refundedBy || transferred.refundedBy || ''
+        if (creditRefund.id) transferred.stripeRefundId = creditRefund.id
+        await transferred.save()
+      } catch (error) {
+        return {
+          ok: false as const,
+          status: 502,
+          error: `The price difference was refunded, but the original tickets failed: ${stripeErrorMessage(error)}`,
+        }
       }
     }
   }
@@ -239,6 +265,7 @@ export async function refundPaidOrder(
         refundedAt: new Date(),
         refundedBy: opts?.refundedBy || '',
         stripeRefundId,
+        refundedCents: Math.max(order.amountTotal || 0, order.refundedCents || 0),
       },
     },
     { new: true },

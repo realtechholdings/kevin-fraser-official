@@ -16,7 +16,7 @@ const OrderSchema = new Schema(
     currency: { type: String, required: true, uppercase: true },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'refunded', 'cancelled', 'upgraded'],
+      enum: ['pending', 'paid', 'refunded', 'cancelled', 'upgraded', 'transferred'],
       default: 'pending',
     },
     /** How the order was created — stripe checkout vs admin manual issue. */
@@ -49,6 +49,13 @@ const OrderSchema = new Schema(
     tableNames: { type: [String], default: [] },
     /** Original order this paid upgrade replaced (null for a first purchase). */
     upgradedFrom: { type: Schema.Types.ObjectId, ref: 'Order', default: null, index: true },
+    /** Original order these tickets were moved from (null unless this is a transfer). */
+    transferFrom: { type: Schema.Types.ObjectId, ref: 'Order', default: null, index: true },
+    /**
+     * Cents of the original charge that moved with a transfer. Refunding the
+     * replacement returns this share of the original payment as well.
+     */
+    transferCreditCents: { type: Number, default: 0, min: 0 },
     /** New order that replaced this one after an upgrade (old QR is then void). */
     supersededBy: { type: Schema.Types.ObjectId, ref: 'Order', default: null },
     /** Set once the post-purchase upgrade-offer email has been sent */
@@ -68,7 +75,7 @@ const OrderSchema = new Schema(
         new Schema(
           {
             ticket: { type: Number, required: true },
-            reason: { type: String, enum: ['refunded', 'upgraded'], required: true },
+            reason: { type: String, enum: ['refunded', 'upgraded', 'transferred'], required: true },
             at: { type: Date, default: Date.now },
             stripeRefundId: { type: String, default: '' },
           },

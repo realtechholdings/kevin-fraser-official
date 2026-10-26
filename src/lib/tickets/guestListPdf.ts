@@ -104,12 +104,36 @@ export function buildGuestListRows(orders: GuestOrder[]): GuestListRow[] {
     })
 }
 
+const WIN_ANSI_PUNCTUATION: Record<string, string> = {
+  '\u2018': "'",
+  '\u2019': "'",
+  '\u201C': '"',
+  '\u201D': '"',
+  '\u2013': '-',
+  '\u2014': '-',
+  '\u2026': '...',
+  '\u00A0': ' ',
+  '\u2022': '-',
+}
+
+/** Standard PDF fonts throw on characters outside WinAnsi, which aborts printing. */
+export function toWinAnsi(value: string) {
+  return Array.from(String(value || ''), (ch) => {
+    if (WIN_ANSI_PUNCTUATION[ch]) return WIN_ANSI_PUNCTUATION[ch]
+    const code = ch.codePointAt(0) || 0
+    if (code === 9 || code === 10 || code === 13) return ' '
+    if (code >= 0x20 && code <= 0x7e) return ch
+    if (code >= 0xa0 && code <= 0xff) return ch
+    return ''
+  }).join('')
+}
+
 function clamp(text: string, font: PDFFont, size: number, maxWidth: number) {
-  let value = text
+  let value = toWinAnsi(text)
   while (value.length > 3 && font.widthOfTextAtSize(value, size) > maxWidth) {
     value = value.slice(0, -1)
   }
-  if (value !== text && value.length > 3) value = `${value.slice(0, -1)}…`
+  if (value !== toWinAnsi(text) && value.length > 3) value = `${value.slice(0, -1)}...`
   return value
 }
 
@@ -122,7 +146,7 @@ function drawText(
   size: number,
   color = INK,
 ) {
-  page.drawText(text, { x, y, size, font, color })
+  page.drawText(toWinAnsi(text), { x, y, size, font, color })
 }
 
 function filenameFor(show: GuestListShowInfo, note?: string) {

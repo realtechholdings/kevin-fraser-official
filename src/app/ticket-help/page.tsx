@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import LegalDocument from '@/components/legal/LegalDocument'
 import LegalMarkdown from '@/components/legal/LegalMarkdown'
 import { getSiteSettings } from '@/lib/settings/getSiteSettings'
@@ -18,6 +19,13 @@ export default async function TicketHelpPage() {
   return (
     <LegalDocument title={doc.title} subtitle={doc.subtitle}>
       <LegalMarkdown body={doc.body} />
+      <p>
+        To move tickets to another show on the same tour, use the link in your ticket email or open the{' '}
+        <Link href="/worlds/stage/transfer" className="underline">
+          ticket transfer page
+        </Link>
+        . If the new tickets cost more, you pay the difference. The replacement seats are held while that payment is completed.
+      </p>
     </LegalDocument>
   )
 }

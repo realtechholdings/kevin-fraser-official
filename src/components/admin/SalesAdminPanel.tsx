@@ -63,6 +63,8 @@ type AdminOrder = {
   upgradedFrom?: string | null
   supersededBy?: string | null
   refundedAt?: string | null
+  refundedCents?: number
+  transferFrom?: string | null
   canUpgrade?: boolean
   canRefund?: boolean
   show: { id: string; city: string; venue: string; date: string | null; tour: string } | null
@@ -117,7 +119,22 @@ function tableCount(order: AdminOrder) {
 
 /** Manual issue with nothing charged — reversing it is a void, not a refund. */
 function isCompOrder(order: AdminOrder) {
-  return (order.source || 'stripe') === 'manual' && !(order.amountTotal > 0) && !order.upgradedFrom
+  return (
+    (order.source || 'stripe') === 'manual' &&
+    !(order.amountTotal > 0) &&
+    !order.upgradedFrom &&
+    !order.transferFrom
+  )
+}
+
+function recognisedCents(order: AdminOrder) {
+  const refunded =
+    order.refundedCents && order.refundedCents > 0
+      ? order.refundedCents
+      : order.status === 'refunded'
+        ? order.amountTotal
+        : 0
+  return Math.max(0, order.amountTotal - refunded)
 }
 
 /** "refunded" is the stored status; a comp that was reversed reads better as voided. */
@@ -148,6 +165,7 @@ const STATUS_STYLES: Record<string, string> = {
   refunded: 'text-sky-400 bg-sky-400/10',
   cancelled: 'text-white/30 bg-white/5',
   upgraded: 'text-violet-300 bg-violet-400/10',
+  transferred: 'text-teal-300 bg-teal-400/10',
 }
 
 const SHOW_STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -439,13 +457,18 @@ export default function SalesAdminPanel({
   }, [canManageTickets, selected?.id, selected?.canUpgrade])
 
   const stats = useMemo(() => {
-    const paid = filtered.filter((o) => o.status === 'paid')
+    const counted = filtered.filter(
+      (o) =>
+        !isCompOrder(o) &&
+        (o.status === 'paid' || o.status === 'upgraded' || o.status === 'transferred'),
+    )
+    const paid = counted.filter((o) => o.status === 'paid')
     const revenue = new Map<string, number>()
     let audTotal: number | null = 0
-    for (const o of paid) {
-      revenue.set(o.currency, (revenue.get(o.currency) || 0) + o.amountTotal)
+    for (const o of counted) {
+      revenue.set(o.currency, (revenue.get(o.currency) || 0) + recognisedCents(o))
       if (audTotal !== null) {
-        const asAud = foreignToAudCents(o.amountTotal, o.currency, audRates)
+        const asAud = foreignToAudCents(recognisedCents(o), o.currency, audRates)
         if (asAud === null) audTotal = null
         else audTotal += asAud
       }
@@ -456,7 +479,7 @@ export default function SalesAdminPanel({
         ? formatPrice(audTotal, 'AUD')
         : null
     const mixed = Array.from(revenue.keys()).some((c) => c.toUpperCase() !== 'AUD')
-    const tickets = paid.reduce((sum, o) => sum + o.quantity, 0)
+    const tickets = paid.reduce((sum, o) => sum + (o.liveQuantity ?? o.quantity), 0)
     const tables = paid.reduce((sum, o) => sum + tableCount(o), 0)
     return {
       paidOrders: paid.length,
@@ -467,6 +490,41 @@ export default function SalesAdminPanel({
       revenueAud: mixed ? audLabel : null,
     }
   }, [filtered, audRates])
+
+  async function exportFile(kind: 'sales' | 'comps' | 'refunds') {
+    const range = timelineRange(timeline, customFrom, customTo)
+    const params = new URLSearchParams({ kind })
+    if (showFilter !== 'all') params.set('showId', showFilter)
+    if (range.from) params.set('from', toDateInput(range.from))
+    if (range.to) params.set('to', toDateInput(range.to))
+    try {
+      const res = await fetch(`/api/admin/sales/export?${params}`)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Export failed')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const header = res.headers.get('Content-Disposition') || ''
+      const match = header.match(/filename="([^"]+)"/)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = match?.[1] || `${kind}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      onMessage(
+        kind === 'comps'
+          ? 'Complimentary tickets exported'
+          : kind === 'refunds'
+            ? 'Refunds exported'
+            : 'Sales exported',
+      )
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Export failed')
+    }
+  }
 
   async function sendTickets() {
     if (!selected || busyAction) return
@@ -663,10 +721,30 @@ export default function SalesAdminPanel({
             Filter by timeline and show, then open an order to send tickets, upgrade, or refund
           </p>
         </div>
-        <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
-          <RefreshCw className="mr-1.5 inline h-4 w-4" />
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ['sales', 'Export sales'],
+              ['comps', 'Export comps'],
+              ['refunds', 'Export refunds'],
+            ] as const
+          ).map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              className={btnSecondary}
+              disabled={loading}
+              onClick={() => void exportFile(kind)}
+            >
+              <Download className="mr-1.5 inline h-4 w-4" />
+              {label}
+            </button>
+          ))}
+          <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
+            <RefreshCw className="mr-1.5 inline h-4 w-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -717,7 +795,7 @@ export default function SalesAdminPanel({
         <div>
           <label className={labelClass}>Status</label>
           <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {['all', 'paid', 'pending', 'upgraded', 'refunded', 'cancelled'].map((s) => (
+            {['all', 'paid', 'pending', 'upgraded', 'transferred', 'refunded', 'cancelled'].map((s) => (
               <option key={s} value={s} className="bg-[#141420]">
                 {s === 'all' ? 'All statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
               </option>

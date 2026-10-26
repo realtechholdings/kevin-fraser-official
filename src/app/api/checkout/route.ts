@@ -21,6 +21,7 @@ import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import { stripeChargeName, stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
 import { isShowArchived } from '@/lib/shows/archive'
+import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,13 +30,20 @@ export async function POST(req: NextRequest) {
     const tierId = String(body.tierId || '')
     const quantity = Math.max(1, Math.min(MAX_TICKET_QUANTITY, Number(body.quantity) || 1))
     const email = normalizeCheckoutEmail(body.email)
+    const holderName = String(body.name || body.holderName || '').trim().replace(/\s+/g, ' ')
 
     if (!showId) {
       return NextResponse.json({ success: false, error: 'Show is required.' }, { status: 400 })
     }
     if (!email) {
       return NextResponse.json(
-        { success: false, error: 'Enter your email so we can send your tickets.' },
+        { success: false, error: 'Enter the email address the tickets should be sent to.' },
+        { status: 400 },
+      )
+    }
+    if (holderName.length < 2 || holderName.length > 80) {
+      return NextResponse.json(
+        { success: false, error: 'Enter the name for the booking.' },
         { status: 400 },
       )
     }
@@ -60,8 +68,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, url: show.externalTicketUrl, external: true })
     }
 
-    const venueRemaining = venueSeatRemaining(show)
-    const tiers = await resolveTiersForShow(show)
+    const resolvedTiers = await resolveTiersForShow(show)
+    const transferHolds = await loadOpenTransferHolds([String(show._id)])
+    const held = applyTransferHolds(resolvedTiers, transferHolds.get(String(show._id)))
+    const tiers = held.tiers
+    const venueRemaining = venueSeatRemaining({
+      capacity: show.capacity,
+      ticketsSold: (show.ticketsSold || 0) + held.heldSeats,
+    })
     if (show.status === 'sold_out' && !hasRemainingTableInventory(tiers, venueRemaining)) {
       return NextResponse.json({ success: false, error: 'This show is sold out.' }, { status: 400 })
     }
@@ -149,7 +163,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Not enough tickets left in this tier.' }, { status: 400 })
     }
 
-    if (!tablePurchase && !venueCanTake(show, ticketQty, unsoldTableSeats(tiers))) {
+    if (
+      !tablePurchase &&
+      !venueCanTake(
+        { capacity: show.capacity, ticketsSold: (show.ticketsSold || 0) + held.heldSeats },
+        ticketQty,
+        unsoldTableSeats(tiers),
+      )
+    ) {
       return NextResponse.json(
         { success: false, error: 'Not enough seats left at this venue.' },
         { status: 400 },
@@ -210,6 +231,7 @@ export async function POST(req: NextRequest) {
           tableId: tableDoc ? String(tableDoc._id) : '',
           tableQuantity: String(tableQty || ''),
           email,
+          holderName,
         },
       },
       stripeRequestOptions()
@@ -222,6 +244,7 @@ export async function POST(req: NextRequest) {
       unitAmountCents: unitAmount,
       stripeSessionId: session.id,
       email,
+      holderName,
       quantity: ticketQty,
       amountTotal: unitAmount * stripeQuantity,
       currency: selected.currency,

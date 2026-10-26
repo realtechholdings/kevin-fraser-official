@@ -253,9 +253,9 @@ export default function TiersAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Ticket Tiers</h2>
           <p className="mt-1 max-w-xl text-sm text-white/40">
-            Define GA / VIP once per tour. On each show, optionally override price and currency
-            under Shows → Ticket tiers — allocation & pricing — you don&apos;t recreate tiers per
-            date.
+            Define GA / VIP once per tour. The description here is what the public show page
+            uses, unless that show has a custom description. On each show, optionally override
+            price and currency under Shows → Ticket tiers — you don&apos;t recreate tiers per date.
           </p>
         </div>
         <button

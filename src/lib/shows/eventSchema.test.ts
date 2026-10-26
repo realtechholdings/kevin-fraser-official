@@ -184,6 +184,32 @@ test('external ticket link, cancellation, and coming soon map to Google statuses
   assert.equal(soonOffers[0].price, '75')
 })
 
+test('Google titles use the city name, including Gqeberha and Knysna', () => {
+  const gqeberha = buildShowEventJsonLd(
+    show({
+      title: 'Port Elizabeth',
+      city: 'Gqeberha',
+      country: 'South Africa',
+      date: '2026-12-11T19:00:00.000',
+      showTime: '20:00',
+      showEndTime: '',
+    }),
+  )
+  assert.equal(gqeberha.name, 'Kevin Fraser: DECADANCE – Gqeberha – Fri 11 DEC')
+
+  const knysna = buildShowEventJsonLd(
+    show({
+      title: 'Garden Route',
+      city: 'Knysna',
+      country: 'South Africa',
+      date: '2026-12-12T19:00:00.000',
+      showTime: '20:00',
+      showEndTime: '',
+    }),
+  )
+  assert.equal(knysna.name, 'Kevin Fraser: DECADANCE – Knysna – Sat 12 DEC')
+})
+
 test('a qualifier in the city name stays on the event and out of the locality', () => {
   const data = buildShowEventJsonLd(
     show({
@@ -193,7 +219,7 @@ test('a qualifier in the city name stays on the event and out of the locality', 
       date: '2026-10-03T16:00:00.000',
     }),
   )
-  assert.equal(data.name, 'DECADANCE (10-Year Celebration) — Early Show')
+  assert.equal(data.name, 'Kevin Fraser: DECADANCE – Brisbane – Early Show – Sat 3 OCT')
   assert.equal(data.startDate, '2026-10-03T17:00:00+10:00')
   const location = data.location as { address: { addressLocality: string } }
   assert.equal(location.address.addressLocality, 'Brisbane')

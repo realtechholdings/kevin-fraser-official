@@ -12,6 +12,9 @@ export type ShowTierConfigInput = {
   soldOut?: boolean
   /** When false, this class is hidden on this date only. */
   offered?: boolean
+  /** When true, this date keeps its own description instead of the tour sentence. */
+  customDescription?: boolean
+  description?: string
 }
 
 /**
@@ -45,7 +48,8 @@ export async function applyShowTierConfigs(
     const overridePrice = Boolean(config.overridePrice)
     const soldOut = Boolean(config.soldOut)
     const offered = config.offered !== false
-    const active = capacity > 0 || overridePrice || soldOut || !offered
+    const customDescription = Boolean(config.customDescription)
+    const active = capacity > 0 || overridePrice || soldOut || !offered || customDescription
     const existing = existingBySlug.get(slug)
 
     if (!active) {
@@ -70,7 +74,10 @@ export async function applyShowTierConfigs(
 
     if (existing) {
       existing.name = tourTier.name
-      existing.description = tourTier.description
+      existing.inheritDescription = !customDescription
+      existing.description = customDescription
+        ? String(config.description || '').trim()
+        : tourTier.description
       existing.capacity = capacity
       existing.inheritPrice = !overridePrice
       existing.priceCents = priceCents
@@ -86,7 +93,10 @@ export async function applyShowTierConfigs(
         ownerId: showId,
         name: tourTier.name,
         slug,
-        description: tourTier.description,
+        description: customDescription
+          ? String(config.description || '').trim()
+          : tourTier.description,
+        inheritDescription: !customDescription,
         currency,
         priceCents,
         inheritPrice: !overridePrice,

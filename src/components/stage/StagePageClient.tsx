@@ -368,6 +368,14 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                 {soldOut ? 'Sold Out' : 'Tickets'}
                               </Link>
                             )}
+                            {soldOut && show.waitlistEnabled ? (
+                              <Link
+                                href={`/worlds/stage/${show.id}#waitlist`}
+                                className="inline-flex items-center justify-center rounded-full border border-[var(--border)] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)]"
+                              >
+                                Join waitlist
+                              </Link>
+                            ) : null}
                           </div>
                         </li>
                       )

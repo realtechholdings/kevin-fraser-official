@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
       venueImage: String(body.venueImage || ''),
       venueImageKey: String(body.venueImageKey || ''),
       description: String(body.description || '').trim(),
+      waitlistEnabled: Boolean(body.waitlistEnabled),
       upgradeOffers: parseUpgradeOfferRows(body.upgradeOffers) || [],
     })
 

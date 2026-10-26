@@ -301,7 +301,7 @@ Approved refunds are returned to the card you paid with within 5–10 business d
 Yes. Tickets aren't locked to the buyer's name, so you can simply forward the PDF to whoever is attending. Each QR code scans once, so make sure you only send it to one person.
 
 **Can I move to a different show or date?**
-Email us with your order details and the show you'd like to move to. Swaps are subject to availability and any price difference, and need to be requested at least 48 hours before the original show.
+Yes. Open the [ticket transfer page](/worlds/stage/transfer), or use the link in your ticket email. Choose another show on the same tour. If the new tickets cost more, you pay the difference and those seats are held while the payment is completed. If they cost the same or less, the move is completed with no extra charge. Tables and tickets that have already been scanned can't be moved.
 
 ## Age limits
 
@@ -375,7 +375,7 @@ export function normalizeLegalDocument(
   return {
     title: String(value?.title ?? fallback.title).trim() || fallback.title,
     subtitle: String(value?.subtitle ?? fallback.subtitle).trim(),
-    body: String(value?.body ?? fallback.body),
+    body: String(value?.body || '').trim() ? String(value?.body) : fallback.body,
   }
 }
 

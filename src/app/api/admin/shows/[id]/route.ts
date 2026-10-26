@@ -81,6 +81,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.venueImage !== undefined) show.venueImage = String(body.venueImage)
     if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)
     if (body.description !== undefined) show.description = String(body.description || '').trim()
+    if (body.waitlistEnabled !== undefined) show.waitlistEnabled = Boolean(body.waitlistEnabled)
     if (body.upgradeOffers !== undefined) {
       const parsed = parseUpgradeOfferRows(body.upgradeOffers)
       if (parsed) show.set('upgradeOffers', parsed)

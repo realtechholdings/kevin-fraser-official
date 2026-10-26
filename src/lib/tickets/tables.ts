@@ -3,6 +3,7 @@ import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import TicketTier, { slugifyTierName } from '@/lib/models/TicketTier'
 import { normalizeCurrency } from '@/lib/currencies'
 import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
+import { publicTierDescription } from '@/lib/tickets/tierCopy'
 
 export type ShowTableConfigInput = {
   id?: string
@@ -121,8 +122,9 @@ export function tableToPublicTier(
     ownerId: String(table.show),
     name: table.name,
     slug: table.slug,
-    description:
+    description: publicTierDescription(
       table.description || `${seats} × ${classLabel} · named table`,
+    ),
     currency,
     priceCents,
     capacity: table.capacity || 0,

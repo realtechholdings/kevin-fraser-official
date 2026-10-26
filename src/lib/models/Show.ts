@@ -56,6 +56,8 @@ const ShowSchema = new Schema(
     venueImageKey: { type: String, default: '' },
     /** Optional blurb for the show detail page */
     description: { type: String, default: '', trim: true },
+    /** When true, a sold-out show offers a join-waitlist form. */
+    waitlistEnabled: { type: Boolean, default: false },
     /**
      * Buyer-facing upgrade paths (class → higher class). Admin can still
      * upgrade any paid class order; these rows power the public upsell.

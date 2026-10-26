@@ -33,6 +33,12 @@ export function publicSiteUrl(host?: string | null) {
   return appUrl()
 }
 
+export function transferManageUrl(orderId: string, email: string, host?: string | null) {
+  const token = signUpgradeToken(orderId, email)
+  const base = publicSiteUrl(host)
+  return `${base}/worlds/stage/transfer?order=${encodeURIComponent(orderId)}&token=${encodeURIComponent(token)}`
+}
+
 export function upgradeManageUrl(orderId: string, email: string, host?: string | null) {
   const token = signUpgradeToken(orderId, email)
   const base = publicSiteUrl(host)

@@ -66,6 +66,7 @@ export default function TicketButton({
 
   const [tierId, setTierId] = useState(purchasableTiers[0]?.id || '')
   const [quantity, setQuantity] = useState(1)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -90,9 +91,14 @@ export default function TicketButton({
 
   async function checkout() {
     if (disabled || loading || !selected) return
+    const buyerName = name.trim().replace(/\s+/g, ' ')
     const buyerEmail = normalizeCheckoutEmail(email)
+    if (buyerName.length < 2) {
+      setError('Enter the name for this booking.')
+      return
+    }
     if (!buyerEmail) {
-      setError('Enter your email so we can send your tickets.')
+      setError('Enter the email address the tickets should be sent to.')
       return
     }
     setLoading(true)
@@ -111,6 +117,7 @@ export default function TicketButton({
           showId,
           tierId: selected.legacy ? undefined : selected.id,
           quantity: qty,
+          name: buyerName,
           email: buyerEmail,
         }),
       })
@@ -235,20 +242,42 @@ export default function TicketButton({
         void checkout()
       }}
     >
-      <label className="mb-2 block">
-        <span className="sr-only">Email</span>
-        <input
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={disabled || loading}
-          placeholder="Email for your tickets"
-          className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
-        />
-      </label>
+      <div className="mb-3 space-y-2">
+        <label className="block">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em] text-[var(--foreground-subtle)]">
+            Name on the booking
+          </span>
+          <input
+            type="text"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={disabled || loading}
+            placeholder="The name for the door list"
+            className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[10px] uppercase tracking-[0.16em] text-[var(--foreground-subtle)]">
+            Email for the tickets
+          </span>
+          <input
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={disabled || loading}
+            placeholder="Saved on the booking and used to send the tickets"
+            className="w-full rounded-full border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs text-[var(--foreground)] outline-none"
+          />
+        </label>
+        <p className="px-1 text-[11px] leading-relaxed text-[var(--foreground-subtle)]">
+          This name and email are saved on the booking. The tickets go to this email, and the door list uses this name.
+        </p>
+      </div>
       {layout === 'rows' ? (
         <ul className="mb-4 space-y-3">{publishedTiers.map((tier) => tierRow(tier, true))}</ul>
       ) : (

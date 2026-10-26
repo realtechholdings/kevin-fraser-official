@@ -91,6 +91,10 @@ export async function fulfillPaidOrder(
   session: import('stripe').Stripe.Checkout.Session,
 ): Promise<boolean> {
   if (order.status === 'paid') return false
+  if (order.transferFrom) {
+    const { fulfillTransferOrder } = await import('@/lib/tickets/transfers')
+    return fulfillTransferOrder(order, session)
+  }
   if (order.upgradedFrom) {
     const { fulfillUpgradeOrder } = await import('@/lib/tickets/upgrades')
     return fulfillUpgradeOrder(order, session)
@@ -98,7 +102,12 @@ export async function fulfillPaidOrder(
 
   order.status = 'paid'
   order.source = order.source || 'stripe'
-  order.email = session.customer_details?.email || session.customer_email || order.email
+  const confirmedEmail = String(session.customer_details?.email || session.customer_email || '')
+    .trim()
+    .toLowerCase()
+  if (confirmedEmail) order.email = confirmedEmail
+  const confirmedName = String(session.customer_details?.name || '').trim()
+  if (!String(order.holderName || '').trim() && confirmedName) order.holderName = confirmedName
   order.stripePaymentIntentId =
     typeof session.payment_intent === 'string'
       ? session.payment_intent

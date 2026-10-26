@@ -2,6 +2,7 @@ import TicketTier, { type TicketTierDocument } from '@/lib/models/TicketTier'
 import type { ShowDocument } from '@/lib/models/Show'
 import { serializeTicketTier, type PublicTicketTier } from '@/lib/serialize'
 import { tableToPublicTier, tablesForShows } from '@/lib/tickets/tables'
+import { publicTierDescription } from '@/lib/tickets/tierCopy'
 
 /**
  * Merge tour tiers with show-level overrides.
@@ -66,6 +67,7 @@ function mergeTiers(
       const serialized = serializeTicketTier(tourTier)
       // No per-show row yet — don't show shared tour sold counts on every date.
       serialized.ticketsSold = 0
+      serialized.description = publicTierDescription(tourTier.description)
       merged.push(serialized)
       continue
     }
@@ -78,9 +80,12 @@ function mergeTiers(
       serialized.priceCents = tourTier.priceCents
       serialized.currency = tourTier.currency
     }
-    if (!serialized.description && tourTier.description) {
-      serialized.description = tourTier.description
-    }
+    // A show row keeps its own sentence only when an admin wrote one for this date.
+    // Otherwise the tour description is what the public page shows, including later edits.
+    const customDescription = override.inheritDescription === false
+    serialized.description = publicTierDescription(
+      customDescription ? override.description || tourTier.description : tourTier.description,
+    )
     if (!serialized.ticketAccent && tourTier.ticketAccent) {
       serialized.ticketAccent = tourTier.ticketAccent
     }
@@ -93,7 +98,11 @@ function mergeTiers(
 
   for (const showTier of showTiers) {
     if (!isOffered(showTier)) continue
-    if (!tourSlugs.has(showTier.slug)) merged.push(serializeTicketTier(showTier))
+    if (!tourSlugs.has(showTier.slug)) {
+      const serialized = serializeTicketTier(showTier)
+      serialized.description = publicTierDescription(showTier.description)
+      merged.push(serialized)
+    }
   }
 
   return merged.sort((a, b) => a.sortOrder - b.sortOrder || a.priceCents - b.priceCents)

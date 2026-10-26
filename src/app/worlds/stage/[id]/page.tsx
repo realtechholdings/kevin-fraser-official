@@ -7,6 +7,7 @@ import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import ShowDetailClient from '@/components/stage/ShowDetailClient'
 import EventJsonLd from '@/components/stage/EventJsonLd'
 import { isShowArchived } from '@/lib/shows/archive'
+import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,8 +34,11 @@ export default async function ShowDetailPage({ params }: Props) {
   const show = await Show.findById(id).populate('tour')
   if (!show || !show.published || isShowArchived(show)) notFound()
 
-  const tiers = await resolveTiersForShow(show)
-  const publicShow = serializeShow(show, tiers)
+  const resolvedTiers = await resolveTiersForShow(show)
+  const transferHolds = await loadOpenTransferHolds([String(show._id)])
+  const held = applyTransferHolds(resolvedTiers, transferHolds.get(String(show._id)))
+  const publicShow = serializeShow(show, held.tiers)
+  publicShow.ticketsSold += held.heldSeats
 
   return (
     <>

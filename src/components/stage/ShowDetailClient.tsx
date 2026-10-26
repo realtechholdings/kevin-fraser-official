@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, MapPin, CalendarDays } from 'lucide-react'
 import TicketButton from '@/components/stage/TicketButton'
+import WaitlistForm from '@/components/stage/WaitlistForm'
 import FormattedText from '@/components/FormattedText'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
@@ -209,11 +210,14 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   ? `From ${formatPrice(fromPrice, show.currency)}`
                   : formatPrice(fromPrice, show.currency)}
               </p>
-              <p className="mt-2 text-sm text-[var(--foreground-muted)]">
-                {soldOut
-                  ? 'This show is sold out.'
-                  : 'Choose your ticket type and quantity, then continue to secure checkout.'}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-[var(--foreground-muted)]">
+                  {soldOut
+                    ? 'This show is sold out.'
+                    : 'Choose your ticket type and quantity, then continue to secure checkout.'}
+                </p>
+                {soldOut && show.waitlistEnabled ? <WaitlistForm showId={show.id} compact /> : null}
+              </div>
 
               <div className="mt-6 border-t border-[var(--border)] pt-5">
                 {show.externalTicketUrl ? (

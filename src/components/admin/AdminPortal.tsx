@@ -34,6 +34,7 @@ import CmsAdminPanel from '@/components/admin/CmsAdminPanel'
 import ScannerAdminPanel from '@/components/admin/ScannerAdminPanel'
 import SalesAdminPanel from '@/components/admin/SalesAdminPanel'
 import GuestListAdminPanel from '@/components/admin/GuestListAdminPanel'
+import WaitlistAdminPanel from '@/components/admin/WaitlistAdminPanel'
 import TicketsAdminPanel from '@/components/admin/TicketsAdminPanel'
 import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
@@ -79,6 +80,8 @@ type TierConfigForm = {
   sold: number
   soldOut: boolean
   offered: boolean
+  customDescription: boolean
+  description: string
 }
 
 type TableConfigForm = {
@@ -125,6 +128,7 @@ type ShowForm = {
   venueImage: string
   venueImageKey: string
   description: string
+  waitlistEnabled: boolean
   tierConfigs: TierConfigForm[]
   tableConfigs: TableConfigForm[]
   upgradeOffers: { fromSlug: string; toSlug: string; enabled: boolean; discountCents: string }[]
@@ -177,6 +181,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   venueImage: '',
   venueImageKey: '',
   description: '',
+  waitlistEnabled: false,
   tierConfigs: [],
   tableConfigs: [],
   upgradeOffers: [],
@@ -256,6 +261,8 @@ function buildTierConfigsFrom(
       sold: o?.ticketsSold || 0,
       soldOut: Boolean(o?.soldOut),
       offered: o ? o.offered !== false : true,
+      customDescription: Boolean(o && o.inheritDescription === false),
+      description: (o && o.inheritDescription === false ? o.description : tt.description) || '',
     }
   })
 }
@@ -308,6 +315,8 @@ function mergeTierConfigs(
       currency: existing.currency,
       soldOut: existing.soldOut,
       offered: existing.offered,
+      customDescription: existing.customDescription,
+      description: existing.description,
     }
   })
 }
@@ -742,6 +751,8 @@ export default function AdminPortal({
           currency: c.currency,
           soldOut: c.soldOut,
           offered: c.offered,
+          customDescription: c.customDescription,
+          description: c.description || '',
         })),
         tableConfigs: (showForm.tableConfigs || []).map((c) => ({
           id: c.id || undefined,
@@ -848,6 +859,7 @@ export default function AdminPortal({
       venueImage: show.venueImage || '',
       venueImageKey: show.venueImageKey || '',
       description: show.description || '',
+      waitlistEnabled: Boolean(show.waitlistEnabled),
       tierConfigs: buildTierConfigsFrom(latestTiers, show.tour.id, show.id),
       tableConfigs: tableConfigsFrom(tables, show.id),
       upgradeOffers: (show.upgradeOffers || []).map((o) => ({
@@ -1797,6 +1809,36 @@ export default function AdminPortal({
                                       />
                                       Sold out
                                     </label>
+                                    <div className="sm:col-span-3">
+                                      <label className="flex items-center gap-2 text-sm text-white/70">
+                                        <input
+                                          type="checkbox"
+                                          checked={config.customDescription}
+                                          onChange={(e) =>
+                                            updateTierConfig(config.slug, {
+                                              customDescription: e.target.checked,
+                                            })
+                                          }
+                                        />
+                                        Custom description for this show
+                                      </label>
+                                      {config.customDescription ? (
+                                        <textarea
+                                          className={`${inputClass} mt-2`}
+                                          rows={3}
+                                          value={config.description}
+                                          onChange={(e) =>
+                                            updateTierConfig(config.slug, {
+                                              description: e.target.value,
+                                            })
+                                          }
+                                        />
+                                      ) : (
+                                        <p className="mt-1 text-xs text-white/35">
+                                          The public page uses the description from Tiers. Edit it there to update every show that has not written its own.
+                                        </p>
+                                      )}
+                                    </div>
                                     <label className="flex items-center gap-2 text-sm text-white/70">
                                       <input
                                         type="checkbox"
@@ -2467,6 +2509,16 @@ export default function AdminPortal({
                           />
                           Published
                         </label>
+                        <label className="flex items-center gap-2 text-sm text-white/70">
+                          <input
+                            type="checkbox"
+                            checked={showForm.waitlistEnabled}
+                            onChange={(e) =>
+                              setShowForm({ ...showForm, waitlistEnabled: e.target.checked })
+                            }
+                          />
+                          Join waitlist when sold out
+                        </label>
                       </div>
                       <div className="flex gap-2 md:col-span-2">
                         <button type="submit" disabled={busy} className={btnPrimary}>
@@ -2768,16 +2820,24 @@ export default function AdminPortal({
           ) : null}
 
           {tab === 'guestlist' ? (
-            <GuestListAdminPanel
-              onMessage={(msg) => {
-                setMessage(msg)
-                setError('')
-              }}
-              onError={(msg) => {
-                setError(msg)
-                setMessage('')
-              }}
-            />
+            <>
+              <GuestListAdminPanel
+                onMessage={(msg) => {
+                  setMessage(msg)
+                  setError('')
+                }}
+                onError={(msg) => {
+                  setError(msg)
+                  setMessage('')
+                }}
+              />
+              <WaitlistAdminPanel
+                onError={(msg) => {
+                  setError(msg)
+                  setMessage('')
+                }}
+              />
+            </>
           ) : null}
 
           {tab === 'scanner' ? (

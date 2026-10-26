@@ -1,4 +1,5 @@
 import { parseWallParts, type WallParts } from '@/lib/wallDate'
+import { formatShowDate } from '@/lib/format'
 import type { PublicShow, PublicTicketTier } from '@/lib/serialize'
 import { isShowEffectivelySoldOut, isTierSoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
@@ -16,8 +17,11 @@ const CITY_TIME_ZONES: Record<string, string> = {
   geelong: 'Australia/Melbourne',
   'gold coast': 'Australia/Brisbane',
   hobart: 'Australia/Hobart',
+  gqeberha: 'Africa/Johannesburg',
   johannesburg: 'Africa/Johannesburg',
   joburg: 'Africa/Johannesburg',
+  knysna: 'Africa/Johannesburg',
+  'port elizabeth': 'Africa/Johannesburg',
   london: 'Europe/London',
   melbourne: 'Australia/Melbourne',
   newcastle: 'Australia/Sydney',
@@ -265,6 +269,22 @@ function ticketOffers(show: PublicShow, ticketUrl: string) {
   })
 }
 
+/**
+ * Google event title. City comes from the show city (so Gqeberha and Knysna
+ * stay those names). The date keeps two nights in one city as two listings.
+ */
+export function googleEventName(show: Pick<PublicShow, 'city' | 'date'>) {
+  const { locality, qualifier } = splitCityLabel(show.city)
+  const city = locality || show.city.trim() || 'TBC'
+  const parts = [`Kevin Fraser: DECADANCE – ${city}`]
+  if (qualifier) parts.push(qualifier)
+  const date = formatShowDate(show.date)
+  if (date.weekday && date.day && date.month) {
+    parts.push(`${date.weekday} ${date.day} ${date.month}`)
+  }
+  return parts.join(' – ')
+}
+
 /** schema.org Event object for Google's event listing. */
 export function buildShowEventJsonLd(show: PublicShow, origin = PUBLIC_SITE_ORIGIN) {
   const start = eventClock(show)
@@ -282,17 +302,13 @@ export function buildShowEventJsonLd(show: PublicShow, origin = PUBLIC_SITE_ORIG
     )
   const image = absoluteUrl(show.artworkImage || show.venueImage || '', origin)
   const code = countryCode(show.country)
-  const { locality, qualifier } = splitCityLabel(show.city)
+  const { locality } = splitCityLabel(show.city)
   const address: Record<string, string> = { '@type': 'PostalAddress' }
   if (show.address) address.streetAddress = show.address
   if (locality) address.addressLocality = locality
   if (code) address.addressCountry = code
 
-  const title = show.title?.trim() || `Kevin Fraser in ${locality || show.city}`
-  const name =
-    qualifier && !title.toLowerCase().includes(qualifier.toLowerCase())
-      ? `${title} — ${qualifier}`
-      : title
+  const name = googleEventName(show)
 
   const data: Record<string, unknown> = {
     '@context': 'https://schema.org',

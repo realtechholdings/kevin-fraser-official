@@ -27,6 +27,12 @@ const TicketTierSchema = new Schema(
      * tour tier (same slug) at resolve time instead of this document.
      */
     inheritPrice: { type: Boolean, default: false },
+    /**
+     * Show-owned tiers only: when true (the default), the public description
+     * comes from the matching tour tier. A show save with a custom description
+     * sets this false so that sentence stays on this date only.
+     */
+    inheritDescription: { type: Boolean, default: true },
     capacity: { type: Number, default: 0, min: 0 },
     ticketsSold: { type: Number, default: 0, min: 0 },
     /** Manual override — blocks sales even when capacity remains. */

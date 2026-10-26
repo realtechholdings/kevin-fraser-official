@@ -53,6 +53,8 @@ export type PublicTicketTier = {
   legacy?: boolean
   /** Show-owned tier that inherits price/currency from the matching tour tier */
   inheritPrice?: boolean
+  /** Show-owned tier that inherits its public description from the tour tier */
+  inheritDescription?: boolean
   ticketAccent: string
   ticketArtwork: string
   ticketArtworkKey: string
@@ -87,6 +89,7 @@ export type PublicShow = {
   venueImage: string
   venueImageKey: string
   description: string
+  waitlistEnabled?: boolean
   archivedAt: string | null
   upgradeOffers?: {
     fromSlug: string
@@ -242,6 +245,7 @@ export function serializeShow(
       show.venueImage ||
       (show.venueImageKey ? `/api/shows/${String(show._id)}/venue` : ''),
     description: show.description || '',
+    waitlistEnabled: Boolean(show.waitlistEnabled),
     archivedAt: show.archivedAt ? toWallIso(show.archivedAt) : null,
     upgradeOffers: (show.upgradeOffers || []).map((o) => ({
       fromSlug: o.fromSlug,
@@ -273,6 +277,7 @@ export function serializeTicketTier(tier: TicketTierDocument): PublicTicketTier 
     sortOrder: tier.sortOrder || 0,
     published: Boolean(tier.published),
     inheritPrice: Boolean(tier.inheritPrice),
+    inheritDescription: tier.inheritDescription !== false,
     ticketAccent: String(tier.ticketAccent || '').trim(),
     ticketArtworkKey: ticketArtKey,
     ticketArtwork:
