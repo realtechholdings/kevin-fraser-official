@@ -40,6 +40,7 @@ import Kevin11AdminPanel from '@/components/admin/Kevin11AdminPanel'
 import LegalAdminPanel from '@/components/admin/LegalAdminPanel'
 import ConnectAdminPanel from '@/components/admin/ConnectAdminPanel'
 import UsersAdminPanel from '@/components/admin/UsersAdminPanel'
+import SupportAdminPanel from '@/components/admin/SupportAdminPanel'
 import ImageCropField from '@/components/admin/ImageCropField'
 import AudHint from '@/components/admin/AudHint'
 import { useAudRates } from '@/components/admin/useAudRates'
@@ -1188,7 +1189,12 @@ export default function AdminPortal({
                               title: 'Users',
                               subtitle: 'Roles and privileges for people who help run the site',
                             }
-                          : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
+                          : tab === 'support'
+                            ? {
+                                title: 'Support',
+                                subtitle: 'Send a bug, feature, change, or update to HiveMind',
+                              }
+                            : { title: 'AI Kev', subtitle: 'Avatar, greeting, prompt, and speaking style' }
 
   return (
     <div className={cn('admin-app', adminMode === 'light' && 'admin-light')} style={themeVars}>
@@ -1213,7 +1219,7 @@ export default function AdminPortal({
         <main className="admin-main flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl">
           <div className="mb-5 flex gap-2 overflow-x-auto md:hidden">
-            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai', 'users'] as Tab[])
+            {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai', 'users', 'support'] as Tab[])
               .filter((id) => tabAllowed(id, permissions))
               .map((id) => (
               <button
@@ -1251,7 +1257,9 @@ export default function AdminPortal({
                               ? 'AI Kev'
                               : id === 'users'
                                 ? 'Users'
-                                : id}
+                                : id === 'support'
+                                  ? 'Support'
+                                  : id}
               </button>
             ))}
           </div>
@@ -2968,6 +2976,8 @@ export default function AdminPortal({
               }}
             />
           ) : null}
+
+          {tab === 'support' ? <SupportAdminPanel /> : null}
           </div>
         </main>
       </div>

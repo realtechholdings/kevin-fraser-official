@@ -1,0 +1,12 @@
+{
+  "name": "@hivemind/support",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./widget": {
+      "types": "./widget.ts",
+      "default": "./widget.ts"
+    }
+  }
+}

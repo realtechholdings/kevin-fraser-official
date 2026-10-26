@@ -11,6 +11,7 @@ import {
   Film,
   Layers,
   LayoutDashboard,
+  LifeBuoy,
   Mail,
   MessageCircle,
   Palette,
@@ -42,6 +43,7 @@ export type AdminTab =
   | 'theme'
   | 'ai'
   | 'users'
+  | 'support'
 
 type NavItem = { id: AdminTab; name: string; icon: typeof LayoutDashboard }
 type NavGroup = { label: string; items: NavItem[] }
@@ -95,6 +97,7 @@ const nav: NavEntry[] = [
       items: [{ id: 'users', name: 'Users', icon: Users }],
     },
   },
+  { type: 'item', item: { id: 'support', name: 'Support', icon: LifeBuoy } },
 ]
 
 export const ADMIN_TAB_PERMISSION: Partial<Record<AdminTab, AdminPermission>> = {

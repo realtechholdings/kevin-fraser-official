@@ -9,6 +9,7 @@ import SiteThemeApplicator from '@/components/theme/SiteThemeApplicator'
 import SiteThemeStyle from '@/components/theme/SiteThemeStyle'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import AmplitudeProvider from '@/components/analytics/AmplitudeProvider'
+import BugsnagProvider from '@/components/bugsnag/BugsnagProvider'
 import { clerkAppearance } from '@/lib/clerkAppearance'
 
 const inter = Inter({ subsets: ['latin'], display: 'swap' })
@@ -46,14 +47,16 @@ export default function RootLayout({
           <ThemeScript />
         </head>
         <body className={inter.className}>
-          <SiteThemeStyle />
-          <ThemeProvider>
-            <SiteThemeApplicator />
-            {children}
-            <AIGuide />
-            <MetaPixel />
-            <AmplitudeProvider />
-          </ThemeProvider>
+          <BugsnagProvider>
+            <SiteThemeStyle />
+            <ThemeProvider>
+              <SiteThemeApplicator />
+              {children}
+              <AIGuide />
+              <MetaPixel />
+              <AmplitudeProvider />
+            </ThemeProvider>
+          </BugsnagProvider>
         </body>
       </html>
     </ClerkProvider>
