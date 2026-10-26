@@ -6,7 +6,7 @@ import { mountSupportWidget } from '@hivemind/support/widget'
 export default function SupportAdminPanel() {
   useEffect(() => {
     const widget = mountSupportWidget({
-      hiveMindUrl: 'https://hivemynd.io',
+      hiveMindUrl: 'https://www.hivemynd.io',
       ingestApiKey: 'hmsk_f29a487512ae5c43d4b55d0e41bd27b4618c68f834d4c2c7',
     })
     widget.open()
