@@ -84,7 +84,8 @@ export async function GET(req: NextRequest) {
           city: show.city,
           venue: show.venue,
           dateLabel: date.full || '',
-          waitlistEnabled: Boolean(show.waitlistEnabled),
+          status: show.status,
+          waitlistEnabled: show.waitlistEnabled !== false && !show.archivedAt,
           archived: Boolean(show.archivedAt),
           count: counts.get(String(show._id)) || 0,
         }

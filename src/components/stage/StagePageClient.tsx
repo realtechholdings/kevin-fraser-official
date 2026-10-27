@@ -9,7 +9,8 @@ import FormattedText from '@/components/FormattedText'
 import { NavPendingOverlay, usePendingNav } from '@/components/ui/NavPendingOverlay'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import type { PublicShow, PublicTour } from '@/lib/serialize'
-import { isShowEffectivelySoldOut } from '@/lib/tickets/soldOut'
+import { isShowEffectivelySoldOut, offersWaitlist } from '@/lib/tickets/soldOut'
+import { showPublicPath } from '@/lib/shows/publicPath'
 
 type Props = {
   tours: PublicTour[]
@@ -270,7 +271,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="truncate text-lg font-semibold sm:text-xl">
                                 <Link
-                                  href={`/worlds/stage/${show.id}`}
+                                  href={showPublicPath(show)}
                                   onClick={() => markPending()}
                                   className="hover:underline"
                                 >
@@ -348,7 +349,7 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                               </span>
                             ) : (
                               <Link
-                                href={`/worlds/stage/${show.id}`}
+                                href={showPublicPath(show)}
                                 onClick={(event) => {
                                   if (pending) {
                                     event.preventDefault()
@@ -368,9 +369,9 @@ export default function StagePageClient({ tours, shows, cancelled, tourSlug }: P
                                 {soldOut ? 'Sold Out' : 'Tickets'}
                               </Link>
                             )}
-                            {soldOut && show.waitlistEnabled ? (
+                            {offersWaitlist(show) ? (
                               <Link
-                                href={`/worlds/stage/${show.id}#waitlist`}
+                                href={`${showPublicPath(show)}#waitlist`}
                                 className="inline-flex items-center justify-center rounded-full border border-[var(--border)] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--foreground)]"
                               >
                                 Join waitlist

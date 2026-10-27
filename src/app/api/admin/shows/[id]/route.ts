@@ -9,6 +9,7 @@ import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
+import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 import { archiveShowFields, isShowArchived, restoreShowFields } from '@/lib/shows/archive'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -28,6 +29,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
+
+    const nextCity = body.city !== undefined ? String(body.city).trim() : show.city
+    const nextDate = body.date !== undefined ? parseWallDate(body.date) : show.date
+    const identityChanged =
+      nextCity !== show.city ||
+      Boolean(nextDate && new Date(show.date).getTime() !== nextDate.getTime())
 
     if (body.tourId !== undefined) show.tour = body.tourId
     if (body.title !== undefined) show.title = String(body.title).trim()
@@ -82,6 +89,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     if (body.venueImageKey !== undefined) show.venueImageKey = String(body.venueImageKey)
     if (body.description !== undefined) show.description = String(body.description || '').trim()
     if (body.waitlistEnabled !== undefined) show.waitlistEnabled = Boolean(body.waitlistEnabled)
+    if (body.status === 'sold_out' && body.waitlistEnabled === undefined) {
+      show.waitlistEnabled = true
+    }
     if (body.upgradeOffers !== undefined) {
       const parsed = parseUpgradeOfferRows(body.upgradeOffers)
       if (parsed) show.set('upgradeOffers', parsed)
@@ -92,6 +102,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
 
     await show.save()
+    await ensureShowSlugs([show], { force: identityChanged || !show.slug })
 
     if (Array.isArray(body.tierConfigs)) {
       await applyShowTierConfigs(String(show._id), String(show.tour), body.tierConfigs)

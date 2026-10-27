@@ -11,6 +11,7 @@ import {
   type GuestListShowInfo,
 } from '@/lib/tickets/guestListPdf'
 import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
+import { backfillHolderNames } from '@/lib/tickets/holderName'
 
 const PURCHASE_ZONE = 'Australia/Sydney'
 
@@ -144,13 +145,15 @@ export async function loadGuestList(showId: string, query: GuestListQuery = pars
   const show = await Show.findById(showId).populate('tour')
   if (!show) return null
 
-  const orders = (await Order.find({
+  const orders = await Order.find({
     show: showId,
     status: { $in: ['paid', 'upgraded'] },
-  }).sort({ createdAt: 1 })) as unknown as ChainOrder[]
+  }).sort({ createdAt: 1 })
+  await backfillHolderNames(orders)
+  const chain = orders as unknown as ChainOrder[]
 
-  const byId = new Map(orders.map((order) => [String(order._id), order]))
-  const paid = orders.filter((order) => order.status === 'paid')
+  const byId = new Map(chain.map((order) => [String(order._id), order]))
+  const paid = chain.filter((order) => order.status === 'paid')
   const date = toWallIso(show.date)
   const formatted = date ? formatShowDate(date) : null
   const tour =

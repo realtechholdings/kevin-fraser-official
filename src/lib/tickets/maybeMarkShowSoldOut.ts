@@ -23,6 +23,7 @@ export async function maybeMarkShowSoldOut(showId: string): Promise<boolean> {
   if (!exhausted(show, tiers)) return false
 
   show.status = 'sold_out'
+  if (show.waitlistEnabled !== false) show.waitlistEnabled = true
   await show.save()
   return true
 }

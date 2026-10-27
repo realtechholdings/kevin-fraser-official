@@ -18,6 +18,35 @@ test('guest-list print text stays inside WinAnsi', () => {
   assert.equal(toWinAnsi('name\u2026'), 'name...')
 })
 
+test('guest list pdf survives punctuation that standard fonts cannot draw', async () => {
+  const { generateGuestListPdf } = await import('./guestListPdf')
+  const { bytes } = await generateGuestListPdf(
+    {
+      city: 'Pretoria',
+      venue: 'The Barnyard',
+      tour: 'DECADANCE',
+      dateLabel: 'Thursday 26 November 2026',
+      timeLabel: '7:30 PM – 10:00 PM',
+    },
+    [
+      {
+        orderId: '1',
+        name: 'José “Ace” 🎉',
+        email: 'jose@example.com',
+        quantity: 2,
+        tierName: 'Dial Up…',
+        tableLabel: 'Table 1',
+        source: 'paid',
+        checkedIn: 0,
+        note: '—',
+        purchasedAt: null,
+      },
+    ],
+  )
+  assert.ok(bytes[0] === 0x25 && bytes[1] === 0x50)
+  assert.ok(bytes.length > 500)
+})
+
 test('printed guest lists use the booking name', () => {
   const rows = buildGuestListRows([
     { holderName: 'Ada Lovelace', email: 'ada@example.com', quantity: 2, status: 'paid' },

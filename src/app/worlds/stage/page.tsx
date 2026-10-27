@@ -7,6 +7,7 @@ import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import StagePageClient from '@/components/stage/StagePageClient'
 import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
+import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 
 export const metadata: Metadata = {
   title: 'The Stage | Kevin Fraser Official',
@@ -34,6 +35,7 @@ export default async function StagePage({ searchParams }: Props) {
       .sort({ date: 1 }),
   ])
 
+  await ensureShowSlugs(shows)
   const tiersByShow = await resolveTiersForShows(shows)
   const transferHolds = await loadOpenTransferHolds(shows.map((show) => String(show._id)))
   const publicShows = shows.map((show) => {

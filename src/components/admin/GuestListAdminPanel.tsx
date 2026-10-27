@@ -185,11 +185,21 @@ export default function GuestListAdminPanel({
     setBusy(true)
     try {
       const res = await fetch(`/api/admin/guest-list/${kind}?${listParams(showId)}`)
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to generate PDF')
+      const bytes = await res.arrayBuffer()
+      const preview = new TextDecoder().decode(bytes.slice(0, 1))
+      if (!res.ok || preview === '{' || preview === '<') {
+        let message = 'Could not build the guest list.'
+        try {
+          const data = JSON.parse(new TextDecoder().decode(bytes)) as { error?: string }
+          if (data.error) message = data.error
+        } catch {
+          // The body was an HTML error page, not the file.
+        }
+        throw new Error(message)
       }
-      const blob = await res.blob()
+      const blob = new Blob([bytes], {
+        type: kind === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8',
+      })
       const url = URL.createObjectURL(blob)
       const header = res.headers.get('Content-Disposition') || ''
       const match = header.match(/filename="([^"]+)"/)

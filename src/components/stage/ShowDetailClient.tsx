@@ -11,7 +11,7 @@ import ThemeToggle from '@/components/theme/ThemeToggle'
 import { formatPrice, formatShowDate, formatShowTimeRange, formatTicketsOnSaleLabel } from '@/lib/format'
 import { centsToMetaValue, trackMeta } from '@/lib/metaPixel'
 import type { PublicShow } from '@/lib/serialize'
-import { isShowEffectivelySoldOut, venueSeatRemaining } from '@/lib/tickets/soldOut'
+import { isShowEffectivelySoldOut, offersWaitlist, venueSeatRemaining } from '@/lib/tickets/soldOut'
 
 function statusLabel(show: PublicShow, effectivelySoldOut: boolean) {
   if (effectivelySoldOut) return 'Sold Out'
@@ -210,13 +210,22 @@ export default function ShowDetailClient({ show }: { show: PublicShow }) {
                   ? `From ${formatPrice(fromPrice, show.currency)}`
                   : formatPrice(fromPrice, show.currency)}
               </p>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
+              <div className="mt-2 space-y-3">
                 <p className="text-sm text-[var(--foreground-muted)]">
                   {soldOut
                     ? 'This show is sold out.'
                     : 'Choose your ticket type and quantity, then continue to secure checkout.'}
                 </p>
-                {soldOut && show.waitlistEnabled ? <WaitlistForm showId={show.id} compact /> : null}
+                {offersWaitlist(show) ? (
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                    <p className="text-sm text-[var(--foreground)]">
+                      Join the waitlist and we&apos;ll email you if a seat opens.
+                    </p>
+                    <div className="mt-3">
+                      <WaitlistForm showId={show.id} />
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-6 border-t border-[var(--border)] pt-5">

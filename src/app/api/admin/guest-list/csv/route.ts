@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
+import { attachmentResponse } from '@/lib/http/attachment'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
 import {
   guestListCsv,
   guestListFilterNote,
@@ -30,14 +34,7 @@ export async function GET(req: NextRequest) {
     const csv = guestListCsv(data.show, data.rows)
     const note = guestListFilterNote(query)
     const filename = note ? csv.filename.replace(/\.csv$/, `-${slugify(note)}.csv`) : csv.filename
-    return new NextResponse(csv.body, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Cache-Control': 'no-store',
-      },
-    })
+    return attachmentResponse(csv.body, 'text/csv; charset=utf-8', filename)
   } catch (error) {
     console.error('Admin guest list CSV GET:', error)
     return NextResponse.json({ success: false, error: 'Failed to export guest list.' }, { status: 500 })

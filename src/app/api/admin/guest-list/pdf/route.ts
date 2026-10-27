@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import { guestListFilterNote, isShowId, loadGuestList, parseGuestListQuery } from '@/lib/tickets/loadGuestList'
 import { generateGuestListPdf } from '@/lib/tickets/guestListPdf'
+import { attachmentResponse } from '@/lib/http/attachment'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin('guestlist')
@@ -22,14 +26,7 @@ export async function GET(req: NextRequest) {
     }
 
     const pdf = await generateGuestListPdf(data.show, data.rows, guestListFilterNote(query))
-    return new NextResponse(Buffer.from(pdf.bytes), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${pdf.filename}"`,
-        'Cache-Control': 'no-store',
-      },
-    })
+    return attachmentResponse(pdf.bytes, 'application/pdf', pdf.filename)
   } catch (error) {
     console.error('Admin guest list PDF GET:', error)
     const message = error instanceof Error ? error.message : 'Failed to generate guest list.'

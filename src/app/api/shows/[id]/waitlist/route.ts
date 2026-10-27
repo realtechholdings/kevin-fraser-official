@@ -9,6 +9,8 @@ import { toWallIso } from '@/lib/wallDate'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import { sendWaitlistNotification } from '@/lib/email/waitlist'
 import { emailConfigured } from '@/lib/email/resend'
+import { offersWaitlist } from '@/lib/tickets/soldOut'
+import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -30,7 +32,19 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await dbConnect()
     const show = await Show.findById(id)
-    if (!show || !show.published || isShowArchived(show) || !show.waitlistEnabled) {
+    if (!show || !show.published || isShowArchived(show)) {
+      return NextResponse.json({ success: false, error: 'The waitlist is not open for this show.' }, { status: 400 })
+    }
+    const tiers = show.status === 'sold_out' ? undefined : await resolveTiersForShow(show)
+    if (
+      !offersWaitlist({
+        status: show.status,
+        waitlistEnabled: show.waitlistEnabled,
+        capacity: show.capacity,
+        ticketsSold: show.ticketsSold,
+        tiers,
+      })
+    ) {
       return NextResponse.json({ success: false, error: 'The waitlist is not open for this show.' }, { status: 400 })
     }
 

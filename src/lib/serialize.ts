@@ -62,6 +62,8 @@ export type PublicTicketTier = {
 
 export type PublicShow = {
   id: string
+  /** Public URL segment. Empty until the show has been given one. */
+  slug: string
   tour: { id: string; title: string; slug: string }
   title: string
   date: string
@@ -212,6 +214,7 @@ export function serializeShow(
 
   return {
     id: String(show._id),
+    slug: show.slug || '',
     tour: tourPayload,
     title: show.title,
     date: toWallIso(show.date),
@@ -245,7 +248,7 @@ export function serializeShow(
       show.venueImage ||
       (show.venueImageKey ? `/api/shows/${String(show._id)}/venue` : ''),
     description: show.description || '',
-    waitlistEnabled: Boolean(show.waitlistEnabled),
+    waitlistEnabled: show.waitlistEnabled !== false && !show.archivedAt,
     archivedAt: show.archivedAt ? toWallIso(show.archivedAt) : null,
     upgradeOffers: (show.upgradeOffers || []).map((o) => ({
       fromSlug: o.fromSlug,

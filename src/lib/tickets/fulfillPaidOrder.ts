@@ -106,8 +106,12 @@ export async function fulfillPaidOrder(
     .trim()
     .toLowerCase()
   if (confirmedEmail) order.email = confirmedEmail
-  const confirmedName = String(session.customer_details?.name || '').trim()
-  if (!String(order.holderName || '').trim() && confirmedName) order.holderName = confirmedName
+  const confirmedName = String(
+    session.customer_details?.name || session.metadata?.holderName || '',
+  ).trim()
+  if (!String(order.holderName || '').trim() && confirmedName && !confirmedName.includes('@')) {
+    order.holderName = confirmedName
+  }
   order.stripePaymentIntentId =
     typeof session.payment_intent === 'string'
       ? session.payment_intent

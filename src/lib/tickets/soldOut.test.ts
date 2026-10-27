@@ -5,6 +5,7 @@ import {
   hasRemainingTableInventory,
   isShowEffectivelySoldOut,
   isTierSoldOut,
+  offersWaitlist,
   remainingOfferingUnits,
   unsoldTableSeats,
   venueCanTake,
@@ -112,4 +113,12 @@ test('Johannesburg-style sold_out with leftover ticket classes stays sold out', 
   assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers), false)
   assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers, 'sold_out'), true)
   assert.equal(isTierSoldOut(soldNokia, venue, tiers, 'sold_out'), true)
+})
+
+test('a sold-out show offers a waitlist until an admin switches it off', () => {
+  assert.equal(offersWaitlist({ status: 'sold_out', waitlistEnabled: undefined }), true)
+  assert.equal(offersWaitlist({ status: 'sold_out', waitlistEnabled: true }), true)
+  assert.equal(offersWaitlist({ status: 'sold_out', waitlistEnabled: false }), false)
+  assert.equal(offersWaitlist({ status: 'on_sale', waitlistEnabled: true }), false)
+  assert.equal(offersWaitlist({ status: 'cancelled', waitlistEnabled: true }), false)
 })

@@ -128,9 +128,17 @@ export function toWinAnsi(value: string) {
   }).join('')
 }
 
+function textWidth(font: PDFFont, value: string, size: number) {
+  try {
+    return font.widthOfTextAtSize(value, size)
+  } catch {
+    return value.length * size
+  }
+}
+
 function clamp(text: string, font: PDFFont, size: number, maxWidth: number) {
   let value = toWinAnsi(text)
-  while (value.length > 3 && font.widthOfTextAtSize(value, size) > maxWidth) {
+  while (value.length > 3 && textWidth(font, value, size) > maxWidth) {
     value = value.slice(0, -1)
   }
   if (value !== toWinAnsi(text) && value.length > 3) value = `${value.slice(0, -1)}...`
@@ -146,7 +154,14 @@ function drawText(
   size: number,
   color = INK,
 ) {
-  page.drawText(toWinAnsi(text), { x, y, size, font, color })
+  const safe = toWinAnsi(text)
+  if (!safe) return
+  try {
+    page.drawText(safe, { x, y, size, font, color })
+  } catch {
+    const ascii = safe.replace(/[^\x20-\x7e]/g, '')
+    if (ascii) page.drawText(ascii, { x, y, size, font, color })
+  }
 }
 
 function filenameFor(show: GuestListShowInfo, note?: string) {

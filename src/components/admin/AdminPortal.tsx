@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import type { PublicShow, PublicTicketTier, PublicTour } from '@/lib/serialize'
+import { showPublicPath } from '@/lib/shows/publicPath'
 import type { PublicTicketTable } from '@/lib/tickets/tables'
 import { formatPrice, formatShowDate } from '@/lib/format'
 import { formatPriceWithAud } from '@/lib/fx'
@@ -182,7 +183,7 @@ const emptyShow = (tourId = ''): ShowForm => ({
   venueImage: '',
   venueImageKey: '',
   description: '',
-  waitlistEnabled: false,
+  waitlistEnabled: true,
   tierConfigs: [],
   tableConfigs: [],
   upgradeOffers: [],
@@ -2699,6 +2700,16 @@ export default function AdminPortal({
                                 <p className="text-xs text-white/40">
                                   {show.venue} · {show.country}
                                 </p>
+                                {show.slug ? (
+                                  <a
+                                    href={showPublicPath(show)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-0.5 block text-[11px] text-white/35 hover:text-white/70"
+                                  >
+                                    {showPublicPath(show)}
+                                  </a>
+                                ) : null}
                               </td>
                               <td className="hidden whitespace-nowrap px-5 py-4 text-sm text-white/70 lg:table-cell">
                                 {displayPrice(show)}

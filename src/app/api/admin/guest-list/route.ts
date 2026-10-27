@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import { isShowId, loadGuestList, parseGuestListQuery } from '@/lib/tickets/loadGuestList'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin('guestlist')
   if (!admin.ok) {

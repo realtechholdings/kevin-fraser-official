@@ -144,3 +144,26 @@ export function isShowEffectivelySoldOut(show: {
   if (show.tiers?.length) return areAllTiersSoldOut(show.tiers, venue)
   return venue === 0
 }
+
+/**
+ * Sold-out shows collect a waitlist unless an admin has switched it off.
+ * A missing flag counts as on — older shows were saved before the checkbox existed.
+ */
+export function offersWaitlist(show: {
+  status?: string
+  waitlistEnabled?: boolean | null
+  capacity?: number
+  ticketsSold?: number
+  tiers?: TierLike[]
+}): boolean {
+  if (show.waitlistEnabled === false) return false
+  if (show.status === 'cancelled' || show.status === 'coming_soon') return false
+  if (show.status === 'sold_out') return true
+  if (!show.status) return false
+  return isShowEffectivelySoldOut({
+    status: show.status,
+    capacity: show.capacity,
+    ticketsSold: show.ticketsSold,
+    tiers: show.tiers,
+  })
+}

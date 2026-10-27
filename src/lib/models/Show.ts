@@ -56,8 +56,13 @@ const ShowSchema = new Schema(
     venueImageKey: { type: String, default: '' },
     /** Optional blurb for the show detail page */
     description: { type: String, default: '', trim: true },
-    /** When true, a sold-out show offers a join-waitlist form. */
-    waitlistEnabled: { type: Boolean, default: false },
+    /** Public path segment, e.g. pretora-26-nov-2026. Object ids still resolve. */
+    slug: { type: String, trim: true, lowercase: true },
+    /**
+     * When false, a sold-out show hides the waitlist.
+     * Unset means on — the checkbox was added after these shows were created.
+     */
+    waitlistEnabled: { type: Boolean },
     /**
      * Buyer-facing upgrade paths (class → higher class). Admin can still
      * upgrade any paid class order; these rows power the public upsell.
@@ -82,6 +87,7 @@ const ShowSchema = new Schema(
 )
 
 ShowSchema.index({ date: 1, published: 1 })
+ShowSchema.index({ slug: 1 }, { unique: true, sparse: true })
 
 export type ShowDocument = InferSchemaType<typeof ShowSchema> & { _id: mongoose.Types.ObjectId }
 

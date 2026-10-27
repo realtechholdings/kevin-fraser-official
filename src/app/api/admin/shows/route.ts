@@ -10,6 +10,7 @@ import { applyShowTableConfigs } from '@/lib/tickets/tables'
 import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
+import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -20,6 +21,7 @@ export async function GET() {
   try {
     await dbConnect()
     const shows = await Show.find().populate('tour').sort({ date: 1 })
+    await ensureShowSlugs(shows)
     return NextResponse.json({ success: true, shows: shows.map((show) => serializeShow(show)) })
   } catch (error) {
     console.error('Admin shows GET:', error)
@@ -117,6 +119,9 @@ export async function POST(req: NextRequest) {
     if (status === 'on_sale') {
       await maybeMarkShowSoldOut(String(show._id))
     }
+
+    const created = await Show.findById(show._id)
+    if (created) await ensureShowSlugs([created])
 
     const fresh = await Show.findById(show._id).populate('tour')
     return NextResponse.json(

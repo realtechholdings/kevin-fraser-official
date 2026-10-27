@@ -13,6 +13,7 @@ type WaitShow = {
   city: string
   venue: string
   dateLabel: string
+  status: string
   waitlistEnabled: boolean
   archived: boolean
   count: number
@@ -62,7 +63,7 @@ export default function WaitlistAdminPanel({
     () => (showId === 'all' ? entries : entries.filter((entry) => entry.showId === showId)),
     [entries, showId],
   )
-  const enabled = shows.filter((show) => show.waitlistEnabled).length
+  const enabled = shows.filter((show) => show.waitlistEnabled && show.status === 'sold_out').length
 
   return (
     <div className="mt-10 space-y-4">
@@ -100,7 +101,7 @@ export default function WaitlistAdminPanel({
         >
           <option value="all">All shows ({entries.length})</option>
           {shows
-            .filter((show) => show.count > 0 || show.waitlistEnabled)
+            .filter((show) => show.count > 0 || (show.waitlistEnabled && show.status === 'sold_out'))
             .map((show) => (
               <option key={show.id} value={show.id}>
                 {show.city} · {show.venue}

@@ -11,6 +11,7 @@ import type { PublicShow } from '@/lib/serialize'
 function show(overrides: Partial<PublicShow> = {}): PublicShow {
   return {
     id: 'abc123',
+    slug: '',
     tour: { id: 'tour1', title: 'DECADANCE', slug: 'decadance' },
     title: 'DECADANCE (10-Year Celebration)',
     date: '2026-10-03T17:00:00.000',

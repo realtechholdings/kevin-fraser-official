@@ -3,6 +3,7 @@ import dbConnect from '@/lib/db'
 import Show from '@/lib/models/Show'
 import { ACTIVE_SHOW_FILTER } from '@/lib/shows/archive'
 import { PUBLIC_SITE_ORIGIN, showPageUrl } from '@/lib/shows/eventSchema'
+import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 
 export const dynamic = 'force-dynamic'
 
@@ -91,12 +92,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     await dbConnect()
     const shows = await Show.find({ published: true, ...ACTIVE_SHOW_FILTER })
-      .select({ updatedAt: 1 })
-      .lean()
+    await ensureShowSlugs(shows)
 
     for (const show of shows) {
       entries.push({
-        url: showPageUrl(String(show._id), base),
+        url: showPageUrl(show.slug || String(show._id), base),
         lastModified: show.updatedAt ? new Date(show.updatedAt) : now,
         changeFrequency: 'weekly',
         priority: 0.7,
