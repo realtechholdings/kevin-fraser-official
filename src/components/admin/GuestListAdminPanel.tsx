@@ -259,7 +259,7 @@ export default function GuestListAdminPanel({
 
       <div className="admin-card p-5 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-          <div ref={pickerRef} className="relative">
+          <div ref={pickerRef} className={pickerOpen ? 'relative z-30' : 'relative'}>
             <label className={labelClass}>Show</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
@@ -297,9 +297,9 @@ export default function GuestListAdminPanel({
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
             </div>
             {pickerOpen ? (
-              <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-surface)] py-1 shadow-lg">
+              <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-[var(--admin-border)] bg-[var(--admin-panel)] py-1 shadow-2xl">
                 {filteredShows.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-white/40">
+                  <p className="px-3 py-2 text-sm text-[var(--admin-muted)]">
                     {activeShows.length === 0
                       ? 'No current or upcoming shows.'
                       : 'No shows match that search.'}
@@ -311,8 +311,10 @@ export default function GuestListAdminPanel({
                       <button
                         key={s.id}
                         type="button"
-                        className={`block w-full px-3 py-2 text-left text-sm ${
-                          active ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/5'
+                        className={`block w-full px-3 py-2 text-left text-sm leading-snug ${
+                          active
+                            ? 'bg-[var(--admin-surface-hover)] text-[var(--admin-text)]'
+                            : 'text-[var(--admin-text-secondary)] hover:bg-[var(--admin-surface-hover)] hover:text-[var(--admin-text)]'
                         }`}
                         onClick={() => {
                           setShowId(s.id)
@@ -446,7 +448,14 @@ export default function GuestListAdminPanel({
             { label: 'Show', value: show.dateLabel || '—' },
           ].map((card) => (
             <div key={card.label} className="admin-card p-5">
-              <p className="truncate text-xl font-bold tabular-nums text-white" title={card.value}>
+              <p
+                className={
+                  card.label === 'Show'
+                    ? 'text-sm font-semibold leading-snug text-white'
+                    : 'truncate text-xl font-bold tabular-nums text-white'
+                }
+                title={card.value}
+              >
                 {loadingList ? '—' : card.value}
               </p>
               <p className="mt-0.5 text-xs text-white/40">{card.label}</p>
