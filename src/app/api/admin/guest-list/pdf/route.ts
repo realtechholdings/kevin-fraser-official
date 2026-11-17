@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 
-    const pdf = await generateGuestListPdf(data.show, data.rows, guestListFilterNote(query))
+    const pdf = await generateGuestListPdf(data.show, data.rows, guestListFilterNote(query), {
+      group: query.group,
+      classOrder: data.classOrder,
+    })
     return attachmentResponse(pdf.bytes, 'application/pdf', pdf.filename)
   } catch (error) {
     console.error('Admin guest list PDF GET:', error)

@@ -7,9 +7,12 @@ import { formatShowDate, formatShowTimeRange, slugify } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import {
   buildGuestListRows,
+  guestListSections,
+  type GuestListGroup,
   type GuestListRow,
   type GuestListShowInfo,
 } from '@/lib/tickets/guestListPdf'
+import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
 import { backfillHolderNames } from '@/lib/tickets/holderName'
 
@@ -20,15 +23,26 @@ export type GuestListQuery = {
   purchasedTo: string
   source: 'all' | 'paid' | 'comp'
   q: string
+  /** `class` is A–Z inside each ticket class. `name` is one list. */
+  group: GuestListGroup
+}
+
+export type GuestListSectionSummary = {
+  name: string
+  guests: number
+  tickets: number
+  comps: number
 }
 
 export function parseGuestListQuery(params: URLSearchParams): GuestListQuery {
   const source = params.get('source') || 'all'
+  const group = params.get('group')
   return {
     purchasedFrom: ymd(params.get('from')),
     purchasedTo: ymd(params.get('to')),
     source: source === 'paid' || source === 'comp' ? source : 'all',
     q: (params.get('q') || '').trim(),
+    group: group === 'name' ? 'name' : 'class',
   }
 }
 
@@ -38,6 +52,7 @@ export function guestListFilterNote(query: GuestListQuery) {
   if (query.purchasedTo) parts.push(`through-${query.purchasedTo}`)
   if (query.source !== 'all') parts.push(query.source)
   if (query.q) parts.push('search')
+  parts.push(query.group === 'name' ? 'a-z' : 'by-class')
   return parts.join('-')
 }
 
@@ -198,42 +213,51 @@ export async function loadGuestList(showId: string, query: GuestListQuery = pars
     }),
   )
   const filtered = filterGuestListRows(rows, query)
+  const tiers = await resolveTiersForShow(show)
+  const classOrder = tiers.map((tier) => tier.name)
+  const grouped = guestListSections(filtered, query.group, classOrder)
+  const ordered = grouped.flatMap((section) => section.rows)
+  const sections: GuestListSectionSummary[] =
+    query.group === 'class'
+      ? grouped.map((section) => ({
+          name: section.title,
+          guests: section.rows.length,
+          tickets: section.rows.reduce((sum, row) => sum + row.quantity, 0),
+          comps: section.rows.filter((row) => row.source === 'comp').length,
+        }))
+      : []
 
   return {
     show: {
       id: String(show._id),
       ...info,
     },
-    rows: filtered,
+    rows: ordered,
+    classOrder,
+    sections,
     totalGuests: rows.length,
     totalTickets: rows.reduce((sum, row) => sum + row.quantity, 0),
   }
 }
 
-export function guestListCsv(show: GuestListShowInfo, rows: GuestListRow[]) {
-  const headers = [
-    'Name',
-    'Email',
-    'Quantity',
-    'Class',
-    'Table',
-    'Purchased',
-    'Source',
-    'Checked in',
-    'Order ID',
-    'Note',
-  ]
+export function guestListCsv(
+  show: GuestListShowInfo,
+  rows: GuestListRow[],
+  options?: { group?: GuestListGroup; classOrder?: string[] },
+) {
+  const grouped = options?.group === 'class'
+  const sections = guestListSections(rows, grouped ? 'class' : 'name', options?.classOrder)
+  const headers = grouped
+    ? ['Class', 'Name', 'Email', 'Quantity', 'Table', 'Purchased', 'Source', 'Checked in', 'Order ID', 'Note']
+    : ['Name', 'Email', 'Quantity', 'Class', 'Table', 'Purchased', 'Source', 'Checked in', 'Order ID', 'Note']
   const lines = [headers.join(',')]
-  for (const row of rows) {
-    const purchased = row.purchasedAt
-      ? new Date(row.purchasedAt).toLocaleString('en-AU', { timeZone: PURCHASE_ZONE })
-      : ''
-    lines.push(
-      [
-        row.name,
-        row.email,
-        String(row.quantity),
-        row.tierName,
+  for (const section of sections) {
+    for (const row of section.rows) {
+      const purchased = row.purchasedAt
+        ? new Date(row.purchasedAt).toLocaleString('en-AU', { timeZone: PURCHASE_ZONE })
+        : ''
+      const className = section.title || row.tierName
+      const tail = [
         row.tableLabel,
         purchased,
         row.source === 'comp' ? 'Complimentary' : 'Paid',
@@ -241,9 +265,11 @@ export function guestListCsv(show: GuestListShowInfo, rows: GuestListRow[]) {
         row.orderId,
         row.note,
       ]
-        .map(csvCell)
-        .join(','),
-    )
+      const cells = grouped
+        ? [className, row.name, row.email, String(row.quantity), ...tail]
+        : [row.name, row.email, String(row.quantity), className, ...tail]
+      lines.push(cells.map(csvCell).join(','))
+    }
   }
   const city = slugify(show.city) || 'guest-list'
   const date = slugify(show.dateLabel) || 'show'

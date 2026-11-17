@@ -47,13 +47,25 @@ type GuestOrder = {
   purchasedAt?: Date | string | null
 }
 
-const COLS = {
+type ColKey = 'num' | 'guest' | 'qty' | 'class' | 'table' | 'arrived'
+
+const FLAT_COLS: Record<ColKey, { x: number; w: number }> = {
   num: { x: 0, w: 28 },
   guest: { x: 28, w: 188 },
   qty: { x: 216, w: 36 },
   class: { x: 252, w: 118 },
   table: { x: 370, w: 92 },
   arrived: { x: 462, w: 61 },
+}
+
+/** Class is the page title, so the name column can take that width. */
+const CLASS_COLS: Record<ColKey, { x: number; w: number }> = {
+  num: { x: 0, w: 28 },
+  guest: { x: 28, w: 270 },
+  qty: { x: 298, w: 40 },
+  class: { x: 0, w: 0 },
+  table: { x: 338, w: 118 },
+  arrived: { x: 456, w: 67 },
 }
 
 function guestName(order: GuestOrder) {
@@ -97,11 +109,63 @@ export function buildGuestListRows(orders: GuestOrder[]): GuestListRow[] {
         purchasedAt: purchased && !Number.isNaN(purchased.getTime()) ? purchased.toISOString() : null,
       }
     })
+    .sort(compareGuestNames)
+}
+
+export type GuestListGroup = 'class' | 'name'
+
+export type GuestListSection = {
+  /** Ticket class. Empty when the list is one A–Z run. */
+  title: string
+  rows: GuestListRow[]
+}
+
+export function compareGuestNames(
+  a: Pick<GuestListRow, 'name' | 'email'>,
+  b: Pick<GuestListRow, 'name' | 'email'>,
+) {
+  const byName = a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })
+  if (byName) return byName
+  return a.email.localeCompare(b.email, 'en', { sensitivity: 'base' })
+}
+
+/**
+ * Door lists are read inside one ticket class. `class` keeps each class together
+ * and A–Z inside it, following the show's class order. Names the show no longer
+ * sells land after those, still A–Z. `name` is one list across every class.
+ */
+export function guestListSections(
+  rows: GuestListRow[],
+  group: GuestListGroup = 'name',
+  classOrder: string[] = [],
+): GuestListSection[] {
+  const sorted = [...rows].sort(compareGuestNames)
+  if (group !== 'class') return [{ title: '', rows: sorted }]
+
+  const buckets = new Map<string, GuestListRow[]>()
+  for (const row of sorted) {
+    const title = row.tierName.trim() || 'General Admission'
+    const list = buckets.get(title)
+    if (list) list.push(row)
+    else buckets.set(title, [row])
+  }
+
+  const rank = new Map<string, number>()
+  classOrder.forEach((name, index) => {
+    const key = name.trim().toLowerCase()
+    if (key && !rank.has(key)) rank.set(key, index)
+  })
+
+  return [...buckets.keys()]
     .sort((a, b) => {
-      const byName = a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })
-      if (byName) return byName
-      return a.email.localeCompare(b.email)
+      const ai = rank.get(a.toLowerCase())
+      const bi = rank.get(b.toLowerCase())
+      if (ai !== undefined && bi !== undefined && ai !== bi) return ai - bi
+      if (ai !== undefined && bi === undefined) return -1
+      if (bi !== undefined && ai === undefined) return 1
+      return a.localeCompare(b, 'en', { sensitivity: 'base' })
     })
+    .map((title) => ({ title, rows: buckets.get(title) || [] }))
 }
 
 const WIN_ANSI_PUNCTUATION: Record<string, string> = {
@@ -171,15 +235,37 @@ function filenameFor(show: GuestListShowInfo, note?: string) {
   return `guest-list-${city}-${date}${extra}.pdf`
 }
 
+function countLabel(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+function sectionSummary(list: GuestListRow[]) {
+  const tickets = list.reduce((sum, row) => sum + row.quantity, 0)
+  const comps = list.filter((row) => row.source === 'comp').length
+  return [
+    countLabel(list.length, 'guest'),
+    countLabel(tickets, 'ticket'),
+    comps ? `${comps} complimentary` : '',
+    'A-Z',
+  ]
+    .filter(Boolean)
+    .join('  ·  ')
+}
+
 export async function generateGuestListPdf(
   show: GuestListShowInfo,
   rows: GuestListRow[],
   filenameNote?: string,
+  options?: { group?: GuestListGroup; classOrder?: string[] },
 ): Promise<{ bytes: Uint8Array; filename: string }> {
   const doc = await PDFDocument.create()
   const bold = await doc.embedFont(StandardFonts.HelveticaBold)
   const regular = await doc.embedFont(StandardFonts.Helvetica)
 
+  const grouped = options?.group === 'class'
+  const cols = grouped ? CLASS_COLS : FLAT_COLS
+  const sections = guestListSections(rows, grouped ? 'class' : 'name', options?.classOrder)
+  const blocks = sections.length ? sections : [{ title: '', rows: [] }]
   const contentWidth = PAGE.width - MARGIN.left - MARGIN.right
   const tickets = rows.reduce((sum, row) => sum + row.quantity, 0)
   const comps = rows.filter((row) => row.source === 'comp').length
@@ -196,11 +282,15 @@ export async function generateGuestListPdf(
   let pageIndex = 0
   let page: PDFPage | null = null
   let y = 0
+  let pageSection: GuestListSection = blocks[0]!
 
-  function drawFooter(target: PDFPage, index: number) {
+  function drawFooter(target: PDFPage, index: number, section: GuestListSection) {
+    const summary = grouped && section.title
+      ? `Printed ${generated}  ·  ${section.title}`
+      : `Printed ${generated}  ·  ${countLabel(rows.length, 'guest')}  ·  ${countLabel(tickets, 'ticket')}`
     drawText(
       target,
-      `Printed ${generated}  ·  ${rows.length} guest${rows.length === 1 ? '' : 's'}  ·  ${tickets} ticket${tickets === 1 ? '' : 's'}`,
+      clamp(summary, regular, 8, contentWidth - 70),
       MARGIN.left,
       22,
       regular,
@@ -221,7 +311,7 @@ export async function generateGuestListPdf(
       color: HEADER_BG,
     })
     const textY = top - 10
-    const headers: [keyof typeof COLS, string][] = [
+    const headers: [ColKey, string][] = [
       ['num', '#'],
       ['guest', 'Guest'],
       ['qty', 'Qty'],
@@ -230,54 +320,67 @@ export async function generateGuestListPdf(
       ['arrived', 'Arrived'],
     ]
     for (const [key, label] of headers) {
-      drawText(target, label, MARGIN.left + COLS[key].x + 4, textY, bold, 8, HEADER_FG)
+      if (!cols[key].w) continue
+      drawText(target, label, MARGIN.left + cols[key].x + 4, textY, bold, 8, HEADER_FG)
     }
     return top - headerHeight - 4
   }
 
-  function startPage() {
-    if (page) drawFooter(page, pageIndex)
-    page = doc.addPage([PAGE.width, PAGE.height])
-    pageIndex += 1
-    y = PAGE.height - MARGIN.top
-
-    drawText(page, 'KEVIN FRASER', MARGIN.left, y, bold, 11, INK)
+  function drawBrand() {
+    const target = page!
+    drawText(target, 'KEVIN FRASER', MARGIN.left, y, bold, 11, INK)
     const badge = 'GUEST LIST'
     const badgeW = bold.widthOfTextAtSize(badge, 9)
-    page.drawRectangle({
+    target.drawRectangle({
       x: PAGE.width - MARGIN.right - badgeW - 14,
       y: y - 4,
       width: badgeW + 14,
       height: 16,
       color: HEADER_BG,
     })
-    drawText(page, badge, PAGE.width - MARGIN.right - badgeW - 7, y, bold, 9, HEADER_FG)
+    drawText(target, badge, PAGE.width - MARGIN.right - badgeW - 7, y, bold, 9, HEADER_FG)
     y -= 22
+  }
 
-    drawText(page, `${show.city} · ${show.venue}`, MARGIN.left, y, bold, 16, INK)
+  function startPage(section: GuestListSection, continued: boolean) {
+    if (page) drawFooter(page, pageIndex, pageSection)
+    page = doc.addPage([PAGE.width, PAGE.height])
+    pageIndex += 1
+    pageSection = section
+    y = PAGE.height - MARGIN.top
+    drawBrand()
+
+    drawText(page, `${show.city} · ${show.venue}`, MARGIN.left, y, bold, grouped ? 14 : 16, INK)
     y -= 16
     const meta = [show.dateLabel, show.timeLabel, show.tour].filter(Boolean).join('  ·  ')
     if (meta) {
       drawText(page, meta, MARGIN.left, y, regular, 10, MUTED)
       y -= 14
     }
-    const summary = [
-      `${rows.length} guest${rows.length === 1 ? '' : 's'}`,
-      `${tickets} ticket${tickets === 1 ? '' : 's'}`,
-      comps ? `${comps} complimentary` : '',
-    ]
-      .filter(Boolean)
-      .join('  ·  ')
-    drawText(page, summary, MARGIN.left, y, regular, 9, MUTED)
-    y -= 18
+
+    if (!grouped) {
+      const summary = [
+        countLabel(rows.length, 'guest'),
+        countLabel(tickets, 'ticket'),
+        comps ? `${comps} complimentary` : '',
+      ]
+        .filter(Boolean)
+        .join('  ·  ')
+      drawText(page, summary, MARGIN.left, y, regular, 9, MUTED)
+      y -= 18
+    } else if (section.title) {
+      y -= 4
+      const heading = continued ? `${section.title}  ·  continued` : section.title
+      drawText(page, clamp(heading, bold, 15, contentWidth), MARGIN.left, y, bold, 15, INK)
+      y -= 16
+      drawText(page, sectionSummary(section.rows), MARGIN.left, y, regular, 9, MUTED)
+      y -= 16
+    }
+
     y = drawColHeaders(page, y)
   }
 
-  startPage()
-
-  rows.forEach((row, index) => {
-    if (!page) startPage()
-    if (y - rowHeight < MARGIN.bottom + 8) startPage()
+  function drawGuest(row: GuestListRow, index: number) {
     const target = page!
     const rowBottom = y - rowHeight
 
@@ -299,30 +402,33 @@ export async function generateGuestListPdf(
 
     const mid = rowBottom + 10
     const nameY = row.email && row.name !== row.email ? rowBottom + 14 : mid
-    drawText(target, String(index + 1), MARGIN.left + COLS.num.x + 4, mid, regular, 9, MUTED)
+    drawText(target, String(index + 1), MARGIN.left + cols.num.x + 4, mid, regular, 9, MUTED)
 
-    const name = clamp(row.name, regular, 9, COLS.guest.w - 10)
-    drawText(target, name, MARGIN.left + COLS.guest.x + 4, nameY, bold, 9, INK)
+    const comp = row.source === 'comp' ? ' (comp)' : ''
+    const name = clamp(row.name + (grouped ? comp : ''), bold, 9, cols.guest.w - 10)
+    drawText(target, name, MARGIN.left + cols.guest.x + 4, nameY, bold, 9, INK)
     if (row.email && row.name !== row.email) {
-      const email = clamp(row.email, regular, 7, COLS.guest.w - 10)
-      drawText(target, email, MARGIN.left + COLS.guest.x + 4, rowBottom + 5, regular, 7, MUTED)
+      const email = clamp(row.email, regular, 7, cols.guest.w - 10)
+      drawText(target, email, MARGIN.left + cols.guest.x + 4, rowBottom + 5, regular, 7, MUTED)
     }
 
-    drawText(target, String(row.quantity), MARGIN.left + COLS.qty.x + 4, mid, regular, 9, INK)
-    drawText(
-      target,
-      clamp(row.tierName + (row.source === 'comp' ? ' (comp)' : ''), regular, 8, COLS.class.w - 8),
-      MARGIN.left + COLS.class.x + 4,
-      mid,
-      regular,
-      8,
-      INK,
-    )
+    drawText(target, String(row.quantity), MARGIN.left + cols.qty.x + 4, mid, regular, 9, INK)
+    if (cols.class.w) {
+      drawText(
+        target,
+        clamp(row.tierName + comp, regular, 8, cols.class.w - 8),
+        MARGIN.left + cols.class.x + 4,
+        mid,
+        regular,
+        8,
+        INK,
+      )
+    }
     if (row.tableLabel) {
       drawText(
         target,
-        clamp(row.tableLabel, regular, 8, COLS.table.w - 8),
-        MARGIN.left + COLS.table.x + 4,
+        clamp(row.tableLabel, regular, 8, cols.table.w - 8),
+        MARGIN.left + cols.table.x + 4,
         mid,
         regular,
         8,
@@ -331,7 +437,7 @@ export async function generateGuestListPdf(
     }
 
     const box = 9
-    const boxX = MARGIN.left + COLS.arrived.x + 6
+    const boxX = MARGIN.left + cols.arrived.x + 6
     const boxY = mid - 1
     target.drawRectangle({
       x: boxX,
@@ -349,13 +455,26 @@ export async function generateGuestListPdf(
     }
 
     y = rowBottom
-  })
-
-  if (!rows.length && page) {
-    drawText(page, 'No guests on this list.', MARGIN.left, y - 12, regular, 11, MUTED)
   }
 
-  if (page) drawFooter(page, pageIndex)
+  for (const section of blocks) {
+    let continued = false
+    const openPage = () => {
+      startPage(section, continued)
+      continued = true
+    }
+    openPage()
+    if (!section.rows.length && page) {
+      drawText(page, 'No guests on this list.', MARGIN.left, y - 12, regular, 11, MUTED)
+      continue
+    }
+    section.rows.forEach((row, index) => {
+      if (y - rowHeight < MARGIN.bottom + 8) openPage()
+      drawGuest(row, index)
+    })
+  }
+
+  if (page) drawFooter(page, pageIndex, pageSection)
 
   const bytes = await doc.save()
   return { bytes, filename: filenameFor(show, filenameNote) }

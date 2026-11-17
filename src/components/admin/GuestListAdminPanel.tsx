@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ClipboardList, Download, RefreshCw, Search } from 'lucide-react'
+import { ChevronDown, ClipboardList, Download, Printer, RefreshCw, Search } from 'lucide-react'
 import { formatShowDate } from '@/lib/format'
 import { parseWallParts } from '@/lib/wallDate'
 import type { PublicShow } from '@/lib/serialize'
@@ -23,6 +23,13 @@ type GuestShow = {
   tour: string
   dateLabel: string
   timeLabel: string
+}
+
+type GuestSection = {
+  name: string
+  guests: number
+  tickets: number
+  comps: number
 }
 
 function showOptionLabel(show: PublicShow) {
@@ -64,6 +71,8 @@ export default function GuestListAdminPanel({
   const [purchasedFrom, setPurchasedFrom] = useState('')
   const [purchasedTo, setPurchasedTo] = useState('')
   const [source, setSource] = useState<'all' | 'paid' | 'comp'>('all')
+  const [group, setGroup] = useState<'class' | 'name'>('class')
+  const [sections, setSections] = useState<GuestSection[]>([])
   const [guestQuery, setGuestQuery] = useState('')
   const [debouncedGuestQuery, setDebouncedGuestQuery] = useState('')
   const [includePast, setIncludePast] = useState(true)
@@ -116,6 +125,7 @@ export default function GuestListAdminPanel({
     if (!id) {
       setShow(null)
       setGuests([])
+      setSections([])
       setTotals({ guests: 0, tickets: 0, comps: 0, allGuests: 0 })
       return
     }
@@ -128,11 +138,13 @@ export default function GuestListAdminPanel({
       if (!res.ok) throw new Error(data.error || 'Failed to load guest list')
       setShow(data.show || null)
       setGuests(data.guests || [])
+      setSections(data.sections || [])
       setTotals(data.totals || { guests: 0, tickets: 0, comps: 0, allGuests: 0 })
     } catch (err) {
       if (requestId !== listRequest.current) return
       onError(err instanceof Error ? err.message : 'Failed to load guest list')
       setGuests([])
+      setSections([])
     } finally {
       if (requestId === listRequest.current) setLoadingList(false)
     }
@@ -153,10 +165,11 @@ export default function GuestListAdminPanel({
     else {
       setShow(null)
       setGuests([])
+      setSections([])
       setTotals({ guests: 0, tickets: 0, comps: 0, allGuests: 0 })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showId, purchasedFrom, purchasedTo, source, debouncedGuestQuery])
+  }, [showId, purchasedFrom, purchasedTo, source, debouncedGuestQuery, group])
 
   function listParams(id: string) {
     const params = new URLSearchParams({ showId: id })
@@ -164,12 +177,46 @@ export default function GuestListAdminPanel({
     if (purchasedTo) params.set('to', purchasedTo)
     if (source !== 'all') params.set('source', source)
     if (debouncedGuestQuery) params.set('q', debouncedGuestQuery)
+    params.set('group', group)
     return params.toString()
   }
 
   function filtersActive() {
     return Boolean(purchasedFrom || purchasedTo || source !== 'all' || debouncedGuestQuery)
   }
+
+  const listBlocks = useMemo(() => {
+    if (!sections.length) {
+      return guests.map((guest, index) => ({
+        kind: 'guest' as const,
+        key: `${guest.orderId || guest.email}-${guest.tierName}-${index}`,
+        guest,
+        number: index + 1,
+      }))
+    }
+    const blocks: Array<
+      | { kind: 'section'; key: string; section: GuestSection }
+      | { kind: 'guest'; key: string; guest: GuestListRow; number: number }
+    > = []
+    let cursor = 0
+    sections.forEach((section, sectionIndex) => {
+      blocks.push({
+        kind: 'section',
+        key: `section-${sectionIndex}-${section.name}`,
+        section,
+      })
+      guests.slice(cursor, cursor + section.guests).forEach((guest, index) => {
+        blocks.push({
+          kind: 'guest',
+          key: `${section.name}-${guest.orderId || guest.email}-${index}`,
+          guest,
+          number: index + 1,
+        })
+      })
+      cursor += section.guests
+    })
+    return blocks
+  }, [guests, sections])
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -237,10 +284,11 @@ export default function GuestListAdminPanel({
         <div>
           <h2 className="text-2xl font-bold text-white">Guest List</h2>
           <p className="mt-1 max-w-xl text-sm text-white/40">
-            Pick a show, filter who bought and when, then export that list. Removing a show
-            takes it off the public site and keeps the guest list here. Tick Include past and
-            removed shows to open those nights. Purchase dates use the first sale, so an upgrade later still
-            counts as the original purchase.
+            Pick a show, then print or export that list. By class, names run A–Z inside each
+            ticket class and each class starts on a new page. The spreadsheet is grouped the
+            same way, class first. Removing a show takes it off the public site and keeps the
+            guest list here. Tick Include past and removed shows to open those nights. Purchase
+            dates use the first sale, so an upgrade later still counts as the original purchase.
           </p>
         </div>
         <button
@@ -330,7 +378,21 @@ export default function GuestListAdminPanel({
               </div>
             ) : null}
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="w-full sm:w-56">
+              <label className={labelClass} htmlFor="guest-order">
+                Print order
+              </label>
+              <select
+                id="guest-order"
+                className={inputClass}
+                value={group}
+                onChange={(e) => setGroup(e.target.value as 'class' | 'name')}
+              >
+                <option value="class">A–Z within each class</option>
+                <option value="name">One A–Z list</option>
+              </select>
+            </div>
             <button
               type="button"
               className={btnSecondary}
@@ -346,8 +408,8 @@ export default function GuestListAdminPanel({
               disabled={!showId || downloading || exportingCsv || loadingList}
               onClick={() => void downloadFile('pdf')}
             >
-              <Download className="mr-1.5 inline h-4 w-4" />
-              {downloading ? 'Preparing…' : 'Download PDF'}
+              <Printer className="mr-1.5 inline h-4 w-4" />
+              {downloading ? 'Preparing…' : 'Print list'}
             </button>
           </div>
         </div>
@@ -407,6 +469,9 @@ export default function GuestListAdminPanel({
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-white/40">
+            {group === 'class'
+              ? 'Each class prints on its own pages, alphabetical by name. The spreadsheet keeps that order, with the class in the first column.'
+              : 'One alphabetical list across every class, in the preview, the PDF, and the spreadsheet.'}{' '}
             Purchased through includes that whole day, Sydney time. For a date change, set it to the
             last day tickets were sold for the old date.
           </p>
@@ -502,45 +567,66 @@ export default function GuestListAdminPanel({
                 </td>
               </tr>
             ) : (
-              guests.map((guest, index) => (
-                <tr key={`${guest.email}-${guest.tierName}-${index}`}>
-                  <td className="px-5 py-3 text-sm text-white/40">{index + 1}</td>
-                  <td className="px-5 py-3">
-                    <p className="text-sm font-medium text-white">{guest.name}</p>
-                    {guest.email && guest.email !== guest.name ? (
-                      <p className="mt-0.5 text-xs text-white/40">{guest.email}</p>
-                    ) : null}
-                    {guest.source === 'comp' ? (
-                      <p className="mt-0.5 text-[11px] uppercase tracking-wide text-amber-400/80">
-                        Comp
-                      </p>
-                    ) : null}
-                  </td>
-                  <td className="px-5 py-3 text-sm tabular-nums text-white/80">{guest.quantity}</td>
-                  <td className="hidden px-5 py-3 text-sm text-white/70 sm:table-cell">
-                    {guest.tierName}
-                  </td>
-                  <td className="hidden px-5 py-3 text-sm text-white/60 lg:table-cell">
-                    {guest.purchasedAt
-                      ? new Date(guest.purchasedAt).toLocaleString('en-AU', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })
-                      : '—'}
-                  </td>
-                  <td className="hidden px-5 py-3 text-sm text-white/70 md:table-cell">
-                    {guest.tableLabel || '—'}
-                  </td>
-                  <td className="hidden px-5 py-3 text-sm text-white/50 sm:table-cell">
-                    {guest.checkedIn >= guest.quantity
-                      ? 'In'
-                      : guest.checkedIn > 0
-                        ? `${guest.checkedIn} of ${guest.quantity}`
+              listBlocks.map((block) =>
+                block.kind === 'section' ? (
+                  <tr key={block.key}>
+                    <td colSpan={7} className="bg-white/[0.04] px-5 py-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+                        <p className="text-sm font-semibold text-white">{block.section.name}</p>
+                        <p className="text-xs text-white/45">
+                          {block.section.guests} guest{block.section.guests === 1 ? '' : 's'}
+                          {' · '}
+                          {block.section.tickets} ticket{block.section.tickets === 1 ? '' : 's'}
+                          {block.section.comps
+                            ? ` · ${block.section.comps} complimentary`
+                            : ''}
+                          {' · A–Z'}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={block.key}>
+                    <td className="px-5 py-3 text-sm text-white/40">{block.number}</td>
+                    <td className="px-5 py-3">
+                      <p className="text-sm font-medium text-white">{block.guest.name}</p>
+                      {block.guest.email && block.guest.email !== block.guest.name ? (
+                        <p className="mt-0.5 text-xs text-white/40">{block.guest.email}</p>
+                      ) : null}
+                      {block.guest.source === 'comp' ? (
+                        <p className="mt-0.5 text-[11px] uppercase tracking-wide text-amber-400/80">
+                          Comp
+                        </p>
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-3 text-sm tabular-nums text-white/80">
+                      {block.guest.quantity}
+                    </td>
+                    <td className="hidden px-5 py-3 text-sm text-white/70 sm:table-cell">
+                      {block.guest.tierName}
+                    </td>
+                    <td className="hidden px-5 py-3 text-sm text-white/60 lg:table-cell">
+                      {block.guest.purchasedAt
+                        ? new Date(block.guest.purchasedAt).toLocaleString('en-AU', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
                         : '—'}
-                  </td>
-                </tr>
-              ))
+                    </td>
+                    <td className="hidden px-5 py-3 text-sm text-white/70 md:table-cell">
+                      {block.guest.tableLabel || '—'}
+                    </td>
+                    <td className="hidden px-5 py-3 text-sm text-white/50 sm:table-cell">
+                      {block.guest.checkedIn >= block.guest.quantity
+                        ? 'In'
+                        : block.guest.checkedIn > 0
+                          ? `${block.guest.checkedIn} of ${block.guest.quantity}`
+                          : '—'}
+                    </td>
+                  </tr>
+                ),
+              )
             )}
           </tbody>
         </table>

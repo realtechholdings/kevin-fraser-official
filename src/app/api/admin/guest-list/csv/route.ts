@@ -31,7 +31,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 
-    const csv = guestListCsv(data.show, data.rows)
+    const csv = guestListCsv(data.show, data.rows, {
+      group: query.group,
+      classOrder: data.classOrder,
+    })
     const note = guestListFilterNote(query)
     const filename = note ? csv.filename.replace(/\.csv$/, `-${slugify(note)}.csv`) : csv.filename
     return attachmentResponse(csv.body, 'text/csv; charset=utf-8', filename)

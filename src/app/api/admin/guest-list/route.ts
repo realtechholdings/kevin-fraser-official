@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
       success: true,
       show: data.show,
       guests: data.rows,
+      sections: data.sections,
       totals: {
         guests: data.rows.length,
         tickets,
