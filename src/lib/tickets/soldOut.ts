@@ -19,6 +19,23 @@ export function venueSeatRemaining(show: VenueShow): number | null {
   return Math.max(0, cap - (Number(show.ticketsSold) || 0))
 }
 
+/**
+ * A manual sold-out flag blocks a class even when seats remain.
+ * Releasing seats (a refund) puts that class back on sale once the
+ * count sits under its allocation. A class still filling its allocation
+ * stays closed. Unlimited classes (capacity 0) reopen on any release.
+ */
+export function soldOutClearsWhenSeatsReturn(row: {
+  soldOut?: boolean
+  capacity?: number
+  ticketsSold?: number
+}): boolean {
+  if (!row.soldOut) return false
+  const cap = Number(row.capacity) || 0
+  if (cap <= 0) return true
+  return (Number(row.ticketsSold) || 0) < cap
+}
+
 export function offeringSeats(
   tier: Pick<PublicTicketTier, 'kind' | 'seats'> | null | undefined,
 ): number {

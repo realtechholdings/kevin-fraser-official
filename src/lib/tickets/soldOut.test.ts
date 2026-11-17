@@ -7,6 +7,7 @@ import {
   isTierSoldOut,
   offersWaitlist,
   remainingOfferingUnits,
+  soldOutClearsWhenSeatsReturn,
   unsoldTableSeats,
   venueCanTake,
   venueSeatRemaining,
@@ -113,6 +114,55 @@ test('Johannesburg-style sold_out with leftover ticket classes stays sold out', 
   assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers), false)
   assert.equal(isTierSoldOut(leftoverFloppy, venue, tiers, 'sold_out'), true)
   assert.equal(isTierSoldOut(soldNokia, venue, tiers, 'sold_out'), true)
+})
+
+test('a refunded class with seats left drops its manual sold-out flag', () => {
+  const show = { status: 'sold_out', capacity: 1007, ticketsSold: 986 }
+  const floppy = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 158,
+    ticketsSold: 137,
+    soldOut: true,
+    seats: 1,
+  }
+  const polaroid = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 396,
+    ticketsSold: 395,
+    soldOut: true,
+    seats: 1,
+  }
+  const nokia = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 392,
+    ticketsSold: 392,
+    soldOut: false,
+    seats: 1,
+  }
+  const cassette = {
+    published: true,
+    kind: 'ticket' as const,
+    capacity: 61,
+    ticketsSold: 61,
+    soldOut: false,
+    seats: 1,
+  }
+  const closed = [floppy, polaroid, nokia, cassette]
+  const venue = venueSeatRemaining(show)
+  assert.equal(venue, 21)
+  assert.equal(areAllTiersSoldOut(closed, venue), true)
+  assert.equal(soldOutClearsWhenSeatsReturn(floppy), true)
+  assert.equal(soldOutClearsWhenSeatsReturn(polaroid), true)
+  assert.equal(soldOutClearsWhenSeatsReturn(nokia), false)
+  assert.equal(soldOutClearsWhenSeatsReturn({ ...floppy, ticketsSold: 158 }), false)
+
+  const reopened = [{ ...floppy, soldOut: false }, polaroid, nokia, cassette]
+  assert.equal(areAllTiersSoldOut(reopened, venue), false)
+  assert.equal(isTierSoldOut(reopened[0], venue, reopened, 'on_sale'), false)
+  assert.equal(isTierSoldOut(polaroid, venue, reopened, 'on_sale'), true)
 })
 
 test('a sold-out show offers a waitlist until an admin switches it off', () => {

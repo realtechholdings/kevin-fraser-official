@@ -7,6 +7,7 @@ import {
   maybeMarkShowSoldOut,
   maybeReopenSoldOutShow,
 } from '@/lib/tickets/maybeMarkShowSoldOut'
+import { soldOutClearsWhenSeatsReturn } from '@/lib/tickets/soldOut'
 import { nextTableNames } from '@/lib/tickets/tables'
 
 type InventoryOrder = Pick<
@@ -68,15 +69,36 @@ export async function releasePaidInventory(
   if (qty) {
     await Show.findByIdAndUpdate(order.show, { $inc: { ticketsSold: -qty } })
     if (order.tier) {
-      await TicketTier.findByIdAndUpdate(order.tier, { $inc: { ticketsSold: -qty } })
+      const tier = await TicketTier.findByIdAndUpdate(
+        order.tier,
+        { $inc: { ticketsSold: -qty } },
+        { new: true },
+      )
+      if (tier && soldOutClearsWhenSeatsReturn(tier)) {
+        tier.soldOut = false
+        await tier.save()
+      }
     }
   }
 
   const tableQty = Math.abs(Number(order.tableQuantity) || 0)
   if (opts?.quantity == null && order.table && tableQty > 0) {
-    await TicketTable.findByIdAndUpdate(order.table, {
-      $inc: { tablesSold: -tableQty },
-    })
+    const table = await TicketTable.findByIdAndUpdate(
+      order.table,
+      { $inc: { tablesSold: -tableQty } },
+      { new: true },
+    )
+    if (
+      table &&
+      soldOutClearsWhenSeatsReturn({
+        soldOut: table.soldOut,
+        capacity: table.capacity,
+        ticketsSold: table.tablesSold,
+      })
+    ) {
+      table.soldOut = false
+      await table.save()
+    }
   }
 
   await maybeReopenSoldOutShow(String(order.show))
