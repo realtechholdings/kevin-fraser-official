@@ -71,7 +71,7 @@ function parseBound(value: string | null, endOfDay: boolean) {
 }
 
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin('sales')
+  const admin = await requireAdmin(['sales', 'refunds'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

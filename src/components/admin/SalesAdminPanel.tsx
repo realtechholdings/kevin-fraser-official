@@ -310,11 +310,13 @@ export default function SalesAdminPanel({
   onError,
   canManageTickets,
   canRefund,
+  canExport,
 }: {
   onMessage: (msg: string) => void
   onError: (msg: string) => void
   canManageTickets: boolean
   canRefund: boolean
+  canExport: boolean
 }) {
   const audRates = useAudRates()
   const [orders, setOrders] = useState<AdminOrder[]>([])
@@ -722,24 +724,26 @@ export default function SalesAdminPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {(
-            [
-              ['sales', 'Export sales'],
-              ['comps', 'Export comps'],
-              ['refunds', 'Export refunds'],
-            ] as const
-          ).map(([kind, label]) => (
-            <button
-              key={kind}
-              type="button"
-              className={btnSecondary}
-              disabled={loading}
-              onClick={() => void exportFile(kind)}
-            >
-              <Download className="mr-1.5 inline h-4 w-4" />
-              {label}
-            </button>
-          ))}
+          {canExport
+            ? (
+                [
+                  ['sales', 'Export sales'],
+                  ['comps', 'Export comps'],
+                  ['refunds', 'Export refunds'],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className={btnSecondary}
+                  disabled={loading}
+                  onClick={() => void exportFile(kind)}
+                >
+                  <Download className="mr-1.5 inline h-4 w-4" />
+                  {label}
+                </button>
+              ))
+            : null}
           <button type="button" disabled={loading} className={btnGhost} onClick={() => void load()}>
             <RefreshCw className="mr-1.5 inline h-4 w-4" />
             Refresh

@@ -8,7 +8,7 @@ import { parseWallDate } from '@/lib/wallDate'
 import { SCAN_PRACTICE_TOUR_SLUG } from '@/lib/tickets/scanPractice'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['tours', 'shows', 'tiers'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

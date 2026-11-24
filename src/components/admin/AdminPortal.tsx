@@ -22,7 +22,7 @@ import {
   hexToRgba,
   type ThemeSettings,
 } from '@/lib/settings/defaults'
-import AdminSidebar, { tabAllowed, type AdminTab } from '@/components/admin/AdminSidebar'
+import AdminSidebar, { firstAllowedTab, tabAllowed, type AdminTab } from '@/components/admin/AdminSidebar'
 import type { AdminPermission } from '@/lib/admin/access'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
@@ -466,10 +466,11 @@ export default function AdminPortal({
   const [shows, setShows] = useState<PublicShow[]>([])
   const [tiers, setTiers] = useState<PublicTicketTier[]>([])
   const [tables, setTables] = useState<PublicTicketTable[]>([])
-  const [loading, setLoading] = useState(true)
+  const canManageCatalog = permissions.includes('tours') || permissions.includes('shows')
+  const [loading, setLoading] = useState(canManageCatalog)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [tab, setTab] = useState<Tab>('overview')
+  const [tab, setTab] = useState<Tab>(() => firstAllowedTab(permissions) ?? 'overview')
   const [tourForm, setTourForm] = useState<TourForm>(emptyTour)
   const [editingTourId, setEditingTourId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState<ShowForm>(emptyShow())
@@ -495,7 +496,10 @@ export default function AdminPortal({
   }
 
   useEffect(() => {
-    if (!tabAllowed(tab, permissions)) setTab('overview')
+    if (!tabAllowed(tab, permissions)) {
+      const next = firstAllowedTab(permissions)
+      if (next) setTab(next)
+    }
   }, [tab, permissions])
 
   useEffect(() => {
@@ -549,21 +553,23 @@ export default function AdminPortal({
   async function load() {
     setLoading(true)
     setError('')
+    const needsTiers = permissions.includes('shows') || permissions.includes('tiers')
+    const needsTables = permissions.includes('shows')
     try {
       const [tRes, sRes, tierRes, tableRes] = await Promise.all([
         fetch('/api/admin/tours'),
         fetch('/api/admin/shows'),
-        fetch('/api/admin/tiers'),
-        fetch('/api/admin/tables'),
+        needsTiers ? fetch('/api/admin/tiers') : Promise.resolve(null),
+        needsTables ? fetch('/api/admin/tables') : Promise.resolve(null),
       ])
       const tData = await tRes.json()
       const sData = await sRes.json()
-      const tierData = await tierRes.json()
-      const tableData = await tableRes.json()
+      const tierData = tierRes ? await tierRes.json() : { tiers: [] }
+      const tableData = tableRes ? await tableRes.json() : { tables: [] }
       if (!tRes.ok) throw new Error(tData.error || 'Failed to load tours')
       if (!sRes.ok) throw new Error(sData.error || 'Failed to load shows')
-      if (!tierRes.ok) throw new Error(tierData.error || 'Failed to load tiers')
-      if (!tableRes.ok) throw new Error(tableData.error || 'Failed to load tables')
+      if (tierRes && !tierRes.ok) throw new Error(tierData.error || 'Failed to load tiers')
+      if (tableRes && !tableRes.ok) throw new Error(tableData.error || 'Failed to load tables')
       setTours(tData.tours)
       setShows(sData.shows)
       setTiers(tierData.tiers || [])
@@ -579,9 +585,10 @@ export default function AdminPortal({
   }
 
   useEffect(() => {
-    load()
+    if (!canManageCatalog) return
+    void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [canManageCatalog])
 
   const tourOptions = useMemo(
     () => tours.map((t) => ({ id: t.id, label: t.title })),
@@ -1265,6 +1272,10 @@ export default function AdminPortal({
             ))}
           </div>
 
+          {firstAllowedTab(permissions) === null ? (
+            <p className="text-sm text-white/50">This role does not include any admin sections.</p>
+          ) : null}
+
           {error ? (
             <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               {error}
@@ -1276,7 +1287,7 @@ export default function AdminPortal({
             </div>
           ) : null}
 
-          {tab === 'overview' ? (
+          {tab === 'overview' && tabAllowed('overview', permissions) ? (
             <div className="space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -2827,6 +2838,7 @@ export default function AdminPortal({
             <SalesAdminPanel
               canManageTickets={permissions.includes('tickets')}
               canRefund={permissions.includes('refunds')}
+              canExport={permissions.includes('sales')}
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

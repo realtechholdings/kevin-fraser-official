@@ -5,7 +5,7 @@ import TicketTable from '@/lib/models/TicketTable'
 import { serializeTicketTable } from '@/lib/tickets/tables'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['shows', 'tiers'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

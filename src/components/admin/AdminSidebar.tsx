@@ -117,12 +117,40 @@ export const ADMIN_TAB_PERMISSION: Partial<Record<AdminTab, AdminPermission>> = 
   theme: 'site',
   ai: 'site',
   users: 'users',
+  support: 'site',
 }
 
+const TAB_ORDER: AdminTab[] = [
+  'overview',
+  'tours',
+  'shows',
+  'sales',
+  'guestlist',
+  'cms',
+  'tiers',
+  'tickets',
+  'scanner',
+  'bonus',
+  'studio',
+  'kevin11',
+  'connect',
+  'legal',
+  'theme',
+  'ai',
+  'users',
+  'support',
+]
+
 export function tabAllowed(tab: AdminTab, permissions: readonly AdminPermission[]) {
+  if (tab === 'overview') return permissions.includes('tours') || permissions.includes('shows')
+  if (tab === 'sales') return permissions.includes('sales') || permissions.includes('refunds')
   const required = ADMIN_TAB_PERMISSION[tab]
-  if (!required) return true
+  if (!required) return false
   return permissions.includes(required)
+}
+
+export function firstAllowedTab(permissions: readonly AdminPermission[]): AdminTab | null {
+  return TAB_ORDER.find((tab) => tabAllowed(tab, permissions)) ?? null
 }
 
 function NavButton({

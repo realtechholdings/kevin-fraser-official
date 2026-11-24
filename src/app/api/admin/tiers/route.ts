@@ -7,7 +7,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeTicketTier } from '@/lib/serialize'
 
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['tiers', 'shows'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

@@ -112,9 +112,14 @@ export default function UsersAdminPanel({
   const [query, setQuery] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('operations')
+  const [addMode, setAddMode] = useState<'create' | 'invite'>('create')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [inviting, setInviting] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editRole, setEditRole] = useState('none')
+  const [editPassword, setEditPassword] = useState('')
+  const [editPasswordConfirm, setEditPasswordConfirm] = useState('')
   const [saving, setSaving] = useState(false)
   const [roleEditor, setRoleEditor] = useState<'new' | string | null>(null)
   const [roleName, setRoleName] = useState('')
@@ -168,6 +173,8 @@ export default function UsersAdminPanel({
   function selectUser(user: StaffUser) {
     setSelectedId(user.id)
     setEditRole(user.role)
+    setEditPassword('')
+    setEditPasswordConfirm('')
   }
 
   function openNewRole() {
@@ -237,26 +244,47 @@ export default function UsersAdminPanel({
 
   async function invite(event: React.FormEvent) {
     event.preventDefault()
-    setInviting(true)
     onError('')
     onMessage('')
+    if (addMode === 'create') {
+      if (password.length < 8) {
+        onError('Password must be at least 8 characters.')
+        return
+      }
+      if (password !== confirmPassword) {
+        onError('Those passwords do not match.')
+        return
+      }
+    }
+    setInviting(true)
     try {
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify({
+          email: inviteEmail,
+          role: inviteRole,
+          ...(addMode === 'create' ? { password } : {}),
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Invite failed')
+      if (!res.ok) throw new Error(data.error || 'Could not add that user')
       setInviteEmail('')
+      setPassword('')
+      setConfirmPassword('')
+      const address = data.email || data.user?.email || 'That account'
       onMessage(
-        data.invited
-          ? `Invitation sent to ${data.email}.`
-          : `${data.user?.email || 'That account'} already exists — role updated.`,
+        data.created
+          ? `Created ${address}. They can sign in with the password you set.`
+          : data.passwordSet
+            ? `${address} already had an account — password and role updated.`
+            : data.invited
+              ? `Invitation sent to ${address}. Accept invitation opens a sign-up page, then admin.`
+              : `${address} already exists — role updated.`,
       )
       await load(query)
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Invite failed')
+      onError(error instanceof Error ? error.message : 'Could not add that user')
     } finally {
       setInviting(false)
     }
@@ -264,18 +292,38 @@ export default function UsersAdminPanel({
 
   async function saveUser() {
     if (!selected || selected.locked) return
-    setSaving(true)
     onError('')
     onMessage('')
+    if (editPassword || editPasswordConfirm) {
+      if (editPassword.length < 8) {
+        onError('Password must be at least 8 characters.')
+        return
+      }
+      if (editPassword !== editPasswordConfirm) {
+        onError('Those passwords do not match.')
+        return
+      }
+    }
+    setSaving(true)
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selected.id, role: editRole }),
+        body: JSON.stringify({
+          userId: selected.id,
+          role: editRole,
+          ...(editPassword ? { password: editPassword } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Update failed')
-      onMessage(`Updated ${selected.email}. They may need to refresh to see the change.`)
+      setEditPassword('')
+      setEditPasswordConfirm('')
+      onMessage(
+        data.passwordSet
+          ? `Updated ${selected.email} and set a new password. They may need to sign in again.`
+          : `Updated ${selected.email}. They may need to refresh to see the change.`,
+      )
       await load(query)
     } catch (error) {
       onError(error instanceof Error ? error.message : 'Update failed')
@@ -415,10 +463,29 @@ export default function UsersAdminPanel({
       </section>
 
       <section className="admin-card p-5 sm:p-6">
-        <h2 className="text-lg font-semibold text-white">Invite someone</h2>
+        <h2 className="text-lg font-semibold text-white">Add someone</h2>
         <p className="mt-1 max-w-2xl text-sm" style={{ color: 'var(--admin-muted)' }}>
-          They receive a sign-in invite and only see the parts of admin their role allows.
+          Create their account and choose the password they will sign in with, or email an invite
+          so they pick their own. Either way they only see the parts of admin their role allows.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={addMode === 'create' ? btnPrimary : btnSecondary}
+            aria-pressed={addMode === 'create'}
+            onClick={() => setAddMode('create')}
+          >
+            Set a password
+          </button>
+          <button
+            type="button"
+            className={addMode === 'invite' ? btnPrimary : btnSecondary}
+            aria-pressed={addMode === 'invite'}
+            onClick={() => setAddMode('invite')}
+          >
+            Email an invite
+          </button>
+        </div>
         <form onSubmit={(event) => void invite(event)} className="mt-5 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -430,6 +497,7 @@ export default function UsersAdminPanel({
                 className={inputClass}
                 type="email"
                 required
+                autoComplete="off"
                 value={inviteEmail}
                 onChange={(event) => setInviteEmail(event.target.value)}
                 placeholder="name@email.com"
@@ -452,14 +520,59 @@ export default function UsersAdminPanel({
                 ))}
               </select>
             </div>
+            {addMode === 'create' ? (
+              <>
+                <div>
+                  <label className={labelClass} htmlFor="invite-password">
+                    Password
+                  </label>
+                  <input
+                    id="invite-password"
+                    className={inputClass}
+                    type="password"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="invite-password-confirm">
+                    Confirm password
+                  </label>
+                  <input
+                    id="invite-password-confirm"
+                    className={inputClass}
+                    type="password"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                </div>
+              </>
+            ) : null}
           </div>
           {inviteDescription ? (
             <p className="text-xs" style={{ color: 'var(--admin-subtle)' }}>
               {inviteDescription}
             </p>
           ) : null}
+          {addMode === 'invite' ? (
+            <p className="text-xs" style={{ color: 'var(--admin-subtle)' }}>
+              Accept invitation opens the sign-up page so they can choose a password, then takes
+              them into admin. Older invites that jumped straight to admin will do the same now.
+            </p>
+          ) : (
+            <p className="text-xs" style={{ color: 'var(--admin-subtle)' }}>
+              They sign in at the admin sign-in page with this email and password. No invite email
+              is sent.
+            </p>
+          )}
           <button type="submit" className={btnPrimary} disabled={inviting || roles.length === 0}>
-            {inviting ? 'Sending…' : 'Send invite'}
+            {inviting ? 'Saving…' : addMode === 'create' ? 'Create account' : 'Send invite'}
           </button>
         </form>
       </section>
@@ -510,8 +623,37 @@ export default function UsersAdminPanel({
                   {assignedDescription}
                 </p>
               ) : null}
+              <div className="grid max-w-xl gap-4 sm:grid-cols-2">
+                <div>
+                  <label className={labelClass} htmlFor="edit-password">
+                    New password
+                  </label>
+                  <input
+                    id="edit-password"
+                    className={inputClass}
+                    type="password"
+                    autoComplete="new-password"
+                    value={editPassword}
+                    onChange={(event) => setEditPassword(event.target.value)}
+                    placeholder="Leave blank to keep the current one"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="edit-password-confirm">
+                    Confirm new password
+                  </label>
+                  <input
+                    id="edit-password-confirm"
+                    className={inputClass}
+                    type="password"
+                    autoComplete="new-password"
+                    value={editPasswordConfirm}
+                    onChange={(event) => setEditPasswordConfirm(event.target.value)}
+                  />
+                </div>
+              </div>
               <button type="button" className={btnPrimary} disabled={saving} onClick={() => void saveUser()}>
-                {saving ? 'Saving…' : 'Save role'}
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           )}

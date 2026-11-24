@@ -14,7 +14,7 @@ import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
 
 export async function GET() {
-  const admin = await requireAdmin()
+  const admin = await requireAdmin(['shows', 'tours', 'tiers', 'sales', 'tickets', 'guestlist', 'scanner'])
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
   }

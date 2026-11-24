@@ -4,6 +4,32 @@ import { accessFromUser, requireAdmin } from '@/lib/admin'
 import type { RoleGrant } from '@/lib/admin/access'
 import { loadRoleGrants } from '@/lib/admin/roles'
 
+function clerkMessage(error: unknown, fallback: string) {
+  if (error && typeof error === 'object' && 'errors' in error) {
+    const errors = (error as { errors?: { longMessage?: string; message?: string }[] }).errors
+    const first = errors?.[0]
+    if (first?.longMessage) return first.longMessage
+    if (first?.message) return first.message
+  }
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+function appOrigin(req: NextRequest) {
+  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim()
+  if (!host) return ''
+  const forwarded = (req.headers.get('x-forwarded-proto') || '').split(',')[0].trim()
+  const proto = forwarded || (host.startsWith('localhost') || host.startsWith('127.') ? 'http' : 'https')
+  return `${proto}://${host}`
+}
+
+function readPassword(value: unknown): { password: string } | { error: string } {
+  if (typeof value !== 'string' || !value) return { password: '' }
+  if (value.length < 8) return { error: 'Password must be at least 8 characters.' }
+  if (value.length > 128) return { error: 'Password must be 128 characters or fewer.' }
+  return { password: value }
+}
+
 async function assignmentFromBody(body: { role?: unknown }) {
   const role = String(body.role || '').trim()
   if (!role) return null
@@ -108,11 +134,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Choose a role.' }, { status: 400 })
     }
 
+    const passwordResult = readPassword(body.password)
+    if ('error' in passwordResult) {
+      return NextResponse.json({ success: false, error: passwordResult.error }, { status: 400 })
+    }
+    const password = passwordResult.password
+
     const client = await clerkClient()
+    const grants = await loadRoleGrants()
     const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 })
     const found = existing.data[0]
     if (found) {
-      const grants = await loadRoleGrants()
       const current = accessFromUser(
         found.emailAddresses.map((entry) => entry.emailAddress),
         found.publicMetadata,
@@ -124,17 +156,39 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
+      if (password) {
+        await client.users.updateUser(found.id, { password, signOutOfOtherSessions: true })
+      }
       const updated = await client.users.updateUserMetadata(found.id, { publicMetadata: assignment })
       return NextResponse.json({
         success: true,
         user: serializeUser(updated, grants),
         invited: false,
+        created: false,
+        passwordSet: Boolean(password),
       })
     }
 
-    const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(',')[0].trim()
-    const proto = (req.headers.get('x-forwarded-proto') || 'https').split(',')[0].trim()
-    const redirectUrl = host ? `${proto}://${host}/admin` : undefined
+    if (password) {
+      const created = await client.users.createUser({
+        emailAddress: [email],
+        password,
+        publicMetadata: assignment,
+        skipLegalChecks: true,
+      })
+      await revokePendingInvites(client, email)
+      return NextResponse.json({
+        success: true,
+        user: serializeUser(created, grants),
+        invited: false,
+        created: true,
+        passwordSet: true,
+        email,
+      })
+    }
+
+    const origin = appOrigin(req)
+    const redirectUrl = origin ? `${origin}/sign-up` : undefined
 
     await client.invitations.createInvitation({
       emailAddress: email,
@@ -144,11 +198,13 @@ export async function POST(req: NextRequest) {
       ...(redirectUrl ? { redirectUrl } : {}),
     })
 
-    return NextResponse.json({ success: true, invited: true, email })
+    return NextResponse.json({ success: true, invited: true, created: false, email })
   } catch (error) {
     console.error('Admin users POST:', error)
-    const message = error instanceof Error ? error.message : 'Failed to invite that user.'
-    return NextResponse.json({ success: false, error: message }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: clerkMessage(error, 'Failed to add that user.') },
+      { status: 500 },
+    )
   }
 }
 
@@ -170,6 +226,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Choose a role.' }, { status: 400 })
     }
 
+    const passwordResult = readPassword(body.password)
+    if ('error' in passwordResult) {
+      return NextResponse.json({ success: false, error: passwordResult.error }, { status: 400 })
+    }
+
     const client = await clerkClient()
     const grants = await loadRoleGrants()
     const currentUserRecord = await client.users.getUser(userId)
@@ -185,11 +246,44 @@ export async function PATCH(req: NextRequest) {
       )
     }
 
+    if (passwordResult.password) {
+      await client.users.updateUser(userId, {
+        password: passwordResult.password,
+        signOutOfOtherSessions: true,
+      })
+    }
     const updated = await client.users.updateUserMetadata(userId, { publicMetadata: assignment })
-    return NextResponse.json({ success: true, user: serializeUser(updated, grants) })
+    return NextResponse.json({
+      success: true,
+      user: serializeUser(updated, grants),
+      passwordSet: Boolean(passwordResult.password),
+    })
   } catch (error) {
     console.error('Admin users PATCH:', error)
-    return NextResponse.json({ success: false, error: 'Failed to update that user.' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: clerkMessage(error, 'Failed to update that user.') },
+      { status: 500 },
+    )
+  }
+}
+
+async function revokePendingInvites(
+  client: Awaited<ReturnType<typeof clerkClient>>,
+  email: string,
+) {
+  try {
+    const pending = await client.invitations.getInvitationList({
+      status: 'pending',
+      query: email,
+      limit: 20,
+    })
+    await Promise.all(
+      pending.data
+        .filter((invite) => invite.emailAddress.toLowerCase() === email)
+        .map((invite) => client.invitations.revokeInvitation(invite.id)),
+    )
+  } catch (error) {
+    console.error('Admin users revoke pending invites:', error)
   }
 }
 
