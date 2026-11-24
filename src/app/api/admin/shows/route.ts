@@ -12,6 +12,8 @@ import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
 import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
 import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
+import { isDoorStaff } from '@/lib/admin/access'
+import { isShowOnDoorNight } from '@/lib/tickets/doorDay'
 
 export async function GET() {
   const admin = await requireAdmin(['shows', 'tours', 'tiers', 'sales', 'tickets', 'guestlist', 'scanner'])
@@ -22,8 +24,13 @@ export async function GET() {
   try {
     await dbConnect()
     const shows = await Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 })
-    await ensureShowSlugs(shows)
-    return NextResponse.json({ success: true, shows: shows.map((show) => serializeShow(show)) })
+    const visible = isDoorStaff(admin.access)
+      ? shows.filter((show) =>
+          isShowOnDoorNight(show.date, show.city || '', show.country || ''),
+        )
+      : shows
+    await ensureShowSlugs(visible)
+    return NextResponse.json({ success: true, shows: visible.map((show) => serializeShow(show)) })
   } catch (error) {
     console.error('Admin shows GET:', error)
     return NextResponse.json({ success: false, error: 'Failed to load shows.' }, { status: 500 })

@@ -97,7 +97,7 @@ export function splitCityLabel(city: string) {
   return { locality: match[1].trim(), qualifier: match[2].trim() }
 }
 
-function timeZoneFor(city: string, country: string) {
+export function showTimeZone(city: string, country: string) {
   const locality = splitCityLabel(city).locality.toLowerCase()
   if (CITY_TIME_ZONES[locality]) return CITY_TIME_ZONES[locality]
   const keys = Object.keys(CITY_TIME_ZONES).sort((a, b) => b.length - a.length)
@@ -288,7 +288,7 @@ export function googleEventName(show: Pick<PublicShow, 'city' | 'date'>) {
 /** schema.org Event object for Google's event listing. */
 export function buildShowEventJsonLd(show: PublicShow, origin = PUBLIC_SITE_ORIGIN) {
   const start = eventClock(show)
-  const zone = timeZoneFor(show.city, show.country)
+  const zone = showTimeZone(show.city, show.country)
   const offset = start ? offsetForWallClock(zone, start) : null
   const pageUrl = showPageUrl(show.slug || show.id, origin)
   const external = absoluteUrl(show.externalTicketUrl || '', origin)

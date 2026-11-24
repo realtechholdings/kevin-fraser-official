@@ -14,6 +14,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { formatShowDate } from '@/lib/format'
+import { isShowOnDoorNight } from '@/lib/tickets/doorDay'
 
 const inputClass = 'admin-input'
 const labelClass = 'admin-label'
@@ -32,17 +33,21 @@ type ScanResult = {
     | 'wrong_show'
     | 'undone'
     | 'info'
-  scan?: {
-    orderId: string
-    email: string
-    tierName: string
-    tableName?: string
-    quantity: number
-    status: string
-    ticket: number | null
-    checkedIn: { ticket: number; at: string | null }[]
-    show: { city: string; venue: string; date: string; tour: string } | null
-  }
+  scan?: ScanDetails
+  matches?: ScanDetails[]
+}
+
+type ScanDetails = {
+  orderId: string
+  email: string
+  holderName?: string
+  tierName: string
+  tableName?: string
+  quantity: number
+  status: string
+  ticket: number | null
+  checkedIn: { ticket: number; at: string | null }[]
+  show: { city: string; venue: string; date: string; tour: string } | null
 }
 
 const VERDICT_META: Record<
@@ -109,6 +114,7 @@ function timeLabel(iso: string | null) {
 type ShowOption = {
   id: string
   city: string
+  country: string
   venue: string
   date: string
 }
@@ -139,9 +145,12 @@ function pct(checkedIn: number, sold: number) {
 export default function ScannerAdminPanel({
   onMessage,
   onError,
+  doorOnly = false,
 }: {
   onMessage: (msg: string) => void
   onError: (msg: string) => void
+  /** Scanner-only accounts stay on tonight's show. */
+  doorOnly?: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -155,8 +164,9 @@ export default function ScannerAdminPanel({
   const [cameraError, setCameraError] = useState('')
   const [result, setResult] = useState<ScanResult | null>(null)
   const [busy, setBusy] = useState(false)
-  const [manual, setManual] = useState({ orderId: '', ticket: '' })
+  const [manual, setManual] = useState({ query: '', ticket: '' })
   const [shows, setShows] = useState<ShowOption[]>([])
+  const [showsReady, setShowsReady] = useState(false)
   const [showId, setShowId] = useState('')
   const [attendance, setAttendance] = useState<Attendance | null>(null)
   const showIdRef = useRef('')
@@ -187,33 +197,48 @@ export default function ScannerAdminPanel({
       try {
         const res = await fetch('/api/admin/shows')
         const data = await res.json()
-        if (!res.ok) return
+        if (!res.ok) {
+          setShowsReady(true)
+          return
+        }
         const options: ShowOption[] = (data.shows || [])
-          .map((s: { id: string; city: string; venue: string; date: string }) => ({
-            id: s.id,
-            city: s.city,
-            venue: s.venue,
-            date: s.date,
-          }))
+          .map(
+            (s: { id: string; city: string; country?: string; venue: string; date: string }) => ({
+              id: s.id,
+              city: s.city,
+              country: s.country || '',
+              venue: s.venue,
+              date: s.date,
+            }),
+          )
           .sort(
             (a: ShowOption, b: ShowOption) =>
               new Date(a.date).getTime() - new Date(b.date).getTime(),
           )
-        setShows(options)
+        const tonight = options.filter((s) => isShowOnDoorNight(s.date, s.city, s.country))
+        const visible = doorOnly ? tonight : options
+        setShows(visible)
+        setShowsReady(true)
         if (practiceOnRef.current) return
+        if (doorOnly) {
+          if (tonight[0]) setShowId(tonight[0].id)
+          return
+        }
         // Default the door to the next upcoming show
         const next = options.find(
           (s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000,
         )
         if (next) setShowId(next.id)
       } catch {
+        setShowsReady(true)
         // Show list is a convenience — scanning still works without it
       }
     }
     void loadShows()
-  }, [])
+  }, [doorOnly])
 
   useEffect(() => {
+    if (doorOnly) return
     async function loadPractice() {
       try {
         const res = await fetch('/api/admin/scanner/practice')
@@ -224,7 +249,7 @@ export default function ScannerAdminPanel({
       }
     }
     void loadPractice()
-  }, [])
+  }, [doorOnly])
 
   // Keep attendance fresh while a show is selected (other doors may be scanning too)
   useEffect(() => {
@@ -246,7 +271,11 @@ export default function ScannerAdminPanel({
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Verification failed')
-        setResult({ verdict: data.verdict, scan: data.scan })
+        setResult({
+          verdict: data.verdict,
+          scan: data.scan,
+          matches: Array.isArray(data.matches) ? data.matches : undefined,
+        })
         if (showIdRef.current) void loadAttendance(showIdRef.current)
       } catch (err) {
         onError(err instanceof Error ? err.message : 'Verification failed')
@@ -367,7 +396,13 @@ export default function ScannerAdminPanel({
   const scan = result?.scan
   const meta = result ? VERDICT_META[result.verdict] : null
   const verdictLabel =
-    practiceOn && result?.verdict === 'wrong_show' ? 'Real ticket — left unchecked' : meta?.label
+    practiceOn && result?.verdict === 'wrong_show'
+      ? 'Real ticket — left unchecked'
+      : result?.verdict === 'not_found' && manual.query.includes('@')
+        ? showId
+          ? 'No order for that email at this show'
+          : 'No order for that email'
+        : meta?.label
 
   return (
     <div className="min-w-0 space-y-4 sm:space-y-6">
@@ -378,6 +413,7 @@ export default function ScannerAdminPanel({
         </p>
       </div>
 
+      {!doorOnly ? (
       <section
         className={`admin-card min-w-0 space-y-4 p-4 sm:p-6 ${practiceOn ? 'ring-2 ring-amber-500/50' : ''}`}
       >
@@ -456,6 +492,7 @@ export default function ScannerAdminPanel({
           </>
         ) : null}
       </section>
+      ) : null}
 
       <section className="admin-card min-w-0 space-y-5 p-4 sm:p-6">
         <div className="grid gap-4 md:grid-cols-2 md:items-end">
@@ -468,16 +505,25 @@ export default function ScannerAdminPanel({
                   Real shows are locked out until you leave the scan test.
                 </p>
               </>
+            ) : doorOnly && !showsReady ? (
+              <p className={`${inputClass} flex items-center text-white/50`}>Loading shows…</p>
+            ) : doorOnly && shows.length === 0 ? (
+              <p className={`${inputClass} flex items-center text-white/70`}>
+                No show is on tonight
+              </p>
             ) : (
               <>
                 <select
                   className={inputClass}
                   value={showId}
+                  disabled={doorOnly && shows.length === 1}
                   onChange={(e) => setShowId(e.target.value)}
                 >
-                  <option value="" className="bg-[#141420]">
-                    Any show (no restriction)
-                  </option>
+                  {doorOnly ? null : (
+                    <option value="" className="bg-[#141420]">
+                      Any show (no restriction)
+                    </option>
+                  )}
                   {shows.map((s) => {
                     const d = formatShowDate(s.date)
                     return (
@@ -487,7 +533,11 @@ export default function ScannerAdminPanel({
                     )
                   })}
                 </select>
-                {showId ? (
+                {doorOnly ? (
+                  <p className="mt-1.5 text-xs text-white/35">
+                    This door checks in tonight&apos;s show. It stays open until 6:00 am local time.
+                  </p>
+                ) : showId ? (
                   <p className="mt-1.5 text-xs text-white/35">
                     Tickets for other shows will be rejected at this door.
                   </p>
@@ -565,6 +615,7 @@ export default function ScannerAdminPanel({
               <button
                 type="button"
                 className={`${btnPrimary} w-full sm:w-auto`}
+                disabled={doorOnly && !showId}
                 onClick={() => void startCamera()}
               >
                 <Camera className="mr-1.5 inline h-4 w-4" />
@@ -596,7 +647,7 @@ export default function ScannerAdminPanel({
         </section>
 
         <div className="min-w-0 space-y-4 sm:space-y-6">
-          {result && meta ? (
+          {result && meta && !(result.matches && result.matches.length > 1) ? (
             <section className={`min-w-0 rounded-2xl border p-4 sm:p-6 ${meta.className}`}>
               <div className="flex items-start gap-2">
                 <meta.icon className="mt-0.5 h-5 w-5 shrink-0" />
@@ -617,7 +668,8 @@ export default function ScannerAdminPanel({
                     {scan.tableName ? ` · ${scan.tableName}` : ''}
                     {scan.ticket ? ` · Ticket ${scan.ticket} of ${scan.quantity}` : ` · ${scan.quantity} ticket(s)`}
                   </p>
-                  <p className="break-all text-white/60">{scan.email}</p>
+                  {scan.holderName ? <p className="text-white/80">{scan.holderName}</p> : null}
+                  {scan.email ? <p className="break-all text-white/60">{scan.email}</p> : null}
                   <p className="text-white/60">
                     Checked in: {scan.checkedIn.length} of {scan.quantity}
                     {scan.checkedIn.length
@@ -631,6 +683,27 @@ export default function ScannerAdminPanel({
                   result.verdict === 'refunded' ? (
                     <p className="text-white/60">Order status: {scan.status}</p>
                   ) : null}
+                </div>
+              ) : null}
+
+              {scan && result.verdict === 'info' && scan.status === 'paid' && scan.quantity > 0 ? (
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {Array.from({ length: scan.quantity }, (_, index) => index + 1).map((ticket) => {
+                    const used = scan.checkedIn.some((row) => row.ticket === ticket)
+                    return (
+                      <button
+                        key={ticket}
+                        type="button"
+                        disabled={busy || used}
+                        className={`${used ? btnSecondary : btnPrimary} w-full sm:w-auto`}
+                        onClick={() =>
+                          void verify({ orderId: scan.orderId, ticket, action: 'checkin' })
+                        }
+                      >
+                        {used ? `Ticket ${ticket} in` : `Check in ticket ${ticket}`}
+                      </button>
+                    )
+                  })}
                 </div>
               ) : null}
 
@@ -674,16 +747,62 @@ export default function ScannerAdminPanel({
             </section>
           )}
 
+          {result?.matches && result.matches.length > 1 ? (
+            <section className="admin-card min-w-0 space-y-3 p-4 sm:p-6">
+              <h3 className="text-sm font-semibold text-white">Several orders use this email</h3>
+              <p className="text-sm text-white/45">Open the right order, then check in a ticket.</p>
+              <div className="space-y-2">
+                {result.matches.map((match) => (
+                  <button
+                    key={match.orderId}
+                    type="button"
+                    disabled={busy}
+                    className="flex w-full flex-col items-start gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06] disabled:opacity-50"
+                    onClick={() =>
+                      void verify(
+                        manual.ticket
+                          ? {
+                              orderId: match.orderId,
+                              ticket: Number(manual.ticket),
+                              action: 'checkin',
+                            }
+                          : { orderId: match.orderId, action: 'lookup' },
+                      )
+                    }
+                  >
+                    <span className="text-sm font-medium text-white">
+                      {match.holderName || match.email}
+                    </span>
+                    <span className="text-xs text-white/55">
+                      {match.tierName}
+                      {match.show ? ` · ${match.show.city}` : ''} · {match.checkedIn.length} of{' '}
+                      {match.quantity} in
+                    </span>
+                    {match.holderName ? (
+                      <span className="break-all text-xs text-white/40">{match.email}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <section className="admin-card min-w-0 space-y-4 p-4 sm:p-6">
             <h3 className="text-sm font-semibold text-white">Manual lookup</h3>
+            <p className="text-sm text-white/45">
+              The buyer&apos;s email is enough. The order ID from the ticket footer still works.
+            </p>
             <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
               <div>
-                <label className={labelClass}>Order ID</label>
+                <label className={labelClass}>Email or order ID</label>
                 <input
                   className={inputClass}
-                  value={manual.orderId}
-                  onChange={(e) => setManual({ ...manual, orderId: e.target.value.trim() })}
-                  placeholder="From the ticket footer"
+                  value={manual.query}
+                  onChange={(e) => setManual({ ...manual, query: e.target.value.trim() })}
+                  placeholder="guest@email.com"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  inputMode="email"
                 />
               </div>
               <div>
@@ -701,24 +820,31 @@ export default function ScannerAdminPanel({
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
-                disabled={busy || !manual.orderId || !manual.ticket}
+                disabled={busy || !manual.query || (doorOnly && !showId)}
                 className={`${btnPrimary} w-full sm:w-auto`}
-                onClick={() =>
+                onClick={() => {
+                  const email = manual.query.includes('@')
                   void verify({
-                    orderId: manual.orderId,
-                    ticket: Number(manual.ticket),
+                    ...(email ? { email: manual.query } : { orderId: manual.query }),
+                    ...(manual.ticket ? { ticket: Number(manual.ticket) } : {}),
                     action: 'checkin',
                   })
-                }
+                }}
               >
                 <CheckCircle className="mr-1.5 inline h-4 w-4" />
                 Verify & check in
               </button>
               <button
                 type="button"
-                disabled={busy || !manual.orderId}
+                disabled={busy || !manual.query || (doorOnly && !showId)}
                 className={`${btnSecondary} w-full sm:w-auto`}
-                onClick={() => void verify({ orderId: manual.orderId, action: 'lookup' })}
+                onClick={() => {
+                  const email = manual.query.includes('@')
+                  void verify({
+                    ...(email ? { email: manual.query } : { orderId: manual.query }),
+                    action: 'lookup',
+                  })
+                }}
               >
                 <Search className="mr-1.5 inline h-4 w-4" />
                 Look up order

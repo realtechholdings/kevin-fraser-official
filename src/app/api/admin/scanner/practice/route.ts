@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
+import { isDoorStaff } from '@/lib/admin/access'
 import { readScanPractice, resetScanPractice, setupScanPractice } from '@/lib/tickets/scanPractice'
 
 export async function GET() {
   const admin = await requireAdmin('scanner')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
+  }
+
+  if (isDoorStaff(admin.access)) {
+    return NextResponse.json({ success: true, practice: { ready: false } })
   }
 
   try {
@@ -21,6 +26,13 @@ export async function POST(req: NextRequest) {
   const admin = await requireAdmin('scanner')
   if (!admin.ok) {
     return NextResponse.json({ success: false, error: admin.error }, { status: admin.status })
+  }
+
+  if (isDoorStaff(admin.access)) {
+    return NextResponse.json(
+      { success: false, error: 'Scan test is unavailable on a door account.' },
+      { status: 403 },
+    )
   }
 
   try {

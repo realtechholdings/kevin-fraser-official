@@ -23,7 +23,7 @@ import {
   type ThemeSettings,
 } from '@/lib/settings/defaults'
 import AdminSidebar, { firstAllowedTab, tabAllowed, type AdminTab } from '@/components/admin/AdminSidebar'
-import type { AdminPermission } from '@/lib/admin/access'
+import { isDoorStaff, type AdminPermission } from '@/lib/admin/access'
 import AdminHeader from '@/components/admin/AdminHeader'
 import BonusAdminPanel from '@/components/admin/BonusAdminPanel'
 import ShowreelAdminPanel from '@/components/admin/ShowreelAdminPanel'
@@ -2873,6 +2873,7 @@ export default function AdminPortal({
 
           {tab === 'scanner' ? (
             <ScannerAdminPanel
+              doorOnly={isDoorStaff({ permissions })}
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

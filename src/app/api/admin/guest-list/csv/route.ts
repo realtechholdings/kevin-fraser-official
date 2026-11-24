@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
 import { attachmentResponse } from '@/lib/http/attachment'
-
-export const runtime = 'nodejs'
-export const maxDuration = 60
+import { slugify } from '@/lib/format'
+import { doorStaffShowError } from '@/lib/tickets/doorAccess'
 import {
   guestListCsv,
   guestListFilterNote,
@@ -11,7 +10,9 @@ import {
   loadGuestList,
   parseGuestListQuery,
 } from '@/lib/tickets/loadGuestList'
-import { slugify } from '@/lib/format'
+
+export const runtime = 'nodejs'
+export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin('guestlist')
@@ -22,6 +23,11 @@ export async function GET(req: NextRequest) {
   const showId = req.nextUrl.searchParams.get('showId') || ''
   if (!isShowId(showId)) {
     return NextResponse.json({ success: false, error: 'Show is required.' }, { status: 400 })
+  }
+
+  const doorError = await doorStaffShowError(admin.access.permissions, showId)
+  if (doorError) {
+    return NextResponse.json({ success: false, error: doorError }, { status: 403 })
   }
 
   try {

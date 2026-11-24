@@ -99,6 +99,19 @@ export function permissionsForRole(role: StaffRole, custom: readonly string[] = 
   return []
 }
 
+const DOOR_PERMISSIONS = new Set<AdminPermission>(['scanner', 'guestlist'])
+
+/**
+ * Temporary door staff: Scanner, optionally Guest lists.
+ * Broader roles (sales, tickets, show editing) keep the full show list.
+ */
+export function isDoorStaff(access: { permissions: readonly AdminPermission[] }) {
+  return (
+    access.permissions.includes('scanner') &&
+    access.permissions.every((permission) => DOOR_PERMISSIONS.has(permission))
+  )
+}
+
 export function hasPermission(access: Pick<AdminAccess, 'permissions'>, permission: AdminPermission) {
   return access.permissions.includes(permission)
 }

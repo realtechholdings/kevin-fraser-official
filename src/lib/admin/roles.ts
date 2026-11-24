@@ -8,6 +8,7 @@ import {
 } from '@/lib/admin/access'
 
 const OPERATIONS_PERMISSIONS: AdminPermission[] = ['sales', 'tickets', 'guestlist', 'scanner']
+const DOOR_PERMISSIONS: AdminPermission[] = ['scanner', 'guestlist']
 
 export type StoredRole = {
   slug: string
@@ -50,6 +51,20 @@ export async function ensureDefaultRoles() {
         slug: 'super_admin',
         name: 'Super admin',
         description: 'Full control, including users, refunds, and anything that changes the public site.',
+      },
+    },
+    { upsert: true },
+  )
+  await AdminRole.updateOne(
+    { slug: 'door' },
+    {
+      $setOnInsert: {
+        slug: 'door',
+        name: 'Door',
+        description:
+          "Check in tonight's show and open that guest list. Other shows stay closed.",
+        permissions: DOOR_PERMISSIONS,
+        system: false,
       },
     },
     { upsert: true },

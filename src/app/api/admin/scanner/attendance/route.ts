@@ -4,6 +4,7 @@ import dbConnect from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
 import Order from '@/lib/models/Order'
 import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
+import { doorStaffShowError } from '@/lib/tickets/doorAccess'
 
 /** Live check-in stats for one show: totals and per-tier breakdown. */
 export async function GET(req: NextRequest) {
@@ -15,6 +16,11 @@ export async function GET(req: NextRequest) {
   const showId = req.nextUrl.searchParams.get('showId') || ''
   if (!mongoose.isValidObjectId(showId)) {
     return NextResponse.json({ success: false, error: 'showId is required.' }, { status: 400 })
+  }
+
+  const doorError = await doorStaffShowError(admin.access.permissions, showId)
+  if (doorError) {
+    return NextResponse.json({ success: false, error: doorError }, { status: 403 })
   }
 
   try {

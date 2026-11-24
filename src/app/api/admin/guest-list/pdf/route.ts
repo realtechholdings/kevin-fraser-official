@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin'
+import { doorStaffShowError } from '@/lib/tickets/doorAccess'
 import { guestListFilterNote, isShowId, loadGuestList, parseGuestListQuery } from '@/lib/tickets/loadGuestList'
 import { generateGuestListPdf } from '@/lib/tickets/guestListPdf'
 import { attachmentResponse } from '@/lib/http/attachment'
@@ -16,6 +17,11 @@ export async function GET(req: NextRequest) {
   const showId = req.nextUrl.searchParams.get('showId') || ''
   if (!isShowId(showId)) {
     return NextResponse.json({ success: false, error: 'Show is required.' }, { status: 400 })
+  }
+
+  const doorError = await doorStaffShowError(admin.access.permissions, showId)
+  if (doorError) {
+    return NextResponse.json({ success: false, error: doorError }, { status: 403 })
   }
 
   try {

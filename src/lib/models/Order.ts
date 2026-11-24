@@ -8,7 +8,7 @@ const OrderSchema = new Schema(
     unitAmountCents: { type: Number, default: 0, min: 0 },
     stripeSessionId: { type: String, required: true, unique: true },
     stripePaymentIntentId: { type: String, default: '' },
-    email: { type: String, required: true, lowercase: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     /** Display name for the ticket holder (manual / comp issues). */
     holderName: { type: String, default: '', trim: true },
     quantity: { type: Number, required: true, min: 1 },
