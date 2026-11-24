@@ -19,7 +19,8 @@ import {
   isTableOffering,
   nextTableNames,
 } from '@/lib/tickets/tables'
-import { isShowArchived } from '@/lib/shows/archive'
+import { isScanPracticeShow, isShowArchived, NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
+import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 import { isCompOrder } from '@/lib/tickets/refundOrder'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
@@ -37,7 +38,7 @@ export async function GET() {
 
   try {
     await dbConnect()
-    const shows = await Show.find().populate('tour').sort({ date: 1 })
+    const shows = await Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 })
     const options = []
 
     for (const show of shows) {
@@ -73,7 +74,7 @@ export async function GET() {
       })
     }
 
-    const recent = await Order.find({ source: 'manual' })
+    const recent = await Order.find({ source: 'manual', stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } })
       .sort({ createdAt: -1 })
       .limit(30)
       .populate({ path: 'show', populate: { path: 'tour' } })
@@ -159,6 +160,12 @@ export async function POST(req: NextRequest) {
     const show = await Show.findById(showId).populate('tour')
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
+    }
+    if (isScanPracticeShow(show)) {
+      return NextResponse.json(
+        { success: false, error: 'Scanner practice tickets are issued from the scanner test.' },
+        { status: 400 },
+      )
     }
     if (isShowArchived(show)) {
       return NextResponse.json(

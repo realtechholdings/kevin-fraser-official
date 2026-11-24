@@ -1218,8 +1218,8 @@ export default function AdminPortal({
         />
 
         <main className="admin-main flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-6xl">
-          <div className="mb-5 flex gap-2 overflow-x-auto md:hidden">
+          <div className="mx-auto w-full min-w-0 max-w-6xl">
+          <div className="scrollbar-hide mb-5 flex gap-2 overflow-x-auto md:hidden">
             {(['overview', 'tours', 'shows', 'tiers', 'tickets', 'sales', 'guestlist', 'cms', 'scanner', 'bonus', 'studio', 'kevin11', 'connect', 'legal', 'theme', 'ai', 'users', 'support'] as Tab[])
               .filter((id) => tabAllowed(id, permissions))
               .map((id) => (
@@ -1231,7 +1231,7 @@ export default function AdminPortal({
                   setShowFormPanel(false)
                 }}
                 className={cn(
-                  'rounded-xl px-3 py-2 text-xs font-medium capitalize',
+                  'shrink-0 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium capitalize',
                   tab === id ? 'admin-nav-item is-active' : 'admin-nav-item'
                 )}
                 style={{ width: 'auto' }}

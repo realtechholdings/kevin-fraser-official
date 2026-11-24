@@ -7,6 +7,7 @@ import {
   CameraOff,
   CheckCircle,
   Clock,
+  QrCode,
   RotateCcw,
   Search,
   Users,
@@ -18,7 +19,6 @@ const inputClass = 'admin-input'
 const labelClass = 'admin-label'
 const btnPrimary = 'admin-btn-primary disabled:opacity-50'
 const btnSecondary = 'admin-btn-secondary disabled:opacity-50'
-const btnGhost = 'admin-btn-ghost disabled:opacity-50'
 
 type ScanResult = {
   verdict:
@@ -113,6 +113,19 @@ type ShowOption = {
   date: string
 }
 
+type PracticeTicket = {
+  ticket: number
+  qrDataUrl: string
+  checkedIn: boolean
+}
+
+type PracticeState = {
+  ready: boolean
+  showId?: string
+  orderId?: string
+  tickets?: PracticeTicket[]
+}
+
 type Attendance = {
   sold: number
   checkedIn: number
@@ -124,6 +137,7 @@ function pct(checkedIn: number, sold: number) {
 }
 
 export default function ScannerAdminPanel({
+  onMessage,
   onError,
 }: {
   onMessage: (msg: string) => void
@@ -147,6 +161,12 @@ export default function ScannerAdminPanel({
   const [attendance, setAttendance] = useState<Attendance | null>(null)
   const showIdRef = useRef('')
   showIdRef.current = showId
+  const [practice, setPractice] = useState<PracticeState | null>(null)
+  const [practiceOn, setPracticeOn] = useState(false)
+  const [practiceBusy, setPracticeBusy] = useState(false)
+  const practiceOnRef = useRef(false)
+  practiceOnRef.current = practiceOn
+  const resumeShowIdRef = useRef('')
 
   const loadAttendance = useCallback(async (id: string) => {
     if (!id) {
@@ -180,6 +200,7 @@ export default function ScannerAdminPanel({
               new Date(a.date).getTime() - new Date(b.date).getTime(),
           )
         setShows(options)
+        if (practiceOnRef.current) return
         // Default the door to the next upcoming show
         const next = options.find(
           (s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000,
@@ -190,6 +211,19 @@ export default function ScannerAdminPanel({
       }
     }
     void loadShows()
+  }, [])
+
+  useEffect(() => {
+    async function loadPractice() {
+      try {
+        const res = await fetch('/api/admin/scanner/practice')
+        const data = await res.json()
+        if (res.ok && data.practice) setPractice(data.practice)
+      } catch {
+        // The test can still be created from the button
+      }
+    }
+    void loadPractice()
   }, [])
 
   // Keep attendance fresh while a show is selected (other doors may be scanning too)
@@ -292,54 +326,184 @@ export default function ScannerAdminPanel({
 
   useEffect(() => stopCamera, [stopCamera])
 
+  async function runPractice(action: 'setup' | 'reset') {
+    setPracticeBusy(true)
+    try {
+      const res = await fetch('/api/admin/scanner/practice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.practice?.showId) {
+        throw new Error(data.error || 'Could not set up the scan test')
+      }
+      const next = data.practice as PracticeState
+      if (!practiceOnRef.current) resumeShowIdRef.current = showIdRef.current
+      setPractice(next)
+      setPracticeOn(true)
+      setShowId(next.showId || '')
+      onMessage(
+        action === 'reset'
+          ? 'Test check-ins cleared. Scan the same codes again.'
+          : 'Scan test is ready. Real shows are untouched.',
+      )
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not set up the scan test')
+    } finally {
+      setPracticeBusy(false)
+    }
+  }
+
+  function stopPractice() {
+    setPracticeOn(false)
+    const resume = resumeShowIdRef.current
+    const fallback = shows.find(
+      (s) => new Date(s.date).getTime() >= Date.now() - 6 * 60 * 60 * 1000,
+    )
+    setShowId(resume && resume !== practice?.showId ? resume : fallback?.id || '')
+  }
+
   const scan = result?.scan
   const meta = result ? VERDICT_META[result.verdict] : null
+  const verdictLabel =
+    practiceOn && result?.verdict === 'wrong_show' ? 'Real ticket — left unchecked' : meta?.label
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white">Ticket Scanner</h2>
+        <h2 className="text-xl font-bold text-white sm:text-2xl">Ticket Scanner</h2>
         <p className="mt-1 text-sm text-white/40">
           Scan the QR code on a ticket PDF to verify it and check the guest in at the door.
         </p>
       </div>
 
-      <section className="admin-card space-y-5 p-6">
+      <section
+        className={`admin-card min-w-0 space-y-4 p-4 sm:p-6 ${practiceOn ? 'ring-2 ring-amber-500/50' : ''}`}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+              <QrCode className="h-4 w-4 shrink-0" />
+              Scan test
+            </h3>
+            <p className="mt-1 max-w-2xl text-sm text-white/45">
+              Practice the door camera with fake tickets. They are not a show: they stay off the
+              site, out of sales and guest lists, and scanning them does not check a real guest in.
+            </p>
+          </div>
+          {practiceOn ? (
+            <button
+              type="button"
+              className={`${btnSecondary} w-full shrink-0 sm:w-auto`}
+              onClick={stopPractice}
+              disabled={practiceBusy}
+            >
+              Back to real shows
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${btnPrimary} w-full shrink-0 sm:w-auto`}
+              onClick={() => void runPractice('setup')}
+              disabled={practiceBusy}
+            >
+              {practiceBusy ? 'Setting up…' : practice?.ready ? 'Start scan test' : 'Set up scan test'}
+            </button>
+          )}
+        </div>
+
+        {practiceOn ? (
+          <>
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              Practice door is on. Only these test tickets will scan. A real ticket is rejected and
+              stays unchecked.
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+              {(practice?.tickets || []).map((ticket) => (
+                <div key={ticket.ticket} className="min-w-0 text-center">
+                  <div className="mx-auto w-full max-w-[220px] rounded-xl bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={ticket.qrDataUrl}
+                      alt={`Practice ticket ${ticket.ticket}`}
+                      className="aspect-square h-auto w-full"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs font-medium text-white/70">Ticket {ticket.ticket}</p>
+                  {ticket.checkedIn ? (
+                    <p className="text-[11px] text-emerald-300">Checked in</p>
+                  ) : (
+                    <p className="text-[11px] text-white/35">Ready to scan</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="min-w-0 text-xs text-white/35">
+                Open these codes on another phone, then point this camera at them.
+              </p>
+              <button
+                type="button"
+                className={`${btnSecondary} w-full shrink-0 sm:w-auto`}
+                disabled={practiceBusy}
+                onClick={() => void runPractice('reset')}
+              >
+                <RotateCcw className="mr-1.5 inline h-4 w-4" />
+                Reset test check-ins
+              </button>
+            </div>
+          </>
+        ) : null}
+      </section>
+
+      <section className="admin-card min-w-0 space-y-5 p-4 sm:p-6">
         <div className="grid gap-4 md:grid-cols-2 md:items-end">
           <div>
             <label className={labelClass}>Checking in for</label>
-            <select
-              className={inputClass}
-              value={showId}
-              onChange={(e) => setShowId(e.target.value)}
-            >
-              <option value="" className="bg-[#141420]">
-                Any show (no restriction)
-              </option>
-              {shows.map((s) => {
-                const d = formatShowDate(s.date)
-                return (
-                  <option key={s.id} value={s.id} className="bg-[#141420]">
-                    {s.city} · {s.venue} — {d.weekday} {d.day} {d.month}
+            {practiceOn ? (
+              <>
+                <p className={`${inputClass} flex items-center text-amber-100`}>Practice door</p>
+                <p className="mt-1.5 text-xs text-amber-200/70">
+                  Real shows are locked out until you leave the scan test.
+                </p>
+              </>
+            ) : (
+              <>
+                <select
+                  className={inputClass}
+                  value={showId}
+                  onChange={(e) => setShowId(e.target.value)}
+                >
+                  <option value="" className="bg-[#141420]">
+                    Any show (no restriction)
                   </option>
-                )
-              })}
-            </select>
-            {showId ? (
-              <p className="mt-1.5 text-xs text-white/35">
-                Tickets for other shows will be rejected at this door.
-              </p>
-            ) : null}
+                  {shows.map((s) => {
+                    const d = formatShowDate(s.date)
+                    return (
+                      <option key={s.id} value={s.id} className="bg-[#141420]">
+                        {s.city} · {s.venue} — {d.weekday} {d.day} {d.month}
+                      </option>
+                    )
+                  })}
+                </select>
+                {showId ? (
+                  <p className="mt-1.5 text-xs text-white/35">
+                    Tickets for other shows will be rejected at this door.
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
           {showId && attendance ? (
             <div>
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
                 <p className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <Users className="h-4 w-4" />
-                  Attendance
+                  <Users className="h-4 w-4 shrink-0" />
+                  {practiceOn ? 'Test attendance' : 'Attendance'}
                 </p>
                 <p className="text-sm tabular-nums text-white/70">
-                  <span className="text-xl font-bold text-white">
+                  <span className="text-lg font-bold text-white sm:text-xl">
                     {pct(attendance.checkedIn, attendance.sold)}%
                   </span>{' '}
                   · {attendance.checkedIn} of {attendance.sold} in
@@ -388,17 +552,21 @@ export default function ScannerAdminPanel({
         ) : null}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="admin-card space-y-4 p-6">
-          <div className="flex items-center justify-between">
+      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
+        <section className="admin-card min-w-0 space-y-4 p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-sm font-semibold text-white">Camera</h3>
             {cameraOn ? (
-              <button type="button" className={btnSecondary} onClick={stopCamera}>
+              <button type="button" className={`${btnSecondary} w-full sm:w-auto`} onClick={stopCamera}>
                 <CameraOff className="mr-1.5 inline h-4 w-4" />
                 Stop
               </button>
             ) : (
-              <button type="button" className={btnPrimary} onClick={() => void startCamera()}>
+              <button
+                type="button"
+                className={`${btnPrimary} w-full sm:w-auto`}
+                onClick={() => void startCamera()}
+              >
                 <Camera className="mr-1.5 inline h-4 w-4" />
                 Start scanning
               </button>
@@ -414,7 +582,7 @@ export default function ScannerAdminPanel({
               </div>
             ) : (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="h-40 w-40 rounded-2xl border-2 border-white/50" />
+                <div className="h-32 w-32 rounded-2xl border-2 border-white/50 sm:h-40 sm:w-40" />
               </div>
             )}
           </div>
@@ -427,16 +595,16 @@ export default function ScannerAdminPanel({
           </p>
         </section>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {result && meta ? (
-            <section className={`rounded-2xl border p-6 ${meta.className}`}>
-              <div className="flex items-center gap-2">
-                <meta.icon className="h-5 w-5 shrink-0" />
-                <p className="text-base font-semibold">{meta.label}</p>
+            <section className={`min-w-0 rounded-2xl border p-4 sm:p-6 ${meta.className}`}>
+              <div className="flex items-start gap-2">
+                <meta.icon className="mt-0.5 h-5 w-5 shrink-0" />
+                <p className="min-w-0 text-base font-semibold leading-snug">{verdictLabel}</p>
               </div>
 
               {scan ? (
-                <div className="mt-4 space-y-1.5 text-sm">
+                <div className="mt-4 space-y-1.5 break-words text-sm">
                   {scan.show ? (
                     <p className="font-medium text-white">
                       {scan.show.tour ? `${scan.show.tour} — ` : ''}
@@ -449,7 +617,7 @@ export default function ScannerAdminPanel({
                     {scan.tableName ? ` · ${scan.tableName}` : ''}
                     {scan.ticket ? ` · Ticket ${scan.ticket} of ${scan.quantity}` : ` · ${scan.quantity} ticket(s)`}
                   </p>
-                  <p className="text-white/60">{scan.email}</p>
+                  <p className="break-all text-white/60">{scan.email}</p>
                   <p className="text-white/60">
                     Checked in: {scan.checkedIn.length} of {scan.quantity}
                     {scan.checkedIn.length
@@ -466,12 +634,12 @@ export default function ScannerAdminPanel({
                 </div>
               ) : null}
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {result.verdict === 'valid' || result.verdict === 'already_used' ? (
                   <button
                     type="button"
                     disabled={busy || !scan?.ticket}
-                    className={btnGhost}
+                    className={`${btnSecondary} w-full sm:w-auto`}
                     onClick={() =>
                       scan?.ticket &&
                       void verify({ orderId: scan.orderId, ticket: scan.ticket, action: 'undo' })
@@ -485,7 +653,7 @@ export default function ScannerAdminPanel({
                   <button
                     type="button"
                     disabled={busy || !scan?.ticket}
-                    className={btnGhost}
+                    className={`${btnSecondary} w-full sm:w-auto`}
                     onClick={() =>
                       scan?.ticket &&
                       void verify({ orderId: scan.orderId, ticket: scan.ticket, action: 'checkin' })
@@ -495,18 +663,18 @@ export default function ScannerAdminPanel({
                     Check in again
                   </button>
                 ) : null}
-                <button type="button" className={btnGhost} onClick={() => setResult(null)}>
+                <button type="button" className={`${btnSecondary} w-full sm:w-auto`} onClick={() => setResult(null)}>
                   Clear
                 </button>
               </div>
             </section>
           ) : (
-            <section className="admin-card flex min-h-[120px] items-center justify-center p-6 text-sm text-white/40">
+            <section className="admin-card flex min-h-[96px] items-center justify-center p-4 text-center text-sm text-white/40 sm:min-h-[120px] sm:p-6">
               Scan a ticket to see the result here.
             </section>
           )}
 
-          <section className="admin-card space-y-4 p-6">
+          <section className="admin-card min-w-0 space-y-4 p-4 sm:p-6">
             <h3 className="text-sm font-semibold text-white">Manual lookup</h3>
             <div className="grid gap-3 sm:grid-cols-[1fr_7rem]">
               <div>
@@ -530,11 +698,11 @@ export default function ScannerAdminPanel({
                 />
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 disabled={busy || !manual.orderId || !manual.ticket}
-                className={btnPrimary}
+                className={`${btnPrimary} w-full sm:w-auto`}
                 onClick={() =>
                   void verify({
                     orderId: manual.orderId,
@@ -549,7 +717,7 @@ export default function ScannerAdminPanel({
               <button
                 type="button"
                 disabled={busy || !manual.orderId}
-                className={btnSecondary}
+                className={`${btnSecondary} w-full sm:w-auto`}
                 onClick={() => void verify({ orderId: manual.orderId, action: 'lookup' })}
               >
                 <Search className="mr-1.5 inline h-4 w-4" />

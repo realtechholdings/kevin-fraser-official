@@ -15,6 +15,7 @@ import {
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import { liveTicketNumbers } from '@/lib/tickets/ticketNumbers'
 import { backfillHolderNames } from '@/lib/tickets/holderName'
+import { isScanPracticeShow } from '@/lib/shows/archive'
 
 const PURCHASE_ZONE = 'Australia/Sydney'
 
@@ -158,7 +159,7 @@ function originalPurchasedAt(order: ChainOrder, byId: Map<string, ChainOrder>) {
 export async function loadGuestList(showId: string, query: GuestListQuery = parseGuestListQuery(new URLSearchParams())) {
   await dbConnect()
   const show = await Show.findById(showId).populate('tour')
-  if (!show) return null
+  if (!show || isScanPracticeShow(show)) return null
 
   const orders = await Order.find({
     show: showId,

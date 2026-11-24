@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import dbConnect from '@/lib/db'
 import Show from '@/lib/models/Show'
 import ShowWaitlist from '@/lib/models/ShowWaitlist'
-import { isShowArchived } from '@/lib/shows/archive'
+import { isScanPracticeShow, isShowArchived } from '@/lib/shows/archive'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     await dbConnect()
     const show = await Show.findById(id)
-    if (!show || !show.published || isShowArchived(show)) {
+    if (!show || !show.published || isShowArchived(show) || isScanPracticeShow(show)) {
       return NextResponse.json({ success: false, error: 'The waitlist is not open for this show.' }, { status: 400 })
     }
     const tiers = show.status === 'sold_out' ? undefined : await resolveTiersForShow(show)

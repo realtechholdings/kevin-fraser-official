@@ -197,6 +197,10 @@ html.dark {
     --admin-violet-soft: var(--admin-accent-soft);
     --admin-pad: clamp(1.5rem, 3.5vw, 2.5rem);
 
+    @media (max-width: 639px) {
+      --admin-pad: 1rem;
+    }
+
     display: flex;
     min-height: 100vh;
     height: 100vh;

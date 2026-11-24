@@ -11,6 +11,7 @@ import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
 import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
+import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -20,7 +21,7 @@ export async function GET() {
 
   try {
     await dbConnect()
-    const shows = await Show.find().populate('tour').sort({ date: 1 })
+    const shows = await Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 })
     await ensureShowSlugs(shows)
     return NextResponse.json({ success: true, shows: shows.map((show) => serializeShow(show)) })
   } catch (error) {

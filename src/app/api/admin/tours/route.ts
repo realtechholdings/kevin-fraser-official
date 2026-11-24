@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
 import { parseWallDate } from '@/lib/wallDate'
+import { SCAN_PRACTICE_TOUR_SLUG } from '@/lib/tickets/scanPractice'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -14,7 +15,10 @@ export async function GET() {
 
   try {
     await dbConnect()
-    const tours = await Tour.find().sort({ featured: -1, createdAt: -1 })
+    const tours = await Tour.find({ slug: { $ne: SCAN_PRACTICE_TOUR_SLUG } }).sort({
+      featured: -1,
+      createdAt: -1,
+    })
     return NextResponse.json({ success: true, tours: tours.map(serializeTour) })
   } catch (error) {
     console.error('Admin tours GET:', error)

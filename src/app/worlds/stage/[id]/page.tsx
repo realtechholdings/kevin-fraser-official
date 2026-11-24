@@ -6,7 +6,7 @@ import { serializeShow } from '@/lib/serialize'
 import { resolveTiersForShow } from '@/lib/tickets/resolveTiers'
 import ShowDetailClient from '@/components/stage/ShowDetailClient'
 import EventJsonLd from '@/components/stage/EventJsonLd'
-import { isShowArchived } from '@/lib/shows/archive'
+import { isScanPracticeShow, isShowArchived } from '@/lib/shows/archive'
 import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
 import { ensureShowSlugs, findShowByPublicKey } from '@/lib/shows/ensureShowSlug'
 import { showPublicPath } from '@/lib/shows/publicPath'
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   await dbConnect()
   const show = await findShowByPublicKey(id)
-  if (!show || !show.published || isShowArchived(show)) {
+  if (!show || !show.published || isShowArchived(show) || isScanPracticeShow(show)) {
     return { title: 'Show | Kevin Fraser Official' }
   }
   if (!show.slug) await ensureShowSlugs([show])
@@ -36,7 +36,7 @@ export default async function ShowDetailPage({ params }: Props) {
   const { id } = await params
   await dbConnect()
   const show = await findShowByPublicKey(id)
-  if (!show || !show.published || isShowArchived(show)) notFound()
+  if (!show || !show.published || isShowArchived(show) || isScanPracticeShow(show)) notFound()
   if (!show.slug) await ensureShowSlugs([show])
   if (mongoose.isValidObjectId(id) && show.slug && show.slug !== id) {
     redirect(showPublicPath(show))

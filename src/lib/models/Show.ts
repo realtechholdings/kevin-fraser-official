@@ -36,6 +36,11 @@ const ShowSchema = new Schema(
     archivedAt: { type: Date, default: null, index: true },
     archivedBy: { type: String, default: '' },
     /**
+     * Hidden door-scanner practice show. Never sold and never listed.
+     * Its tickets exist only so the door camera can be tested.
+     */
+    scanPractice: { type: Boolean, default: false, index: true },
+    /**
      * Optional tickets-on-sale date for coming_soon shows.
      * Displayed as e.g. "Tickets on sale 1 September 2026".
      */

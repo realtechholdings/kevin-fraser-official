@@ -16,14 +16,14 @@ export default function AdminHeader({
   onToggleMode: () => void
 }) {
   return (
-    <header className="admin-header flex h-16 shrink-0 items-center justify-between px-5 sm:px-8">
-      <div>
-        <h1 className="text-sm font-semibold text-white/90">{title}</h1>
-        <p className="text-xs" style={{ color: 'var(--admin-subtle)' }}>
+    <header className="admin-header flex h-16 shrink-0 items-center justify-between gap-3 px-4 sm:px-8">
+      <div className="min-w-0">
+        <h1 className="truncate text-sm font-semibold text-white/90">{title}</h1>
+        <p className="truncate text-xs" style={{ color: 'var(--admin-subtle)' }}>
           {subtitle}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <button
           type="button"
           onClick={onToggleMode}

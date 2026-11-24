@@ -10,7 +10,7 @@ import { maybeMarkShowSoldOut } from '@/lib/tickets/maybeMarkShowSoldOut'
 import { parseUpgradeOfferRows } from '@/lib/tickets/upgrades'
 import { parseWallDate } from '@/lib/wallDate'
 import { ensureShowSlugs } from '@/lib/shows/ensureShowSlug'
-import { archiveShowFields, isShowArchived, restoreShowFields } from '@/lib/shows/archive'
+import { archiveShowFields, isScanPracticeShow, isShowArchived, restoreShowFields } from '@/lib/shows/archive'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -28,6 +28,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const show = await Show.findById(id)
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
+    }
+    if (isScanPracticeShow(show)) {
+      return NextResponse.json(
+        { success: false, error: 'The scanner practice show cannot be edited.' },
+        { status: 400 },
+      )
     }
 
     const nextCity = body.city !== undefined ? String(body.city).trim() : show.city
@@ -140,6 +146,12 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     const show = await Show.findById(id)
     if (!show) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
+    }
+    if (isScanPracticeShow(show)) {
+      return NextResponse.json(
+        { success: false, error: 'The scanner practice show cannot be removed.' },
+        { status: 400 },
+      )
     }
     if (isShowArchived(show)) {
       return NextResponse.json({ success: true, show: serializeShow(show) })

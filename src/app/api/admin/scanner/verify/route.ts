@@ -9,6 +9,7 @@ import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { tableNameForSeat } from '@/lib/tickets/tables'
+import { isScanPracticeOrder } from '@/lib/tickets/scanPractice'
 
 export type ScanVerdict =
   | 'valid'
@@ -113,11 +114,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, verdict: 'not_found' as ScanVerdict })
     }
 
-    // When the door is set to a specific show, refuse tickets from other shows.
+    // A selected door only accepts that show. Practice tickets never check in
+    // unless the door is explicitly the practice show, so a test cannot mark
+    // a real guest as already inside.
     const expectedShowId = typeof body.showId === 'string' ? body.showId.trim() : ''
-    if (expectedShowId && action === 'checkin') {
-      const orderShowId = order.show ? String((order.show as { _id: unknown })._id) : ''
-      if (orderShowId !== expectedShowId) {
+    const orderShowId = order.show ? String((order.show as { _id: unknown })._id) : ''
+    if (action === 'checkin' || action === 'undo') {
+      const doorMismatch = Boolean(expectedShowId) && orderShowId !== expectedShowId
+      const practiceAwayFromItsDoor = isScanPracticeOrder(order) && orderShowId !== expectedShowId
+      if (doorMismatch || practiceAwayFromItsDoor) {
         return NextResponse.json({
           success: true,
           verdict: 'wrong_show' as ScanVerdict,

@@ -2,7 +2,7 @@ import mongoose from 'mongoose'
 import type { HydratedDocument } from 'mongoose'
 import Order, { type OrderDocument } from '@/lib/models/Order'
 import Show, { type ShowDocument } from '@/lib/models/Show'
-import { isShowArchived } from '@/lib/shows/archive'
+import { isShowArchived, NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import type { PublicTicketTier } from '@/lib/serialize'
@@ -115,6 +115,7 @@ async function destinationShows(origin: ShowWithTour) {
     tour: tourId,
     _id: { $ne: origin._id },
     published: true,
+    ...NOT_SCAN_PRACTICE,
     archivedAt: null,
     status: { $in: ['on_sale', 'sold_out'] },
     date: { $gte: new Date(Date.now() - 3 * 60 * 60 * 1000) },

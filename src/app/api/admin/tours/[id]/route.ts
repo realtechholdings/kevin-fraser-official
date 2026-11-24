@@ -7,6 +7,7 @@ import { serializeTour } from '@/lib/serialize'
 import { slugify } from '@/lib/format'
 import { parseWallDate } from '@/lib/wallDate'
 import { archiveShowFields } from '@/lib/shows/archive'
+import { isScanPracticeTour } from '@/lib/tickets/scanPractice'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -24,6 +25,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const tour = await Tour.findById(id)
     if (!tour) {
       return NextResponse.json({ success: false, error: 'Tour not found.' }, { status: 404 })
+    }
+    if (isScanPracticeTour(tour)) {
+      return NextResponse.json(
+        { success: false, error: 'The scanner practice tour cannot be edited.' },
+        { status: 400 },
+      )
     }
 
     if (body.title !== undefined) tour.title = String(body.title).trim()
@@ -89,10 +96,17 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params
     await dbConnect()
-    const tour = await Tour.findByIdAndDelete(id)
+    const tour = await Tour.findById(id)
     if (!tour) {
       return NextResponse.json({ success: false, error: 'Tour not found.' }, { status: 404 })
     }
+    if (isScanPracticeTour(tour)) {
+      return NextResponse.json(
+        { success: false, error: 'The scanner practice tour cannot be removed.' },
+        { status: 400 },
+      )
+    }
+    await tour.deleteOne()
     const who = admin.emails?.[0] || admin.userId
     await Show.updateMany({ tour: id, archivedAt: null }, { $set: archiveShowFields(who) })
     return NextResponse.json({ success: true })

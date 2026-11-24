@@ -20,7 +20,7 @@ import TicketTable, { type TicketTableDocument } from '@/lib/models/TicketTable'
 import { findTierForShowSlug, isTableOffering } from '@/lib/tickets/tables'
 import { normalizeCheckoutEmail } from '@/lib/email/address'
 import { stripeChargeName, stripeShowCopy, stripContactNumbers } from '@/lib/tickets/stripeCopy'
-import { isShowArchived } from '@/lib/shows/archive'
+import { isScanPracticeShow, isShowArchived } from '@/lib/shows/archive'
 import { applyTransferHolds, loadOpenTransferHolds } from '@/lib/tickets/transfers'
 
 export async function POST(req: NextRequest) {
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     await dbConnect()
     const show = await Show.findById(showId).populate('tour')
-    if (!show || !show.published || isShowArchived(show)) {
+    if (!show || !show.published || isShowArchived(show) || isScanPracticeShow(show)) {
       return NextResponse.json({ success: false, error: 'Show not found.' }, { status: 404 })
     }
 

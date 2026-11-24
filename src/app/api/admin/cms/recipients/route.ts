@@ -6,6 +6,8 @@ import Show from '@/lib/models/Show'
 import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
+import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
+import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 
 export async function GET() {
   const admin = await requireAdmin('cms')
@@ -16,9 +18,14 @@ export async function GET() {
   try {
     await dbConnect()
     const [emails, orders, shows] = await Promise.all([
-      Order.distinct('email', { status: 'paid' }) as Promise<string[]>,
-      Order.find({ status: 'paid' }).select('show tierName email'),
-      Show.find().populate('tour').sort({ date: 1 }),
+      Order.distinct('email', {
+        status: 'paid',
+        stripeSessionId: { $ne: SCAN_PRACTICE_SESSION },
+      }) as Promise<string[]>,
+      Order.find({ status: 'paid', stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } }).select(
+        'show tierName email',
+      ),
+      Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 }),
     ])
 
     const grouped = new Map<string, Map<string, Set<string>>>()

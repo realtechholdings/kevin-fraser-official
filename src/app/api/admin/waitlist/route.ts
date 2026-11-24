@@ -7,6 +7,7 @@ import ShowWaitlist from '@/lib/models/ShowWaitlist'
 import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
+import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
 
 function csvCell(value: string) {
   if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     const [entries, shows] = await Promise.all([
       ShowWaitlist.find(filter).sort({ createdAt: 1 }).populate({ path: 'show', populate: { path: 'tour' } }),
-      Show.find().populate('tour').sort({ date: 1 }),
+      Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 }),
     ])
 
     if (format === 'csv') {
