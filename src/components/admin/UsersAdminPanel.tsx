@@ -13,6 +13,8 @@ type StaffUser = {
   id: string
   email: string
   name: string
+  /** Name on file; blank when the account only has an email. */
+  fullName?: string
   imageUrl: string
   lastSignInAt: number | null
   role: string
@@ -111,6 +113,8 @@ export default function UsersAdminPanel({
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [editName, setEditName] = useState('')
   const [inviteRole, setInviteRole] = useState('operations')
   const [addMode, setAddMode] = useState<'create' | 'invite'>('create')
   const [password, setPassword] = useState('')
@@ -173,6 +177,7 @@ export default function UsersAdminPanel({
   function selectUser(user: StaffUser) {
     setSelectedId(user.id)
     setEditRole(user.role)
+    setEditName(user.fullName || '')
     setEditPassword('')
     setEditPasswordConfirm('')
   }
@@ -264,12 +269,13 @@ export default function UsersAdminPanel({
         body: JSON.stringify({
           email: inviteEmail,
           role: inviteRole,
-          ...(addMode === 'create' ? { password } : {}),
+          ...(addMode === 'create' ? { password, name: inviteName } : {}),
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Could not add that user')
       setInviteEmail('')
+      setInviteName('')
       setPassword('')
       setConfirmPassword('')
       const address = data.email || data.user?.email || 'That account'
@@ -312,6 +318,7 @@ export default function UsersAdminPanel({
         body: JSON.stringify({
           userId: selected.id,
           role: editRole,
+          name: editName,
           ...(editPassword ? { password: editPassword } : {}),
         }),
       })
@@ -522,6 +529,23 @@ export default function UsersAdminPanel({
             </div>
             {addMode === 'create' ? (
               <>
+                <div className="sm:col-span-2">
+                  <label className={labelClass} htmlFor="invite-name">
+                    Name
+                  </label>
+                  <input
+                    id="invite-name"
+                    className={inputClass}
+                    autoComplete="off"
+                    maxLength={80}
+                    value={inviteName}
+                    onChange={(event) => setInviteName(event.target.value)}
+                    placeholder="First and last name"
+                  />
+                  <p className="mt-1.5 text-xs" style={{ color: 'var(--admin-subtle)' }}>
+                    Shown as the scanner on duty and on every admission they record.
+                  </p>
+                </div>
                 <div>
                   <label className={labelClass} htmlFor="invite-password">
                     Password
@@ -597,6 +621,23 @@ export default function UsersAdminPanel({
             </p>
           ) : (
             <div className="mt-4 space-y-4">
+              <div className="max-w-sm">
+                <label className={labelClass} htmlFor="edit-name">
+                  Name
+                </label>
+                <input
+                  id="edit-name"
+                  className={inputClass}
+                  autoComplete="off"
+                  maxLength={80}
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  placeholder="First and last name"
+                />
+                <p className="mt-1.5 text-xs" style={{ color: 'var(--admin-subtle)' }}>
+                  Shown as the scanner on duty and on every admission they record.
+                </p>
+              </div>
               <div className="max-w-sm">
                 <label className={labelClass} htmlFor="edit-role">
                   Role

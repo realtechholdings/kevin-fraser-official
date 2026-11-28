@@ -7,7 +7,7 @@ import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
-import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
+import { NOT_SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 
 export async function GET() {
   const admin = await requireAdmin('cms')
@@ -20,9 +20,9 @@ export async function GET() {
     const [emails, orders, shows] = await Promise.all([
       Order.distinct('email', {
         status: 'paid',
-        stripeSessionId: { $ne: SCAN_PRACTICE_SESSION },
+        stripeSessionId: NOT_SCAN_PRACTICE_SESSION,
       }) as Promise<string[]>,
-      Order.find({ status: 'paid', stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } }).select(
+      Order.find({ status: 'paid', stripeSessionId: NOT_SCAN_PRACTICE_SESSION }).select(
         'show tierName email',
       ),
       Show.find(NOT_SCAN_PRACTICE).populate('tour').sort({ date: 1 }),

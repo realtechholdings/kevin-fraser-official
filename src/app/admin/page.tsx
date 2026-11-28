@@ -3,7 +3,7 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import AdminPortal from '@/components/admin/AdminPortal'
-import { requireAdmin } from '@/lib/admin'
+import { requireAdmin, staffDisplayName } from '@/lib/admin'
 
 export const metadata: Metadata = {
   title: 'Admin | Kevin Fraser Official',
@@ -37,5 +37,5 @@ export default async function AdminPage() {
     )
   }
 
-  return <AdminPortal permissions={admin.access.permissions} />
+  return <AdminPortal permissions={admin.access.permissions} staffName={staffDisplayName(admin.user)} />
 }

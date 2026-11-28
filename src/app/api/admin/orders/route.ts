@@ -12,7 +12,7 @@ import { resolveTiersForShows } from '@/lib/tickets/resolveTiers'
 import { isTierSoldOut } from '@/lib/tickets/soldOut'
 import { liveTicketNumbers, refundableTicketNumbers } from '@/lib/tickets/ticketNumbers'
 import { NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
-import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
+import { NOT_SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 
 const MAX_ORDERS_DEFAULT = 500
 const MAX_ORDERS_FILTERED = 2000
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect()
 
-    const query: Record<string, unknown> = { stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } }
+    const query: Record<string, unknown> = { stripeSessionId: NOT_SCAN_PRACTICE_SESSION }
     if (search) Object.assign(query, search)
     if (showId && mongoose.isValidObjectId(showId) && !exactId) {
       query.show = showId

@@ -8,6 +8,7 @@ export const ADMIN_PERMISSIONS = [
   'refunds',
   'guestlist',
   'scanner',
+  'reversals',
   'tours',
   'shows',
   'tiers',
@@ -28,7 +29,12 @@ export const ASSIGNABLE_PERMISSIONS: {
   { id: 'tickets', label: 'Tickets', description: 'Issue, resend, download, and upgrade tickets' },
   { id: 'refunds', label: 'Refunds', description: 'Refund payments and void tickets' },
   { id: 'guestlist', label: 'Guest lists', description: 'View and print door lists' },
-  { id: 'scanner', label: 'Scanner', description: 'Check guests in at the door' },
+  { id: 'scanner', label: 'Scanner', description: 'Admit guests at the door' },
+  {
+    id: 'reversals',
+    label: 'Door supervisor',
+    description: 'Reverse an incorrect admission. Needs Scanner as well',
+  },
   { id: 'tours', label: 'Tours', description: 'Create and edit tours' },
   { id: 'shows', label: 'Shows', description: 'Create, edit, and remove shows' },
   { id: 'tiers', label: 'Ticket tiers', description: 'Prices, allocation, and tier setup' },
@@ -99,10 +105,10 @@ export function permissionsForRole(role: StaffRole, custom: readonly string[] = 
   return []
 }
 
-const DOOR_PERMISSIONS = new Set<AdminPermission>(['scanner', 'guestlist'])
+const DOOR_PERMISSIONS = new Set<AdminPermission>(['scanner', 'reversals', 'guestlist'])
 
 /**
- * Temporary door staff: Scanner, optionally Guest lists.
+ * Temporary door staff: Scanner, optionally Guest lists and supervisor reversals.
  * Broader roles (sales, tickets, show editing) keep the full show list.
  */
 export function isDoorStaff(access: { permissions: readonly AdminPermission[] }) {

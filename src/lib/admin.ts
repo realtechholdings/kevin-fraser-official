@@ -37,6 +37,30 @@ export async function resolveUserAccess(emails: string[], metadata: unknown) {
   }
 }
 
+/** The name shown as "scanner on duty" and written on admission history. */
+export function staffDisplayName(user: {
+  firstName?: string | null
+  lastName?: string | null
+  emailAddresses?: { id?: string; emailAddress: string }[]
+  primaryEmailAddressId?: string | null
+}) {
+  const name = [user.firstName, user.lastName]
+    .map((part) => String(part || '').trim())
+    .filter(Boolean)
+    .join(' ')
+  if (name) return name
+  return staffEmail(user) || 'Staff'
+}
+
+export function staffEmail(user: {
+  emailAddresses?: { id?: string; emailAddress: string }[]
+  primaryEmailAddressId?: string | null
+}) {
+  const addresses = user.emailAddresses || []
+  const primary = addresses.find((entry) => entry.id && entry.id === user.primaryEmailAddressId)
+  return (primary || addresses[0])?.emailAddress.toLowerCase() || ''
+}
+
 export async function requireAdmin(permission?: AdminPermission | readonly AdminPermission[]) {
   const { userId } = await auth()
   if (!userId) {

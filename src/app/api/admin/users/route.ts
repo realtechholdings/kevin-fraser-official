@@ -30,6 +30,15 @@ function readPassword(value: unknown): { password: string } | { error: string } 
   return { password: value }
 }
 
+/** "Jane van der Berg" -> first name Jane, last name van der Berg. Blank leaves the name alone. */
+function readName(value: unknown) {
+  if (typeof value !== 'string') return null
+  const name = value.trim().replace(/\s+/g, ' ').slice(0, 80)
+  if (!name) return null
+  const [firstName, ...rest] = name.split(' ')
+  return { firstName, lastName: rest.join(' ') }
+}
+
 async function assignmentFromBody(body: { role?: unknown }) {
   const role = String(body.role || '').trim()
   if (!role) return null
@@ -67,6 +76,8 @@ function serializeUser(
     id: user.id,
     email: primary,
     name: displayName(user.firstName, user.lastName, primary),
+    /** The name on file, blank when none has been set (name falls back to the email). */
+    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim(),
     imageUrl: user.imageUrl,
     lastSignInAt: user.lastSignInAt,
     role: access.role,
@@ -139,6 +150,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: passwordResult.error }, { status: 400 })
     }
     const password = passwordResult.password
+    const name = readName(body.name)
 
     const client = await clerkClient()
     const grants = await loadRoleGrants()
@@ -156,8 +168,11 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         )
       }
-      if (password) {
-        await client.users.updateUser(found.id, { password, signOutOfOtherSessions: true })
+      if (password || name) {
+        await client.users.updateUser(found.id, {
+          ...(password ? { password, signOutOfOtherSessions: true } : {}),
+          ...(name || {}),
+        })
       }
       const updated = await client.users.updateUserMetadata(found.id, { publicMetadata: assignment })
       return NextResponse.json({
@@ -173,6 +188,7 @@ export async function POST(req: NextRequest) {
       const created = await client.users.createUser({
         emailAddress: [email],
         password,
+        ...(name || {}),
         publicMetadata: assignment,
         skipLegalChecks: true,
       })
@@ -231,6 +247,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: passwordResult.error }, { status: 400 })
     }
 
+    const name = readName(body.name)
+
     const client = await clerkClient()
     const grants = await loadRoleGrants()
     const currentUserRecord = await client.users.getUser(userId)
@@ -246,10 +264,12 @@ export async function PATCH(req: NextRequest) {
       )
     }
 
-    if (passwordResult.password) {
+    if (passwordResult.password || name) {
       await client.users.updateUser(userId, {
-        password: passwordResult.password,
-        signOutOfOtherSessions: true,
+        ...(passwordResult.password
+          ? { password: passwordResult.password, signOutOfOtherSessions: true }
+          : {}),
+        ...(name || {}),
       })
     }
     const updated = await client.users.updateUserMetadata(userId, { publicMetadata: assignment })

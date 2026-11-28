@@ -458,8 +458,11 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function AdminPortal({
   permissions,
+  staffName = '',
 }: {
   permissions: AdminPermission[]
+  /** Signed-in staff member, shown as the scanner on duty. */
+  staffName?: string
 }) {
   const audRates = useAudRates()
   const [tours, setTours] = useState<PublicTour[]>([])
@@ -1179,7 +1182,7 @@ export default function AdminPortal({
               : tab === 'cms'
               ? { title: 'CMS', subtitle: 'Ticket emails, upgrades, broadcasts, and signature' }
               : tab === 'scanner'
-              ? { title: 'Ticket Scanner', subtitle: 'Verify ticket QR codes and check guests in' }
+              ? { title: 'Ticket Scanner', subtitle: 'Scan tickets and admit guests at the door' }
               : tab === 'bonus'
               ? { title: 'Showreel', subtitle: 'Page banners, tab heroes, and exclusive bonus clips' }
               : tab === 'studio'
@@ -2874,6 +2877,8 @@ export default function AdminPortal({
           {tab === 'scanner' ? (
             <ScannerAdminPanel
               doorOnly={isDoorStaff({ permissions })}
+              staffName={staffName}
+              canReverse={permissions.includes('reversals')}
               onMessage={(msg) => {
                 setMessage(msg)
                 setError('')

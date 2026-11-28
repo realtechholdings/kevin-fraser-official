@@ -7,7 +7,7 @@ import '@/lib/models/Tour'
 import { formatShowDate } from '@/lib/format'
 import { toWallIso } from '@/lib/wallDate'
 import { renderSalesExport, toExportOrder, type SalesExportKind } from '@/lib/tickets/salesExport'
-import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
+import { NOT_SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 
 function parseBound(value: string | null, endOfDay: boolean) {
   if (!value) return null
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   try {
     await dbConnect()
-    const query: Record<string, unknown> = { stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } }
+    const query: Record<string, unknown> = { stripeSessionId: NOT_SCAN_PRACTICE_SESSION }
     if (showId && showId !== 'all' && mongoose.isValidObjectId(showId)) query.show = showId
     if (from || to) {
       query.createdAt = {

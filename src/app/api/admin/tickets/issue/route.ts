@@ -20,7 +20,7 @@ import {
   nextTableNames,
 } from '@/lib/tickets/tables'
 import { isScanPracticeShow, isShowArchived, NOT_SCAN_PRACTICE } from '@/lib/shows/archive'
-import { SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
+import { NOT_SCAN_PRACTICE_SESSION } from '@/lib/tickets/scanPractice'
 import { isCompOrder } from '@/lib/tickets/refundOrder'
 
 const MAX_QTY = MAX_TICKET_QUANTITY
@@ -74,7 +74,7 @@ export async function GET() {
       })
     }
 
-    const recent = await Order.find({ source: 'manual', stripeSessionId: { $ne: SCAN_PRACTICE_SESSION } })
+    const recent = await Order.find({ source: 'manual', stripeSessionId: NOT_SCAN_PRACTICE_SESSION })
       .sort({ createdAt: -1 })
       .limit(30)
       .populate({ path: 'show', populate: { path: 'tour' } })

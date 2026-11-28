@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 
 export type ConfirmDialogProps = {
@@ -10,6 +10,8 @@ export type ConfirmDialogProps = {
   lines: string[]
   /** Optional callouts shown in an amber box (e.g. "2 of 20 already scanned"). */
   warnings?: string[]
+  /** Extra content under the text, e.g. an optional reason field. */
+  children?: ReactNode
   confirmLabel: string
   cancelLabel?: string
   busy?: boolean
@@ -27,6 +29,7 @@ export default function ConfirmDialog({
   title,
   lines,
   warnings = [],
+  children,
   confirmLabel,
   cancelLabel = 'Cancel',
   busy = false,
@@ -34,12 +37,19 @@ export default function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+  // Latest props for the Escape handler, so the effect below runs once per opening. Callers pass
+  // inline handlers and re-render while the dialog is up (typing a reason, live door updates);
+  // re-running it then would pull focus back to Cancel out of whatever field is being typed in.
+  const latest = useRef({ busy, onCancel })
+  useEffect(() => {
+    latest.current = { busy, onCancel }
+  })
 
   useEffect(() => {
     if (!open) return
     cancelRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !busy) onCancel()
+      if (e.key === 'Escape' && !latest.current.busy) latest.current.onCancel()
     }
     window.addEventListener('keydown', onKey)
     const previous = document.body.style.overflow
@@ -48,7 +58,7 @@ export default function ConfirmDialog({
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = previous
     }
-  }, [open, busy, onCancel])
+  }, [open])
 
   if (!open) return null
 
@@ -103,6 +113,7 @@ export default function ConfirmDialog({
                 ))}
               </ul>
             ) : null}
+            {children ? <div className="mt-3">{children}</div> : null}
           </div>
         </div>
 

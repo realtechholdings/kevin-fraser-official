@@ -84,13 +84,19 @@ const OrderSchema = new Schema(
       ],
       default: [],
     },
-    /** Door check-ins: one entry per scanned ticket number (1-based) */
+    /**
+     * Which ticket numbers (1-based) are through the door. This is the
+     * allocation the scanner draws down; who admitted them, when, and any
+     * reversal live in the Admission ledger.
+     */
     checkedIn: {
       type: [
         new Schema(
           {
             ticket: { type: Number, required: true },
             at: { type: Date, default: Date.now },
+            /** Ledger entry that let this ticket in (null before the ledger existed). */
+            admission: { type: Schema.Types.ObjectId, ref: 'Admission', default: null },
           },
           { _id: false },
         ),
